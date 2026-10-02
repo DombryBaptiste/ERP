@@ -272,6 +272,7 @@ a.link:hover { text-decoration: underline; }
 }
 
 .hint-error { color: var(--app-danger) !important; }
+.hint-ok { color: var(--app-positive) !important; }
 
 /* Choix achat / collection dans le formulaire d'entrée en stock */
 .source-switch {

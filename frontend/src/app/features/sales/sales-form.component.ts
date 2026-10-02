@@ -15,7 +15,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, Observable, of } from 'rxjs';
 import { defaultPaymentFor, PAYMENT_METHODS, PLATFORMS } from '../../core/labels';
-import { InventoryItem, PaymentMethod, Sale, SaleInput, SalePlatform, SaleRefund } from '../../core/models';
+import { InventoryItem, PaymentMethod, Sale, SaleInput, SaleLineInput, SalePlatform, SaleRefund } from '../../core/models';
+import { groupProducts, ProductGroup, productKey } from '../../core/products';
 import { InventoryService, SaleService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 import { parseApiDate, toIsoDate } from '../../core/utils';
@@ -23,13 +24,28 @@ import { AttachmentsComponent } from '../../shared/attachments.component';
 import { LabelPipe } from '../../shared/label.pipe';
 import { RefundDialogComponent } from './refund-dialog.component';
 
-/** Formulaire d'une ligne de vente. `search` est le texte affiché dans le champ de recherche d'article. */
+/**
+ * Formulaire d'une ligne de vente : on vend un PRODUIT (tous ses lots confondus).
+ * `search` est le texte affiché dans le champ de recherche.
+ */
 type SaleLineForm = FormGroup<{
-  inventoryItemId: FormControl<number | null>;
+  productKey: FormControl<string | null>;
   search: FormControl<string>;
   quantity: FormControl<number>;
   salePrice: FormControl<number>;
 }>;
+
+/** Part d'une ligne prélevée sur un lot. */
+interface LotAllocation {
+  lot: InventoryItem;
+  quantity: number;
+}
+
+interface LineAllocation {
+  lots: LotAllocation[];
+  /** Quantité demandée qui ne peut pas être servie (stock insuffisant). */
+  missing: number;
+}
 
 @Component({
   selector: 'app-sales-form',
@@ -50,18 +66,25 @@ export class SalesFormComponent implements OnInit {
   private readonly notify = inject(NotifyService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly dialog = inject(MatDialog);
 
   readonly platforms = PLATFORMS;
+  readonly payments = PAYMENT_METHODS;
   readonly isEdit = computed(() => !!this.id());
   readonly sale = signal<Sale | null>(null);
   readonly inventory = signal<InventoryItem[]>([]);
   readonly itemsById = computed(() => new Map(this.inventory().map(i => [i.id, i])));
+  /** Produits (lots regroupés), lots triés du plus ancien au plus récent. */
+  readonly products = computed(() => groupProducts(this.inventory()));
+  readonly productsByKey = computed(() => new Map(this.products().map(p => [p.key, p])));
   readonly loading = signal(true);
   readonly saving = signal(false);
 
-  /** En modification : quantités et coûts déjà réservés par la vente d'origine, par article. */
+  /** En modification : quantités et coûts déjà réservés par la vente d'origine, par lot. */
   private readonly originalQuantities = new Map<number, number>();
   private readonly originalCosts = new Map<number, number>();
+  /** Lignes d'origine (par lot), renvoyées telles quelles quand la vente est figée par un remboursement. */
+  private originalLines: SaleLineInput[] = [];
 
   readonly form = this.fb.group({
     saleDate: this.fb.control<Date>(new Date(), Validators.required),
@@ -75,9 +98,6 @@ export class SalesFormComponent implements OnInit {
     customerSiren: ['', Validators.pattern(/^[0-9 ]{9,17}$/)],
     items: this.fb.array<SaleLineForm>([])
   });
-
-  readonly payments = PAYMENT_METHODS;
-  private readonly dialog = inject(MatDialog);
 
   /** Les articles sont figés dès qu'un remboursement existe. */
   readonly locked = computed(() => (this.sale()?.refunds.length ?? 0) > 0);
@@ -104,10 +124,11 @@ export class SalesFormComponent implements OnInit {
         if (sale) {
           this.loadSale(sale);
         } else {
-          // Pré-sélection depuis l'inventaire : /sales/new?item=12
-          const preselected = this.itemsById().get(Number(this.route.snapshot.queryParamMap.get('item')));
+          // Pré-sélection depuis l'inventaire : /sales/new?item=12 (n'importe quel lot du produit)
+          const lot = this.itemsById().get(Number(this.route.snapshot.queryParamMap.get('item')));
           const line = this.createLine();
-          if (preselected) this.selectItem(line, preselected);
+          const product = lot ? this.productsByKey().get(productKey(lot)) : undefined;
+          if (product) this.selectProduct(line, product);
           this.items.push(line);
         }
         this.loading.set(false);
@@ -121,10 +142,14 @@ export class SalesFormComponent implements OnInit {
 
   private loadSale(sale: Sale): void {
     this.sale.set(sale);
+    this.originalQuantities.clear();
+    this.originalCosts.clear();
     for (const line of sale.items) {
       this.originalQuantities.set(line.inventoryItemId, (this.originalQuantities.get(line.inventoryItemId) ?? 0) + line.quantity);
       this.originalCosts.set(line.inventoryItemId, line.unitCost);
     }
+    this.originalLines = sale.items.map(l => ({ inventoryItemId: l.inventoryItemId, quantity: l.quantity, salePrice: l.salePrice }));
+
     this.form.patchValue({
       saleDate: parseApiDate(sale.saleDate),
       customer: sale.customer ?? '',
@@ -135,8 +160,20 @@ export class SalesFormComponent implements OnInit {
       customerAddress: sale.customerAddress ?? '',
       customerSiren: sale.customerSiren ?? ''
     }, { emitEvent: false });
+
+    // Les lignes enregistrées par lot sont regroupées par produit (et par prix de vente).
     this.items.clear();
-    sale.items.forEach(l => this.items.push(this.createLine(l.inventoryItemId, l.itemName, l.quantity, l.salePrice)));
+    const merged = new Map<string, { key: string; name: string; quantity: number; salePrice: number }>();
+    for (const l of sale.items) {
+      const lot = this.itemsById().get(l.inventoryItemId);
+      const key = lot ? productKey(lot) : `lot-${l.inventoryItemId}`;
+      const mergeKey = `${key}|${l.salePrice}`;
+      const existing = merged.get(mergeKey);
+      if (existing) existing.quantity += l.quantity;
+      else merged.set(mergeKey, { key, name: l.itemName, quantity: l.quantity, salePrice: l.salePrice });
+    }
+    merged.forEach(m => this.items.push(this.createLine(m.key, m.name, m.quantity, m.salePrice)));
+
     if (sale.refunds.length) this.items.disable();
     this.form.markAsPristine();
   }
@@ -174,8 +211,6 @@ export class SalesFormComponent implements OnInit {
   private refreshAfterRefund(sale: Sale): void {
     this.inventoryApi.getAll().subscribe(inventory => {
       this.inventory.set(inventory);
-      this.originalQuantities.clear();
-      this.originalCosts.clear();
       this.items.enable();
       this.loadSale(sale);
     });
@@ -219,9 +254,11 @@ export class SalesFormComponent implements OnInit {
     });
   }
 
-  private createLine(itemId: number | null = null, search = '', quantity = 1, salePrice = 0): SaleLineForm {
+  // ----- Lignes -----
+
+  private createLine(key: string | null = null, search = '', quantity = 1, salePrice = 0): SaleLineForm {
     return this.fb.group({
-      inventoryItemId: this.fb.control<number | null>(itemId, Validators.required),
+      productKey: this.fb.control<string | null>(key, Validators.required),
       search: this.fb.control(search),
       quantity: this.fb.control(quantity, [Validators.required, Validators.min(1)]),
       salePrice: this.fb.control(salePrice, [Validators.required, Validators.min(0)])
@@ -236,48 +273,97 @@ export class SalesFormComponent implements OnInit {
     this.items.removeAt(index);
   }
 
-  // ----- Recherche d'articles -----
+  // ----- Recherche de produits -----
 
-  /** Stock utilisable pour un article (stock restant + quantité déjà comptée dans la vente modifiée). */
-  stockFor(item: InventoryItem): number {
-    return item.remainingQuantity + (this.originalQuantities.get(item.id) ?? 0);
+  /** Stock utilisable d'un lot (stock restant + quantité déjà comptée dans la vente modifiée). */
+  lotStock(lot: InventoryItem): number {
+    return lot.remainingQuantity + (this.originalQuantities.get(lot.id) ?? 0);
   }
 
-  filterItems(term: string): InventoryItem[] {
+  productStock(product: ProductGroup): number {
+    return product.lots.reduce((sum, lot) => sum + this.lotStock(lot), 0);
+  }
+
+  /** Coût unitaire d'un lot (coût historique si le lot figurait déjà dans la vente). */
+  lotCost(lot: InventoryItem): number {
+    return this.originalCosts.get(lot.id) ?? lot.purchasePrice;
+  }
+
+  /** Coût moyen des unités disponibles d'un produit. */
+  productAverageCost(product: ProductGroup): number {
+    const stock = this.productStock(product);
+    if (stock === 0) return product.averageCost;
+    return product.lots.reduce((sum, lot) => sum + this.lotStock(lot) * this.lotCost(lot), 0) / stock;
+  }
+
+  filterProducts(term: string): ProductGroup[] {
     const t = (term ?? '').toLowerCase().trim();
-    return this.inventory()
-      .filter(i => this.stockFor(i) > 0)
-      .filter(i => !t || `${i.id} ${i.name} ${i.category ?? ''} ${i.location ?? ''}`.toLowerCase().includes(t))
+    return this.products()
+      .filter(p => this.productStock(p) > 0)
+      .filter(p => !t || p.lots.some(l =>
+        `${l.id} ${l.name} ${l.category ?? ''} ${l.location ?? ''} ${l.purchaseNumber ?? ''}`.toLowerCase().includes(t)))
       .slice(0, 50);
   }
 
-  selectItem(line: SaleLineForm, item: InventoryItem): void {
-    line.patchValue({ inventoryItemId: item.id, search: item.name });
+  selectProduct(line: SaleLineForm, product: ProductGroup): void {
+    line.patchValue({ productKey: product.key, search: product.name });
   }
 
   /** Dès que l'utilisateur retape du texte, la sélection précédente est annulée. */
   clearSelection(line: SaleLineForm): void {
-    line.controls.inventoryItemId.setValue(null);
+    line.controls.productKey.setValue(null);
   }
 
-  selectedItem(line: SaleLineForm): InventoryItem | undefined {
-    const id = line.controls.inventoryItemId.value;
-    return id ? this.itemsById().get(id) : undefined;
+  selectedProduct(line: SaleLineForm): ProductGroup | undefined {
+    const key = line.controls.productKey.value;
+    return key ? this.productsByKey().get(key) : undefined;
   }
 
-  /** Quantité encore disponible pour cette ligne, en tenant compte des autres lignes du même article. */
+  /** Quantité encore disponible pour cette ligne, en tenant compte des autres lignes du même produit. */
   availableFor(line: SaleLineForm): number {
-    const item = this.selectedItem(line);
-    if (!item) return 0;
+    const product = this.selectedProduct(line);
+    if (!product) return 0;
     const usedElsewhere = this.items.controls
-      .filter(l => l !== line && l.controls.inventoryItemId.value === item.id)
+      .filter(l => l !== line && l.controls.productKey.value === product.key)
       .reduce((sum, l) => sum + (l.controls.quantity.value || 0), 0);
-    return this.stockFor(item) - usedElsewhere;
+    return this.productStock(product) - usedElsewhere;
   }
 
-  unitCost(itemId: number | null): number {
-    if (!itemId) return 0;
-    return this.originalCosts.get(itemId) ?? this.itemsById().get(itemId)?.purchasePrice ?? 0;
+  /**
+   * Répartition FIFO de chaque ligne sur les lots de son produit : les lots les plus anciens
+   * sont vendus en premier. Plusieurs lignes du même produit se partagent les lots dans l'ordre.
+   */
+  private allocate(): Map<SaleLineForm, LineAllocation> {
+    const left = new Map<number, number>();
+    const result = new Map<SaleLineForm, LineAllocation>();
+    for (const line of this.items.controls) {
+      const product = this.selectedProduct(line);
+      let wanted = line.controls.quantity.value || 0;
+      const lots: LotAllocation[] = [];
+      for (const lot of product?.lots ?? []) {
+        if (wanted <= 0) break;
+        const available = left.get(lot.id) ?? this.lotStock(lot);
+        const take = Math.min(available, wanted);
+        if (take > 0) {
+          lots.push({ lot, quantity: take });
+          left.set(lot.id, available - take);
+          wanted -= take;
+        }
+      }
+      result.set(line, { lots, missing: Math.max(0, wanted) });
+    }
+    return result;
+  }
+
+  allocationFor(line: SaleLineForm): LineAllocation {
+    return this.allocate().get(line) ?? { lots: [], missing: 0 };
+  }
+
+  /** Résumé des lots utilisés, ex. « A2025001 ×2 à 4,50 € + A2026003 ×1 à 6,00 € ». */
+  lotsSummary(line: SaleLineForm): string {
+    return this.allocationFor(line).lots
+      .map(a => `${a.lot.purchaseNumber ?? '#' + a.lot.id} ×${a.quantity} à ${a.lot.purchasePrice.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`)
+      .join(' + ');
   }
 
   // ----- Calculs automatiques -----
@@ -287,18 +373,22 @@ export class SalesFormComponent implements OnInit {
     return (v.quantity || 0) * (v.salePrice || 0);
   }
 
+  /** Coût d'achat réel de la ligne, lot par lot. */
+  lineCost(line: SaleLineForm): number {
+    return this.allocationFor(line).lots.reduce((sum, a) => sum + a.quantity * this.lotCost(a.lot), 0);
+  }
+
   lineProfit(line: SaleLineForm): number {
-    const v = line.getRawValue();
-    return (v.quantity || 0) * ((v.salePrice || 0) - this.unitCost(v.inventoryItemId));
+    return this.lineTotal(line) - this.lineCost(line);
   }
 
   totals(): { total: number; cost: number; fees: number; profit: number; margin: number } {
+    const allocation = this.allocate();
     let total = 0;
     let cost = 0;
     for (const line of this.items.controls) {
-      const v = line.getRawValue();
       total += this.lineTotal(line);
-      cost += (v.quantity || 0) * this.unitCost(v.inventoryItemId);
+      cost += (allocation.get(line)?.lots ?? []).reduce((sum, a) => sum + a.quantity * this.lotCost(a.lot), 0);
     }
     const fees = this.form.controls.fees.value || 0;
     const profit = total - cost - fees;
@@ -311,10 +401,24 @@ export class SalesFormComponent implements OnInit {
       this.notify.error(null, 'Sélectionnez un article dans la liste pour chaque ligne et complétez les champs.');
       return;
     }
-    const overStock = this.items.controls.find(l => (l.controls.quantity.value || 0) > this.availableFor(l));
-    if (overStock) {
-      this.notify.error(null, `Stock insuffisant pour « ${this.selectedItem(overStock)?.name} ».`);
-      return;
+
+    let items: SaleLineInput[];
+    if (this.locked()) {
+      // Vente remboursée : les lignes (par lot) sont renvoyées à l'identique.
+      items = this.originalLines;
+    } else {
+      const allocation = this.allocate();
+      const short = this.items.controls.find(l => (allocation.get(l)?.missing ?? 0) > 0);
+      if (short) {
+        this.notify.error(null, `Stock insuffisant pour « ${this.selectedProduct(short)?.name} ».`);
+        return;
+      }
+      // Une ligne de produit devient une ligne par lot utilisé, au même prix de vente.
+      items = this.items.controls.flatMap(line => (allocation.get(line)?.lots ?? []).map(a => ({
+        inventoryItemId: a.lot.id,
+        quantity: a.quantity,
+        salePrice: line.controls.salePrice.value || 0
+      })));
     }
 
     const v = this.form.getRawValue();
@@ -327,7 +431,7 @@ export class SalesFormComponent implements OnInit {
       comment: v.comment.trim() || null,
       customerAddress: v.customerAddress.trim() || null,
       customerSiren: v.customerSiren.replace(/\s/g, '') || null,
-      items: v.items.map(l => ({ inventoryItemId: l.inventoryItemId!, quantity: l.quantity, salePrice: l.salePrice }))
+      items
     };
 
     const id = this.id();

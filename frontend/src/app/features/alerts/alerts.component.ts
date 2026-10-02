@@ -14,7 +14,7 @@ import { AttachmentService, ToolsService } from '../../core/services/api.service
 import { NotifyService } from '../../core/services/notify.service';
 import { KpiCardComponent } from '../../shared/kpi-card.component';
 import { LabelPipe } from '../../shared/label.pipe';
-import { MarketValueDialogComponent } from '../../shared/market-value-dialog.component';
+import { marketDataForLot, MarketValueDialogComponent } from '../../shared/market-value-dialog.component';
 
 /** Alertes : cartes qui prennent de la valeur et stock qui dort. */
 @Component({
@@ -67,8 +67,8 @@ export class AlertsComponent {
   }
 
   editMarketValue(item: InventoryItem): void {
-    this.dialog.open(MarketValueDialogComponent, { data: item, width: '440px' }).afterClosed()
-      .subscribe((updated?: InventoryItem) => {
+    this.dialog.open(MarketValueDialogComponent, { data: marketDataForLot(item), width: '440px' }).afterClosed()
+      .subscribe((updated?: InventoryItem[]) => {
         if (updated) this.load();
       });
   }

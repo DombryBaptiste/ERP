@@ -108,12 +108,12 @@
   <mat-card class="card">
     <mat-card-header>
       <mat-card-title>Articles vendus</mat-card-title>
-      <mat-card-subtitle>Recherchez un article en stock par nom, catégorie, localisation ou ID</mat-card-subtitle>
+      <mat-card-subtitle>Recherchez un produit en stock par nom, catégorie, localisation ou n° d'achat</mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
       <div class="lines">
         @for (line of items.controls; track line; let i = $index) {
-          @let item = selectedItem(line);
+          @let item = selectedProduct(line);
           <div class="line sale-line" [formGroup]="line">
             <div class="line-index">{{ i + 1 }}</div>
 
@@ -123,13 +123,15 @@
               <input matInput formControlName="search" [matAutocomplete]="itemAuto"
                      (input)="clearSelection(line)" placeholder="Rechercher dans le stock…">
               <mat-autocomplete #itemAuto="matAutocomplete" class="item-autocomplete">
-                @for (opt of filterItems(line.controls.search.value); track opt.id) {
-                  <mat-option [value]="opt.name" (onSelectionChange)="$event.isUserInput && selectItem(line, opt)">
+                @for (opt of filterProducts(line.controls.search.value); track opt.key) {
+                  <mat-option [value]="opt.name" (onSelectionChange)="$event.isUserInput && selectProduct(line, opt)">
                     <div class="opt-name">{{ opt.name }}</div>
                     <div class="opt-meta">
-                      #{{ opt.id }} · {{ opt.type | label: 'type' }} · {{ opt.condition | label: 'condition' }}
-                      · stock {{ stockFor(opt) }} · coût {{ opt.purchasePrice | currency }}
-                      @if (opt.origin === 'PersonalCollection') { · ma collection }
+                      {{ opt.type | label: 'type' }} · {{ opt.condition | label: 'condition' }}
+                      · stock {{ productStock(opt) }}
+                      · coût {{ opt.lots.length > 1 ? 'moyen ' : '' }}{{ productAverageCost(opt) | currency }}
+                      @if (opt.lots.length > 1) { · {{ opt.lots.length }} lots }
+                      @if (opt.hasCollection) { · ma collection }
                     </div>
                   </mat-option>
                 } @empty {
@@ -137,8 +139,15 @@
                 }
               </mat-autocomplete>
               @if (item) {
-                <mat-hint>{{ item.type | label: 'type' }} · coût unitaire {{ unitCost(item.id) | currency }} · disponible {{ availableFor(line) }}</mat-hint>
-              } @else if (line.controls.search.touched || line.controls.inventoryItemId.touched) {
+                <mat-hint>
+                  {{ item.type | label: 'type' }} · disponible {{ availableFor(line) }}
+                  @if (allocationFor(line).lots.length > 1) {
+                    · lots : {{ lotsSummary(line) }}
+                  } @else {
+                    · coût unitaire {{ (line.controls.quantity.value ? lineCost(line) / line.controls.quantity.value : productAverageCost(item)) | currency }}
+                  }
+                </mat-hint>
+              } @else if (line.controls.search.touched || line.controls.productKey.touched) {
                 <mat-hint class="hint-error">Sélectionnez un article dans la liste</mat-hint>
               }
             </mat-form-field>
