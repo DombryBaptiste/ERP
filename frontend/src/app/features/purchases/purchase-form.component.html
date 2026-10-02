@@ -121,7 +121,23 @@
 
             <mat-form-field class="f-name">
               <mat-label>Nom</mat-label>
-              <input matInput formControlName="name" placeholder="ex. Booster EV08, Dracaufeu PSA 10">
+              <input matInput formControlName="name" placeholder="ex. Booster EV08, Dracaufeu PSA 10" [matAutocomplete]="productAuto">
+              <mat-autocomplete #productAuto="matAutocomplete">
+                @for (p of filterProducts(line.controls.name.value); track p.key) {
+                  <mat-option [value]="p.name" (onSelectionChange)="$event.isUserInput && useProduct(line, p)">
+                    <div class="opt-name">{{ p.name }}</div>
+                    <div class="opt-meta">
+                      Déjà en stock · {{ p.type | label: 'type' }} · {{ p.condition | label: 'condition' }}
+                      · {{ p.remaining }} unité(s) · coût moyen {{ p.averageCost | currency }}
+                    </div>
+                  </mat-option>
+                }
+              </mat-autocomplete>
+              @if (matchingProduct(line); as match) {
+                <mat-hint class="hint-ok">
+                  <mat-icon class="inline-icon">link</mat-icon>Rejoindra le produit existant ({{ match.remaining }} en stock, {{ match.lots.length }} lot(s))
+                </mat-hint>
+              }
               <mat-error>Nom obligatoire</mat-error>
             </mat-form-field>
 

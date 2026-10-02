@@ -1,12 +1,11 @@
 @let s = summary();
-@let m = marketSummary();
 <div class="page-header">
   <div>
     <h1>Inventaire</h1>
     <p class="subtitle">
-      {{ dataSource.filteredData.length }} référence(s) affichée(s) · {{ s.quantity }} unité(s) en stock · coût {{ s.value | currency }}
-      · valeur de marché {{ m.value | currency }}
-      (<span [class.positive]="m.gain >= 0" [class.negative]="m.gain < 0">{{ m.gain >= 0 ? '+' : '' }}{{ m.gain | currency }}</span>)
+      {{ s.products }} produit(s) · {{ s.quantity }} unité(s) en stock · coût {{ s.value | currency }}
+      · valeur de marché {{ s.marketValue | currency }}
+      (<span [class.positive]="s.gain >= 0" [class.negative]="s.gain < 0">{{ s.gain >= 0 ? '+' : '' }}{{ s.gain | currency }}</span>)
     </p>
   </div>
   <div class="page-actions">
@@ -84,24 +83,40 @@
     <mat-progress-bar mode="indeterminate" />
   }
   <div class="table-wrap">
-    <table mat-table [dataSource]="dataSource" matSort matSortActive="purchaseDate" matSortDirection="desc">
-      <ng-container matColumnDef="id">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>ID</th>
-        <td mat-cell *matCellDef="let i" class="muted">#{{ i.id }}</td>
+    <table mat-table [dataSource]="dataSource" multiTemplateDataRows
+           matSort matSortActive="lastPurchaseDate" matSortDirection="desc" class="products-table">
+
+      <ng-container matColumnDef="expand">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let p" class="expand-cell">
+          @if (p.lots.length > 1) {
+            <button mat-icon-button type="button" (click)="$event.stopPropagation(); toggle(p)"
+                    [attr.aria-label]="isExpanded(p) ? 'Masquer les lots' : 'Voir les lots'">
+              <mat-icon>{{ isExpanded(p) ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </button>
+          }
+        </td>
       </ng-container>
 
       <ng-container matColumnDef="name">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Nom</th>
-        <td mat-cell *matCellDef="let i">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Produit</th>
+        <td mat-cell *matCellDef="let p">
           <div class="name-cell">
-            @if (i.photoId) {
-              <img class="thumb" [src]="photoUrl(i.photoId)" [alt]="i.name" loading="lazy">
+            @if (p.photoId) {
+              <img class="thumb" [src]="photoUrl(p.photoId)" [alt]="p.name" loading="lazy">
             } @else {
               <div class="thumb thumb-empty"><mat-icon>image</mat-icon></div>
             }
             <div>
-              <div class="strong">{{ i.name }}</div>
-              @if (i.location) { <div class="muted small"><mat-icon class="inline-icon">place</mat-icon>{{ i.location }}</div> }
+              <div class="strong">{{ p.name }}</div>
+              <div class="muted small">
+                @if (p.lots.length > 1) {
+                  <span class="lots-chip">{{ p.lots.length }} lots</span>
+                } @else {
+                  {{ p.lots[0].purchaseNumber ?? 'Ajout manuel' }}{{ p.lots[0].location ? ' · ' + p.lots[0].location : '' }}
+                }
+                @if (p.hasCollection) { <span class="chip chip-collection">Ma collection</span> }
+              </div>
             </div>
           </div>
         </td>
@@ -109,49 +124,53 @@
 
       <ng-container matColumnDef="category">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Catégorie</th>
-        <td mat-cell *matCellDef="let i">{{ i.category || '—' }}</td>
+        <td mat-cell *matCellDef="let p">{{ p.category || '—' }}</td>
       </ng-container>
 
       <ng-container matColumnDef="type">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Type</th>
-        <td mat-cell *matCellDef="let i"><span class="chip" [class]="'chip chip-' + i.type">{{ i.type | label: 'type' }}</span></td>
+        <td mat-cell *matCellDef="let p"><span class="chip" [class]="'chip chip-' + p.type">{{ p.type | label: 'type' }}</span></td>
       </ng-container>
 
       <ng-container matColumnDef="condition">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>État</th>
-        <td mat-cell *matCellDef="let i">{{ i.condition | label: 'condition' }}</td>
+        <td mat-cell *matCellDef="let p">{{ p.condition | label: 'condition' }}</td>
       </ng-container>
 
-      <ng-container matColumnDef="purchasePrice">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Prix d'achat</th>
-        <td mat-cell *matCellDef="let i" class="num">{{ i.purchasePrice | currency }}</td>
+      <ng-container matColumnDef="averageCost">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num"
+            matTooltip="Coût moyen pondéré des unités en stock (CUMP)">Coût unitaire</th>
+        <td mat-cell *matCellDef="let p" class="num">
+          {{ p.averageCost | currency }}
+          @if (p.lots.length > 1) { <div class="muted small">moyenne</div> }
+        </td>
       </ng-container>
 
-      <ng-container matColumnDef="remainingQuantity">
+      <ng-container matColumnDef="remaining">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Qté restante</th>
-        <td mat-cell *matCellDef="let i" class="num">
-          @if (i.remainingQuantity === 0) {
+        <td mat-cell *matCellDef="let p" class="num">
+          @if (p.remaining === 0) {
             <span class="status status-sold">Vendu</span>
           } @else {
-            <span class="strong">{{ i.remainingQuantity }}</span><span class="muted"> / {{ i.quantity }}</span>
+            <span class="strong">{{ p.remaining }}</span><span class="muted"> / {{ p.quantity }}</span>
           }
         </td>
       </ng-container>
 
       <ng-container matColumnDef="stockValue">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Valeur stock</th>
-        <td mat-cell *matCellDef="let i" class="num strong">{{ i.stockValue | currency }}</td>
+        <td mat-cell *matCellDef="let p" class="num strong">{{ p.stockValue | currency }}</td>
       </ng-container>
 
       <ng-container matColumnDef="marketValue">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Valeur marché</th>
-        <td mat-cell *matCellDef="let i" class="num">
-          <button class="market-btn" type="button" (click)="editMarketValue(i, $event)" matTooltip="Modifier l'estimation">
-            @if (i.marketValue !== null) {
-              <span class="strong">{{ i.marketValue | currency }}</span>
-              @if (i.latentGain !== null && i.remainingQuantity > 0) {
-                <span class="small" [class.positive]="i.latentGain >= 0" [class.negative]="i.latentGain < 0">
-                  {{ i.latentGain >= 0 ? '+' : '' }}{{ i.latentGain | currency }}
+        <td mat-cell *matCellDef="let p" class="num">
+          <button class="market-btn" type="button" (click)="editProductMarketValue(p, $event)" matTooltip="Modifier l'estimation">
+            @if (p.marketValue !== null) {
+              <span class="strong">{{ p.marketValue | currency }}</span>
+              @if (p.latentGain !== null) {
+                <span class="small" [class.positive]="p.latentGain >= 0" [class.negative]="p.latentGain < 0">
+                  {{ p.latentGain >= 0 ? '+' : '' }}{{ p.latentGain | currency }}
                 </span>
               }
             } @else {
@@ -161,37 +180,86 @@
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="purchaseDate">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Date d'achat</th>
-        <td mat-cell *matCellDef="let i">{{ i.purchaseDate | date: 'dd/MM/yyyy' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="purchaseNumber">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Réf. achat</th>
-        <td mat-cell *matCellDef="let i">
-          @if (i.purchaseId) {
-            <a class="ref link" [routerLink]="['/purchases', i.purchaseId]" (click)="$event.stopPropagation()">{{ i.purchaseNumber }}</a>
-            @if (i.origin === 'PersonalCollection') {
-              <div><span class="chip chip-collection">Ma collection</span></div>
-            }
-          } @else {
-            <span class="muted">Manuel</span>
-          }
-        </td>
+      <ng-container matColumnDef="lastPurchaseDate">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Dernier achat</th>
+        <td mat-cell *matCellDef="let p">{{ p.lastPurchaseDate | date: 'dd/MM/yyyy' }}</td>
       </ng-container>
 
       <ng-container matColumnDef="actions">
         <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let i" class="actions-cell">
-          <button mat-icon-button matTooltip="Vendre" [disabled]="i.remainingQuantity === 0" (click)="sell(i, $event)">
+        <td mat-cell *matCellDef="let p" class="actions-cell">
+          <button mat-icon-button matTooltip="Vendre" [disabled]="p.remaining === 0" (click)="sell(p, $event)">
             <mat-icon>sell</mat-icon>
           </button>
-          <button mat-icon-button matTooltip="Supprimer" (click)="delete(i, $event)"><mat-icon>delete</mat-icon></button>
+          @if (p.lots.length === 1) {
+            <button mat-icon-button matTooltip="Supprimer" (click)="deleteLot(p.lots[0], $event)"><mat-icon>delete</mat-icon></button>
+          }
+        </td>
+      </ng-container>
+
+      <!-- Détail des lots d'un produit -->
+      <ng-container matColumnDef="detail">
+        <td mat-cell *matCellDef="let p" [attr.colspan]="columns.length" class="detail-cell">
+          @if (isExpanded(p)) {
+            <div class="lots">
+              <table class="simple-table lots-table">
+                <thead>
+                  <tr>
+                    <th>Lot</th><th>Date d'achat</th><th>Origine</th><th class="num">Prix d'achat</th>
+                    <th class="num">Restant</th><th class="num">Valeur marché</th><th>Localisation</th><th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (lot of p.lots; track lot.id; let first = $first) {
+                    <tr class="clickable" [class.row-sold]="lot.remainingQuantity === 0" (click)="editLot(lot)">
+                      <td>
+                        <span class="muted">#{{ lot.id }}</span>
+                        @if (lot.purchaseId) {
+                          <a class="ref link" [routerLink]="['/purchases', lot.purchaseId]" (click)="$event.stopPropagation()">{{ lot.purchaseNumber }}</a>
+                        }
+                        @if (first && p.remaining > 0 && lot.remainingQuantity > 0) {
+                          <span class="fifo-chip" matTooltip="Ce lot partira en premier à la prochaine vente">vendu en 1er</span>
+                        }
+                      </td>
+                      <td>{{ lot.purchaseDate | date: 'dd/MM/yyyy' }} <span class="muted small">({{ lot.daysInStock }} j)</span></td>
+                      <td>
+                        @if (lot.origin === 'PersonalCollection') { <span class="chip chip-collection">Ma collection</span> }
+                        @else if (lot.origin === 'Manual') { <span class="muted">Ajout manuel</span> }
+                        @else { Achat }
+                      </td>
+                      <td class="num">{{ lot.purchasePrice | currency }}</td>
+                      <td class="num">
+                        @if (lot.remainingQuantity === 0) { <span class="status status-sold">Vendu</span> }
+                        @else { <span class="strong">{{ lot.remainingQuantity }}</span><span class="muted"> / {{ lot.quantity }}</span> }
+                      </td>
+                      <td class="num">
+                        <button class="market-btn" type="button" (click)="editLotMarketValue(lot, $event)">
+                          @if (lot.marketValue !== null) { {{ lot.marketValue | currency }} } @else { <span class="muted small">—</span> }
+                        </button>
+                      </td>
+                      <td>{{ lot.location || '—' }}</td>
+                      <td class="actions-cell">
+                        <button mat-icon-button matTooltip="Modifier le lot" (click)="$event.stopPropagation(); editLot(lot)"><mat-icon>edit</mat-icon></button>
+                        <button mat-icon-button matTooltip="Supprimer le lot" (click)="deleteLot(lot, $event)"><mat-icon>delete</mat-icon></button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              <p class="lots-note">
+                <mat-icon>info</mat-icon>
+                Chaque achat forme un lot avec son propre prix. À la vente, les lots les plus anciens partent en premier
+                et le bénéfice est calculé avec le prix réel de chaque lot.
+              </p>
+            </div>
+          }
         </td>
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
-      <tr mat-row *matRowDef="let row; columns: columns" class="clickable" [class.row-sold]="row.remainingQuantity === 0" (click)="edit(row)"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns" class="clickable product-row"
+          [class.row-sold]="row.remaining === 0" [class.is-expanded]="isExpanded(row)" (click)="open(row)"></tr>
+      <tr mat-row *matRowDef="let row; columns: ['detail']" class="detail-row" [class.is-expanded]="isExpanded(row)"></tr>
       <tr class="mat-mdc-row" *matNoDataRow>
         <td class="mat-mdc-cell no-data" [attr.colspan]="columns.length">
           {{ loading() ? 'Chargement…' : 'Aucun article ne correspond aux filtres.' }}

@@ -16,6 +16,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CONDITIONS, ITEM_TYPES, PAYMENT_METHODS, PURCHASE_PLATFORMS } from '../../core/labels';
 import { ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchasePlatform, PurchaseSource } from '../../core/models';
 import { AttachmentsComponent } from '../../shared/attachments.component';
+import { LabelPipe } from '../../shared/label.pipe';
+import { groupProducts, normalizeText, ProductGroup, productKey } from '../../core/products';
 import { InventoryService, PurchaseService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 import { parseApiDate, toIsoDate } from '../../core/utils';
@@ -36,7 +38,7 @@ type LineForm = FormGroup<{
 @Component({
   selector: 'app-purchase-form',
   imports: [
-    ReactiveFormsModule, RouterLink, CurrencyPipe, DatePipe, AttachmentsComponent,
+    ReactiveFormsModule, RouterLink, CurrencyPipe, DatePipe, AttachmentsComponent, LabelPipe,
     MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule,
     MatAutocompleteModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatTooltipModule, MatProgressBarModule
   ],
@@ -58,6 +60,7 @@ export class PurchaseFormComponent implements OnInit {
   readonly isEdit = computed(() => !!this.id());
   readonly purchase = signal<Purchase | null>(null);
   readonly categories = signal<string[]>([]);
+  readonly knownProducts = signal<ProductGroup[]>([]);
   readonly loading = signal(false);
   readonly saving = signal(false);
 
@@ -97,6 +100,8 @@ export class PurchaseFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.inventoryApi.categories().subscribe(c => this.categories.set(c));
+    // Produits déjà connus : proposés à la saisie du nom pour regrouper les lots sous le même produit.
+    this.inventoryApi.getAll().subscribe(items => this.knownProducts.set(groupProducts(items)));
 
     const id = this.id();
     if (!id) {
@@ -159,6 +164,31 @@ export class PurchaseFormComponent implements OnInit {
 
   removeLine(index: number): void {
     this.items.removeAt(index);
+  }
+
+  /** Produits existants dont le nom correspond à la saisie. */
+  filterProducts(term: string): ProductGroup[] {
+    const t = normalizeText(term);
+    if (t.length < 2) return [];
+    return this.knownProducts().filter(p => normalizeText(p.name).includes(t)).slice(0, 15);
+  }
+
+  /** Reprend nom, catégorie, type et état du produit existant : le nouveau lot rejoindra ce produit. */
+  useProduct(line: LineForm, product: ProductGroup): void {
+    line.patchValue({
+      name: product.name,
+      category: product.category ?? line.controls.category.value,
+      type: product.type,
+      condition: product.condition
+    });
+  }
+
+  /** Produit existant que rejoindra cette ligne (même nom, type et état), s'il y en a un. */
+  matchingProduct(line: LineForm): ProductGroup | undefined {
+    const v = line.getRawValue();
+    if (!v.name.trim() || v.itemId) return undefined;
+    const key = productKey({ name: v.name, type: v.type, condition: v.condition });
+    return this.knownProducts().find(p => p.key === key);
   }
 
   filterCategories(term: string): string[] {

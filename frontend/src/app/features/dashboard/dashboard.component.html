@@ -29,7 +29,7 @@
 @if (data(); as d) {
   <div class="kpi-grid">
     <app-kpi-card icon="inventory_2" label="Articles en stock" color="#3949ab"
-                  [value]="d.stockItemCount | number" [sub]="d.stockReferenceCount + ' référence(s)'" />
+                  [value]="d.stockItemCount | number" [sub]="d.stockReferenceCount + ' produit(s)'" />
     <app-kpi-card icon="savings" label="Valeur du stock" color="#00897b"
                   [value]="d.stockValue | currency" sub="au prix d'achat" />
     <a routerLink="/alerts" class="kpi-link">

@@ -1,0 +1,70 @@
+.expand-cell {
+  width: 1%;
+  padding-right: 0 !important;
+}
+
+.product-row.is-expanded td {
+  background: #f5f6ff;
+  border-bottom-color: transparent;
+}
+
+/* La ligne de détail n'occupe aucune place tant que le produit est replié. */
+.detail-row {
+  height: 0 !important;
+  min-height: 0;
+
+  &:not(.is-expanded) .detail-cell {
+    padding: 0 !important;
+    border-bottom-width: 0;
+  }
+}
+
+.detail-cell {
+  background: #f8f9fc;
+}
+
+.lots {
+  padding: 4px 0 12px 40px;
+}
+
+.lots-table {
+  background: var(--app-surface);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+
+  th, td { padding: 6px 10px; }
+  .ref { margin-left: 6px; }
+}
+
+.lots-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-right: 4px;
+  border-radius: 999px;
+  background: #e8eaf6;
+  color: var(--app-primary);
+  font-weight: 600;
+}
+
+.fifo-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.lots-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--app-muted);
+
+  mat-icon { flex: none; font-size: 16px; width: 16px; height: 16px; }
+}

@@ -186,8 +186,17 @@ La documentation interactive de l'API (Swagger) est disponible en développement
   sans impôt jusqu'à 5 000 € par objet). Le guide de l'onglet Fiscalité détaille les deux options.
 
 ### Inventaire
-- Liste complète avec recherche instantanée et filtres (catégorie, type, état, en stock / vendu).
-- Colonnes : ID, nom, catégorie, type, état, prix d'achat, quantité restante, valeur du stock, date d'achat, référence d'achat.
+- Liste complète avec recherche instantanée et filtres (catégorie, type, état, origine, en stock / vendu).
+- **Regroupement par produit** : chaque ligne d'achat crée un *lot* avec son propre prix (indispensable pour le
+  registre des achats et un bénéfice exact). Les lots d'un même produit (même nom, sans tenir compte des
+  accents ni des majuscules, même type, même état) sont affichés sur **une seule ligne** :
+  - quantité totale, **coût unitaire moyen pondéré** (CUMP) du stock restant, valeur du stock et de marché ;
+  - flèche pour déplier le détail des lots (date, n° d'achat, prix, restant, localisation) ;
+  - la valeur de marché saisie sur le produit s'applique à tous ses lots.
+- **Ventes en FIFO** : on vend un produit, et les lots les plus anciens partent en premier. Le bénéfice
+  utilise le prix réel de chaque lot (ex. 2 unités à 4,50 € + 1 à 6,00 €).
+- À la saisie d'un achat, le nom propose les produits déjà en stock et reprend leur type et leur état,
+  pour que le nouveau lot rejoigne bien le même produit.
 - Un article peut être ajouté manuellement (sans achat), par exemple une carte de votre collection personnelle.
 - Bouton **Vendre** sur une ligne : ouvre une nouvelle vente avec l'article déjà sélectionné.
 

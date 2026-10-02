@@ -19,7 +19,7 @@ public class ReportingService(AppDbContext db)
 
         var stock = await db.InventoryItems.AsNoTracking()
             .Where(i => i.RemainingQuantity > 0)
-            .Select(i => new { i.Type, i.RemainingQuantity, i.PurchasePrice, i.MarketValue })
+            .Select(i => new { i.Name, i.Type, i.Condition, i.RemainingQuantity, i.PurchasePrice, i.MarketValue })
             .ToListAsync();
 
         var sales = await db.Sales.AsNoTracking()
@@ -53,7 +53,8 @@ public class ReportingService(AppDbContext db)
 
         return new DashboardDto(
             StockItemCount: stock.Sum(s => s.RemainingQuantity),
-            StockReferenceCount: stock.Count,
+            // Produits distincts : les lots d'un même produit (même nom, type et état) comptent une fois.
+            StockReferenceCount: stock.Select(s => (Name: s.Name.Trim().ToLowerInvariant(), s.Type, s.Condition)).Distinct().Count(),
             StockValue: stock.Sum(s => s.RemainingQuantity * s.PurchasePrice),
             // Valeur de marché : estimation si renseignée, sinon prix d'achat.
             StockMarketValue: stock.Sum(s => s.RemainingQuantity * (s.MarketValue ?? s.PurchasePrice)),
