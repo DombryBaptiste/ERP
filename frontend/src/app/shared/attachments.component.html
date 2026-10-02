@@ -1,0 +1,63 @@
+@if (!ownerId()) {
+  <p class="att-empty"><mat-icon>info</mat-icon> Enregistrez d'abord pour pouvoir ajouter des fichiers.</p>
+} @else {
+  <div class="att-toolbar">
+    @if (kinds().length > 1) {
+      <mat-form-field class="att-kind">
+        <mat-label>Type de fichier</mat-label>
+        <mat-select [(ngModel)]="selectedKind">
+          @for (k of kinds(); track k) {
+            <mat-option [value]="k">{{ kindLabels[k] }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+    <button mat-stroked-button type="button" (click)="fileInput.click()" [disabled]="uploading()">
+      <mat-icon>upload</mat-icon> Ajouter
+    </button>
+    <input #fileInput type="file" hidden multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+           (change)="onFiles(fileInput.files); fileInput.value = ''">
+    <span class="att-hint">ou glissez des fichiers ici · images ou PDF, 10 Mo max.</span>
+  </div>
+
+  @if (uploading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  <div class="att-grid" [class.drag-over]="dragOver()"
+       (dragover)="$event.preventDefault(); dragOver.set(true)" (dragleave)="dragOver.set(false)" (drop)="onDrop($event)">
+    @for (f of files(); track f.id) {
+      <div class="att-tile">
+        @if (f.isImage) {
+          <button type="button" class="att-thumb" (click)="preview.set(f)" [matTooltip]="f.fileName">
+            <img [src]="f.url" [alt]="f.fileName" loading="lazy">
+          </button>
+        } @else {
+          <a class="att-thumb att-doc" [href]="f.url" target="_blank" rel="noopener" [matTooltip]="f.fileName">
+            <mat-icon>picture_as_pdf</mat-icon>
+          </a>
+        }
+        <div class="att-meta">
+          <span class="att-kind-chip">{{ f.kind | label: 'attachment' }}</span>
+          <span class="att-size">{{ f.size / 1024 | number: '1.0-0' }} Ko · {{ f.uploadedAt | date: 'dd/MM/yy' }}</span>
+        </div>
+        <button mat-icon-button type="button" class="att-delete" matTooltip="Supprimer" (click)="remove(f)">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    } @empty {
+      <p class="att-empty">{{ emptyText() }}</p>
+    }
+  </div>
+}
+
+@if (preview(); as p) {
+  <div class="att-lightbox" (click)="preview.set(null)">
+    <img [src]="p.url" [alt]="p.fileName">
+    <div class="att-lightbox-bar" (click)="$event.stopPropagation()">
+      <span>{{ p.fileName }}</span>
+      <a mat-button [href]="p.url + '?download=true'"><mat-icon>download</mat-icon> Télécharger</a>
+      <button mat-button type="button" (click)="preview.set(null)"><mat-icon>close</mat-icon> Fermer</button>
+    </div>
+  </div>
+}

@@ -1,0 +1,110 @@
+.att-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.att-kind { width: 220px; }
+.att-hint { font-size: 12px; color: var(--app-muted); }
+
+.att-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  min-height: 70px;
+  padding: 8px;
+  border: 2px dashed transparent;
+  border-radius: 12px;
+  transition: border-color .15s, background .15s;
+
+  &.drag-over { border-color: var(--app-primary); background: #f5f6ff; }
+}
+
+.att-tile {
+  position: relative;
+  border-radius: 10px;
+  background: #f5f6fa;
+  overflow: hidden;
+}
+
+.att-thumb {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  padding: 0;
+  border: none;
+  background: #e9ecf3;
+  cursor: zoom-in;
+
+  img { width: 100%; height: 100%; object-fit: cover; }
+}
+
+.att-doc {
+  cursor: pointer;
+  color: #c62828;
+  text-decoration: none;
+
+  mat-icon { font-size: 42px; width: 42px; height: 42px; }
+}
+
+.att-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+
+  .att-kind-chip { font-size: 11px; font-weight: 600; color: var(--app-primary); }
+  .att-size { font-size: 11px; color: var(--app-muted); }
+}
+
+.att-delete {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(255, 255, 255, .85);
+  transform: scale(.8);
+}
+
+.att-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 13px;
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+
+.att-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  background: rgba(0, 0, 0, .85);
+  cursor: zoom-out;
+
+  img { max-width: 100%; max-height: calc(100vh - 120px); object-fit: contain; border-radius: 8px; }
+}
+
+.att-lightbox-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: #fff;
+  cursor: default;
+
+  span { font-size: 13px; margin-right: 8px; }
+}

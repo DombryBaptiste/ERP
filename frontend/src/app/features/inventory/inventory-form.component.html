@@ -1,0 +1,171 @@
+<div class="page-header">
+  <div>
+    <a mat-button routerLink="/inventory" class="back"><mat-icon>arrow_back</mat-icon> Inventaire</a>
+    <h1>{{ isEdit() ? 'Article #' + id() : 'Nouvel article' }}</h1>
+    <p class="subtitle">
+      @if (item(); as i) {
+        {{ i.remainingQuantity }} en stock sur {{ i.quantity }} · {{ i.soldQuantity }} vendu(s) · valeur {{ i.stockValue | currency }}
+      } @else {
+        Ajout manuel d'un article sans achat associé. Pour un achat, utilisez plutôt « Nouvel achat ».
+      }
+    </p>
+  </div>
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (item()?.purchaseNumber) {
+  <div class="info-banner">
+    <mat-icon>link</mat-icon>
+    <span>
+      {{ item()?.origin === 'PersonalCollection' ? 'Article transféré depuis votre collection' : "Article issu de l'achat" }}
+      <a class="ref link" [routerLink]="['/purchases', item()?.purchaseId]">{{ item()?.purchaseNumber }}</a> :
+      les modifications de quantité et de prix mettent à jour cette entrée.
+      @if (item()?.origin === 'PersonalCollection') {
+        Sa vente compte dans le CA déclaré à l'URSSAF.
+      }
+    </span>
+  </div>
+}
+
+<form [formGroup]="form" (ngSubmit)="save()">
+  <mat-card class="card">
+    <mat-card-content>
+      <div class="form-grid">
+        <mat-form-field class="span-2">
+          <mat-label>Nom</mat-label>
+          <input matInput formControlName="name" placeholder="ex. Dracaufeu ex 199/165 PSA 10">
+          <mat-error>Nom obligatoire</mat-error>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Catégorie / série</mat-label>
+          <input matInput formControlName="category" [matAutocomplete]="catAuto">
+          <mat-autocomplete #catAuto="matAutocomplete">
+            @for (c of filterCategories(form.controls.category.value); track c) {
+              <mat-option [value]="c">{{ c }}</mat-option>
+            }
+          </mat-autocomplete>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Type</mat-label>
+          <mat-select formControlName="type">
+            @for (t of types; track t.value) {
+              <mat-option [value]="t.value">{{ t.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>État</mat-label>
+          <mat-select formControlName="condition">
+            @for (c of conditions; track c.value) {
+              <mat-option [value]="c.value">{{ c.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Prix d'achat unitaire</mat-label>
+          <input matInput type="number" min="0" step="0.01" formControlName="purchasePrice">
+          <span matTextSuffix>€</span>
+          <mat-error>Prix invalide</mat-error>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Quantité achetée</mat-label>
+          <input matInput type="number" min="1" formControlName="quantity">
+          @if (item(); as i) {
+            <mat-hint>{{ i.soldQuantity }} déjà vendu(s)</mat-hint>
+          }
+          <mat-error>Quantité insuffisante</mat-error>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Date d'achat</mat-label>
+          <input matInput [matDatepicker]="datePicker" formControlName="purchaseDate">
+          <mat-datepicker-toggle matIconSuffix [for]="datePicker" />
+          <mat-datepicker #datePicker />
+        </mat-form-field>
+
+        <mat-form-field class="span-2">
+          <mat-label>Localisation</mat-label>
+          <input matInput formControlName="location" placeholder="ex. Classeur 2 page 14, Étagère A">
+        </mat-form-field>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title><mat-icon class="title-icon">trending_up</mat-icon> Valeur de marché</mat-card-title>
+      <mat-card-subtitle>Votre estimation du prix de revente actuel, pour suivre la plus-value du stock</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="form-grid">
+        <mat-form-field>
+          <mat-label>Valeur unitaire estimée</mat-label>
+          <input matInput type="number" min="0" step="0.5" formControlName="marketValue">
+          <span matTextSuffix>€</span>
+          @if (item()?.marketValueUpdatedAt; as updated) {
+            <mat-hint>Mise à jour le {{ updated | date: 'dd/MM/yyyy' }}</mat-hint>
+          }
+        </mat-form-field>
+        <div class="market-info span-2">
+          @if (item(); as i) {
+            @if (i.marketValue !== null) {
+              <div>Plus-value latente sur le stock restant :
+                <strong [class.positive]="(i.latentGain ?? 0) >= 0" [class.negative]="(i.latentGain ?? 0) < 0">{{ i.latentGain | currency }}</strong>
+                @if (i.purchasePrice > 0) {
+                  ({{ (i.marketValue - i.purchasePrice) / i.purchasePrice * 100 | number: '1.0-0' }} %)
+                }
+              </div>
+              @if (i.previousMarketValue !== null) {
+                <div class="muted small">Estimation précédente : {{ i.previousMarketValue | currency }}</div>
+              }
+            } @else {
+              <div class="muted">Aucune estimation pour l'instant.</div>
+            }
+          }
+        </div>
+        <a mat-stroked-button [href]="cardmarketUrl()" target="_blank" rel="noopener" class="market-link">
+          <mat-icon>travel_explore</mat-icon> Voir les prix sur Cardmarket
+        </a>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title><mat-icon class="title-icon">photo_library</mat-icon> Photos</mat-card-title>
+      <mat-card-subtitle>La première photo sert de vignette dans l'inventaire</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <app-attachments ownerType="InventoryItem" [ownerId]="item()?.id ?? null" [kinds]="['Photo']" [filter]="['Photo']"
+                       emptyText="Aucune photo." (changed)="reloadItem()" />
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title><mat-icon class="title-icon">attach_file</mat-icon> Justificatifs de l'article</mat-card-title>
+      <mat-card-subtitle>Certificat de gradation, preuve d'origine (collection), ticket…</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <app-attachments ownerType="InventoryItem" [ownerId]="item()?.id ?? null"
+                       [kinds]="['OriginProof', 'Receipt', 'Other']" [filter]="['OriginProof', 'Receipt', 'Listing', 'Other']"
+                       emptyText="Aucun justificatif." />
+    </mat-card-content>
+  </mat-card>
+
+  <div class="form-footer">
+    <span></span>
+    <div class="footer-actions">
+      <a mat-button routerLink="/inventory">Annuler</a>
+      <button mat-flat-button type="submit" [disabled]="saving() || loading()"><mat-icon>save</mat-icon> Enregistrer</button>
+    </div>
+  </div>
+</form>

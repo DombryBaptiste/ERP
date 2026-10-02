@@ -1,0 +1,232 @@
+import { CurrencyPipe, DatePipe } from '@angular/common';
+import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { CONDITIONS, ITEM_TYPES, PAYMENT_METHODS, PURCHASE_PLATFORMS } from '../../core/labels';
+import { ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchasePlatform, PurchaseSource } from '../../core/models';
+import { AttachmentsComponent } from '../../shared/attachments.component';
+import { InventoryService, PurchaseService } from '../../core/services/api.services';
+import { NotifyService } from '../../core/services/notify.service';
+import { parseApiDate, toIsoDate } from '../../core/utils';
+
+/** Formulaire d'une ligne d'achat. */
+type LineForm = FormGroup<{
+  itemId: FormControl<number | null>;
+  name: FormControl<string>;
+  category: FormControl<string>;
+  type: FormControl<ItemType>;
+  condition: FormControl<ItemCondition>;
+  quantity: FormControl<number>;
+  unitPrice: FormControl<number>;
+  location: FormControl<string>;
+  soldQuantity: FormControl<number>;
+}>;
+
+@Component({
+  selector: 'app-purchase-form',
+  imports: [
+    ReactiveFormsModule, RouterLink, CurrencyPipe, DatePipe, AttachmentsComponent,
+    MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule,
+    MatAutocompleteModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatTooltipModule, MatProgressBarModule
+  ],
+  templateUrl: './purchase-form.component.html'
+})
+export class PurchaseFormComponent implements OnInit {
+  /** Paramètre de route :id (absent en création). */
+  readonly id = input<string>();
+
+  private readonly fb = inject(NonNullableFormBuilder);
+  private readonly api = inject(PurchaseService);
+  private readonly inventoryApi = inject(InventoryService);
+  private readonly notify = inject(NotifyService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  readonly types = ITEM_TYPES;
+  readonly conditions = CONDITIONS;
+  readonly isEdit = computed(() => !!this.id());
+  readonly purchase = signal<Purchase | null>(null);
+  readonly categories = signal<string[]>([]);
+  readonly loading = signal(false);
+  readonly saving = signal(false);
+
+  readonly form = this.fb.group({
+    /** Achat classique ou transfert depuis la collection personnelle (fixé à la création). */
+    source: this.fb.control<PurchaseSource>('Supplier'),
+    purchaseDate: this.fb.control<Date>(new Date(), Validators.required),
+    supplier: ['', [Validators.required, Validators.maxLength(150)]],
+    platform: this.fb.control<PurchasePlatform | null>(null),
+    platformFees: this.fb.control(0, Validators.min(0)),
+    shippingFees: this.fb.control(0, Validators.min(0)),
+    /** Mode de règlement (registre des achats) ; null pour un transfert de collection. */
+    paymentMethod: this.fb.control<PaymentMethod | null>('Cash'),
+    comment: ['', Validators.maxLength(1000)],
+    items: this.fb.array<LineForm>([])
+  });
+
+  readonly payments = PAYMENT_METHODS;
+  readonly purchasePlatforms = PURCHASE_PLATFORMS;
+
+  get items() {
+    return this.form.controls.items;
+  }
+
+  get isCollection(): boolean {
+    return this.form.controls.source.value === 'PersonalCollection';
+  }
+
+  constructor() {
+    // Le fournisseur n'est obligatoire que pour un vrai achat.
+    this.form.controls.source.valueChanges.subscribe(source => {
+      const supplier = this.form.controls.supplier;
+      supplier.setValidators(source === 'Supplier' ? [Validators.required, Validators.maxLength(150)] : [Validators.maxLength(150)]);
+      supplier.updateValueAndValidity();
+    });
+  }
+
+  ngOnInit(): void {
+    this.inventoryApi.categories().subscribe(c => this.categories.set(c));
+
+    const id = this.id();
+    if (!id) {
+      // /purchases/new?source=collection : transfert depuis la collection personnelle.
+      if (this.route.snapshot.queryParamMap.get('source') === 'collection') {
+        this.form.controls.source.setValue('PersonalCollection');
+      }
+      this.addLine();
+      return;
+    }
+    this.loading.set(true);
+    this.api.get(+id).subscribe({
+      next: p => {
+        this.purchase.set(p);
+        this.form.controls.source.setValue(p.source);
+        this.form.controls.source.disable();
+        this.form.patchValue({
+          purchaseDate: parseApiDate(p.purchaseDate), supplier: p.supplier,
+          platform: p.platform, platformFees: p.platformFees, shippingFees: p.shippingFees,
+          paymentMethod: p.paymentMethod, comment: p.comment ?? ''
+        });
+        p.items.forEach(line => this.items.push(this.createLine(line)));
+        this.loading.set(false);
+      },
+      error: err => {
+        this.notify.error(err);
+        this.router.navigate(['/purchases']);
+      }
+    });
+  }
+
+  private createLine(line?: PurchaseLine): LineForm {
+    const sold = line?.soldQuantity ?? 0;
+    return this.fb.group({
+      itemId: this.fb.control<number | null>(line?.itemId ?? null),
+      name: this.fb.control(line?.name ?? '', [Validators.required, Validators.maxLength(200)]),
+      category: this.fb.control(line?.category ?? ''),
+      // Valeurs par défaut : une collection contient surtout des cartes déjà ouvertes.
+      type: this.fb.control<ItemType>(line?.type ?? (this.isCollection ? 'RawCard' : 'Booster'), Validators.required),
+      condition: this.fb.control<ItemCondition>(line?.condition ?? (this.isCollection ? 'Excellent' : 'New'), Validators.required),
+      // On ne peut pas descendre sous la quantité déjà vendue.
+      quantity: this.fb.control(line?.quantity ?? 1, [Validators.required, Validators.min(Math.max(1, sold))]),
+      unitPrice: this.fb.control(line?.unitPrice ?? 0, [Validators.required, Validators.min(0)]),
+      location: this.fb.control(line?.location ?? ''),
+      soldQuantity: this.fb.control(sold)
+    });
+  }
+
+  addLine(): void {
+    this.items.push(this.createLine());
+  }
+
+  /** Duplique une ligne (pratique pour saisir plusieurs produits proches). */
+  duplicateLine(index: number): void {
+    const source = this.items.at(index).getRawValue();
+    const copy = this.createLine();
+    copy.patchValue({ ...source, itemId: null, soldQuantity: 0 });
+    this.items.insert(index + 1, copy);
+  }
+
+  removeLine(index: number): void {
+    this.items.removeAt(index);
+  }
+
+  filterCategories(term: string): string[] {
+    const t = (term ?? '').toLowerCase();
+    return this.categories().filter(c => c.toLowerCase().includes(t)).slice(0, 20);
+  }
+
+  lineTotal(line: LineForm): number {
+    const v = line.getRawValue();
+    return (v.quantity || 0) * (v.unitPrice || 0);
+  }
+
+  /** Calcul automatique du montant total de l'achat. */
+  total(): number {
+    const itemTotal = this.items.controls.reduce((sum, line) => sum + this.lineTotal(line), 0);
+    return itemTotal + (this.isCollection ? 0 : this.form.controls.platformFees.value + this.form.controls.shippingFees.value);
+  }
+
+  itemsTotal(): number {
+    return this.items.controls.reduce((sum, line) => sum + this.lineTotal(line), 0);
+  }
+
+  totalQuantity(): number {
+    return this.items.controls.reduce((sum, line) => sum + (line.controls.quantity.value || 0), 0);
+  }
+
+  save(): void {
+    if (this.form.invalid || this.items.length === 0) {
+      this.form.markAllAsTouched();
+      this.notify.error(null, 'Veuillez compléter les champs obligatoires (en rouge).');
+      return;
+    }
+
+    const v = this.form.getRawValue();
+    const payload: PurchaseInput = {
+      source: v.source,
+      purchaseDate: toIsoDate(v.purchaseDate),
+      supplier: v.supplier.trim() || null,
+      platform: v.source === 'PersonalCollection' ? null : v.platform,
+      platformFees: v.source === 'PersonalCollection' ? 0 : v.platformFees,
+      shippingFees: v.source === 'PersonalCollection' ? 0 : v.shippingFees,
+      paymentMethod: v.source === 'PersonalCollection' ? null : v.paymentMethod,
+      comment: v.comment.trim() || null,
+      items: v.items.map(l => ({
+        itemId: l.itemId,
+        name: l.name.trim(),
+        category: l.category.trim() || null,
+        type: l.type,
+        condition: l.condition,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        location: l.location.trim() || null
+      }))
+    };
+
+    const id = this.id();
+    const request = id ? this.api.update(+id, payload) : this.api.create(payload);
+    this.saving.set(true);
+    request.subscribe({
+      next: p => {
+        const kind = p.source === 'PersonalCollection' ? 'Transfert' : 'Achat';
+        this.notify.success(`${kind} ${p.purchaseNumber} enregistré (${p.itemCount} article(s) en stock).`);
+        this.router.navigate(['/purchases']);
+      },
+      error: err => {
+        this.notify.error(err);
+        this.saving.set(false);
+      }
+    });
+  }
+}

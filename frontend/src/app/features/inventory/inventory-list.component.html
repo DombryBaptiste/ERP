@@ -1,0 +1,203 @@
+@let s = summary();
+@let m = marketSummary();
+<div class="page-header">
+  <div>
+    <h1>Inventaire</h1>
+    <p class="subtitle">
+      {{ dataSource.filteredData.length }} référence(s) affichée(s) · {{ s.quantity }} unité(s) en stock · coût {{ s.value | currency }}
+      · valeur de marché {{ m.value | currency }}
+      (<span [class.positive]="m.gain >= 0" [class.negative]="m.gain < 0">{{ m.gain >= 0 ? '+' : '' }}{{ m.gain | currency }}</span>)
+    </p>
+  </div>
+  <div class="page-actions">
+    <a mat-stroked-button routerLink="/purchases/new" [queryParams]="{ source: 'collection' }"
+       matTooltip="Transférer des cartes de votre collection personnelle vers le stock, sans prix d'achat">
+      <mat-icon>collections_bookmark</mat-icon> Depuis ma collection
+    </a>
+    <a mat-stroked-button routerLink="/inventory/new" matTooltip="Ajouter un article isolé, hors achat">
+      <mat-icon>add</mat-icon> Article manuel
+    </a>
+    <a mat-flat-button routerLink="/purchases/new"><mat-icon>add_shopping_cart</mat-icon> Nouvel achat</a>
+  </div>
+</div>
+
+<div class="filters">
+  <mat-form-field class="filter-search">
+    <mat-label>Recherche instantanée</mat-label>
+    <mat-icon matPrefix>search</mat-icon>
+    <input matInput [ngModel]="filters.search" (ngModelChange)="setFilter('search', $event)"
+           placeholder="Nom, catégorie, localisation, n° achat…">
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Catégorie</mat-label>
+    <mat-select [ngModel]="filters.category" (ngModelChange)="setFilter('category', $event)">
+      <mat-option value="">Toutes</mat-option>
+      @for (c of categories(); track c) {
+        <mat-option [value]="c">{{ c }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Type</mat-label>
+    <mat-select [ngModel]="filters.type" (ngModelChange)="setFilter('type', $event)">
+      <mat-option value="">Tous</mat-option>
+      @for (t of types; track t.value) {
+        <mat-option [value]="t.value">{{ t.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>État</mat-label>
+    <mat-select [ngModel]="filters.condition" (ngModelChange)="setFilter('condition', $event)">
+      <mat-option value="">Tous</mat-option>
+      @for (c of conditions; track c.value) {
+        <mat-option [value]="c.value">{{ c.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Origine</mat-label>
+    <mat-select [ngModel]="filters.origin" (ngModelChange)="setFilter('origin', $event)">
+      <mat-option value="">Toutes</mat-option>
+      @for (o of origins; track o.value) {
+        <mat-option [value]="o.value">{{ o.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-button-toggle-group [value]="filters.status" (change)="setFilter('status', $event.value)" class="status-toggle"
+                           aria-label="Statut du stock">
+    <mat-button-toggle value="instock">En stock</mat-button-toggle>
+    <mat-button-toggle value="sold">Vendu</mat-button-toggle>
+    <mat-button-toggle value="all">Tout</mat-button-toggle>
+  </mat-button-toggle-group>
+
+  <button mat-button (click)="resetFilters()"><mat-icon>filter_alt_off</mat-icon> Réinitialiser</button>
+</div>
+
+<div class="table-card">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  <div class="table-wrap">
+    <table mat-table [dataSource]="dataSource" matSort matSortActive="purchaseDate" matSortDirection="desc">
+      <ng-container matColumnDef="id">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>ID</th>
+        <td mat-cell *matCellDef="let i" class="muted">#{{ i.id }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Nom</th>
+        <td mat-cell *matCellDef="let i">
+          <div class="name-cell">
+            @if (i.photoId) {
+              <img class="thumb" [src]="photoUrl(i.photoId)" [alt]="i.name" loading="lazy">
+            } @else {
+              <div class="thumb thumb-empty"><mat-icon>image</mat-icon></div>
+            }
+            <div>
+              <div class="strong">{{ i.name }}</div>
+              @if (i.location) { <div class="muted small"><mat-icon class="inline-icon">place</mat-icon>{{ i.location }}</div> }
+            </div>
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="category">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Catégorie</th>
+        <td mat-cell *matCellDef="let i">{{ i.category || '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Type</th>
+        <td mat-cell *matCellDef="let i"><span class="chip" [class]="'chip chip-' + i.type">{{ i.type | label: 'type' }}</span></td>
+      </ng-container>
+
+      <ng-container matColumnDef="condition">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>État</th>
+        <td mat-cell *matCellDef="let i">{{ i.condition | label: 'condition' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="purchasePrice">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Prix d'achat</th>
+        <td mat-cell *matCellDef="let i" class="num">{{ i.purchasePrice | currency }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="remainingQuantity">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Qté restante</th>
+        <td mat-cell *matCellDef="let i" class="num">
+          @if (i.remainingQuantity === 0) {
+            <span class="status status-sold">Vendu</span>
+          } @else {
+            <span class="strong">{{ i.remainingQuantity }}</span><span class="muted"> / {{ i.quantity }}</span>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="stockValue">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Valeur stock</th>
+        <td mat-cell *matCellDef="let i" class="num strong">{{ i.stockValue | currency }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="marketValue">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Valeur marché</th>
+        <td mat-cell *matCellDef="let i" class="num">
+          <button class="market-btn" type="button" (click)="editMarketValue(i, $event)" matTooltip="Modifier l'estimation">
+            @if (i.marketValue !== null) {
+              <span class="strong">{{ i.marketValue | currency }}</span>
+              @if (i.latentGain !== null && i.remainingQuantity > 0) {
+                <span class="small" [class.positive]="i.latentGain >= 0" [class.negative]="i.latentGain < 0">
+                  {{ i.latentGain >= 0 ? '+' : '' }}{{ i.latentGain | currency }}
+                </span>
+              }
+            } @else {
+              <span class="muted small">Estimer</span>
+            }
+          </button>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="purchaseDate">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Date d'achat</th>
+        <td mat-cell *matCellDef="let i">{{ i.purchaseDate | date: 'dd/MM/yyyy' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="purchaseNumber">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Réf. achat</th>
+        <td mat-cell *matCellDef="let i">
+          @if (i.purchaseId) {
+            <a class="ref link" [routerLink]="['/purchases', i.purchaseId]" (click)="$event.stopPropagation()">{{ i.purchaseNumber }}</a>
+            @if (i.origin === 'PersonalCollection') {
+              <div><span class="chip chip-collection">Ma collection</span></div>
+            }
+          } @else {
+            <span class="muted">Manuel</span>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let i" class="actions-cell">
+          <button mat-icon-button matTooltip="Vendre" [disabled]="i.remainingQuantity === 0" (click)="sell(i, $event)">
+            <mat-icon>sell</mat-icon>
+          </button>
+          <button mat-icon-button matTooltip="Supprimer" (click)="delete(i, $event)"><mat-icon>delete</mat-icon></button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns" class="clickable" [class.row-sold]="row.remainingQuantity === 0" (click)="edit(row)"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="mat-mdc-cell no-data" [attr.colspan]="columns.length">
+          {{ loading() ? 'Chargement…' : 'Aucun article ne correspond aux filtres.' }}
+        </td>
+      </tr>
+    </table>
+  </div>
+  <mat-paginator [pageSizeOptions]="[25, 50, 100, 250]" [pageSize]="50" showFirstLastButtons />
+</div>

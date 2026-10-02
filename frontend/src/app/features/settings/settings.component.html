@@ -1,0 +1,133 @@
+<div class="page-header">
+  <div>
+    <h1>Paramètres</h1>
+    <p class="subtitle">Vos coordonnées pour les factures et les seuils des alertes. Les taux URSSAF se règlent dans
+      <a routerLink="/tax">Fiscalité → Paramètres</a>.</p>
+  </div>
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+<div class="chart-grid">
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title><mat-icon class="title-icon">storefront</mat-icon> Mon entreprise</mat-card-title>
+      <mat-card-subtitle>Imprimé sur les factures et les registres</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <form [formGroup]="company" class="form-stack">
+        <mat-form-field>
+          <mat-label>Prénom et nom</mat-label>
+          <input matInput formControlName="fullName" placeholder="ex. Camille Martin">
+          <mat-hint>Suivi de la mention « EI » (entrepreneur individuel) sur les factures</mat-hint>
+          <mat-error>Obligatoire</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Nom commercial (facultatif)</mat-label>
+          <input matInput formControlName="tradeName" placeholder="ex. PokéShop 59">
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>SIRET</mat-label>
+          <input matInput formControlName="siret" placeholder="14 chiffres">
+          <mat-hint>Sur votre avis de situation Insee</mat-hint>
+          <mat-error>14 chiffres attendus</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Adresse</mat-label>
+          <textarea matInput formControlName="address" rows="3" placeholder="Rue&#10;Code postal Ville"></textarea>
+          <mat-hint>Adresse de domiciliation de l'entreprise</mat-hint>
+        </mat-form-field>
+        <div class="two-cols">
+          <mat-form-field>
+            <mat-label>E-mail</mat-label>
+            <input matInput formControlName="email" type="email">
+            <mat-error>E-mail invalide</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Téléphone</mat-label>
+            <input matInput formControlName="phone">
+          </mat-form-field>
+        </div>
+        <mat-form-field>
+          <mat-label>IBAN (facultatif)</mat-label>
+          <input matInput formControlName="iban" placeholder="FR76 …">
+          <mat-hint>Affiché sur les factures pour un paiement par virement</mat-hint>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Mention de TVA</mat-label>
+          <input matInput formControlName="vatMention">
+          <mat-hint>Obligatoire en franchise en base de TVA</mat-hint>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Message en bas de facture</mat-label>
+          <input matInput formControlName="invoiceFooter">
+        </mat-form-field>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <div>
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title><mat-icon class="title-icon">notifications_active</mat-icon> Seuils des alertes</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="alerts" class="form-stack">
+          <div class="two-cols">
+            <mat-form-field>
+              <mat-label>« À baisser » après</mat-label>
+              <input matInput type="number" min="1" formControlName="dormantWarningDays">
+              <span matTextSuffix>jours</span>
+              <mat-hint>3 mois = 90 jours</mat-hint>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>« À liquider » après</mat-label>
+              <input matInput type="number" min="1" formControlName="dormantCriticalDays">
+              <span matTextSuffix>jours</span>
+              <mat-hint>6 mois = 180 jours</mat-hint>
+            </mat-form-field>
+          </div>
+          <div class="two-cols">
+            <mat-form-field>
+              <mat-label>Plus-value vs prix d'achat</mat-label>
+              <input matInput type="number" min="0" formControlName="marketGainThreshold">
+              <span matTextSuffix>%</span>
+              <mat-hint>Alerte « bon moment pour vendre »</mat-hint>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Hausse depuis la dernière estimation</mat-label>
+              <input matInput type="number" min="0" formControlName="marketRiseThreshold">
+              <span matTextSuffix>%</span>
+              <mat-hint>Alerte « la carte prend de la valeur »</mat-hint>
+            </mat-form-field>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title><mat-icon class="title-icon">receipt_long</mat-icon> À savoir sur les factures</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <ul class="tips">
+          <li>Obligatoire pour une vente à un <strong>professionnel</strong>. Pour un particulier, seulement s'il la demande.</li>
+          <li>Numérotation automatique, chronologique et sans trou (F2026001…). Une facture émise ne peut plus être supprimée :
+            en cas de retour, enregistrez un remboursement.</li>
+          <li>Facturation électronique : les micro-entreprises devront <strong>recevoir</strong> les factures électroniques
+            dès le 1er septembre 2026, et les <strong>émettre</strong> (ventes à des professionnels) à partir du
+            1er septembre 2027, via une plateforme agréée. Les factures PDF de PokéStock restent valables pour vos clients particuliers.</li>
+        </ul>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>
+
+<div class="form-footer">
+  <span></span>
+  <div class="footer-actions">
+    <button mat-flat-button (click)="save()" [disabled]="saving() || loading()"><mat-icon>save</mat-icon> Enregistrer</button>
+  </div>
+</div>

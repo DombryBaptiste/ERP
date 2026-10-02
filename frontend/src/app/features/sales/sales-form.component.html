@@ -1,0 +1,258 @@
+@let t = totals();
+<div class="page-header">
+  <div>
+    <a mat-button routerLink="/sales" class="back"><mat-icon>arrow_back</mat-icon> Ventes</a>
+    <h1>{{ isEdit() ? 'Vente ' + (sale()?.saleNumber ?? '') : 'Nouvelle vente' }}</h1>
+    <p class="subtitle">
+      Le numéro de vente est généré automatiquement et le stock est décrémenté à l'enregistrement.
+    </p>
+  </div>
+  @if (sale(); as s) {
+    <div class="page-actions">
+      <button mat-stroked-button type="button" (click)="openRefund()" [disabled]="s.netAmount <= 0 && !s.items.length">
+        <mat-icon>undo</mat-icon> Rembourser / retour
+      </button>
+      <button mat-flat-button type="button" (click)="invoice()">
+        <mat-icon>receipt_long</mat-icon> {{ s.invoiceNumber ? 'Facture ' + s.invoiceNumber : 'Éditer une facture' }}
+      </button>
+    </div>
+  }
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+<form [formGroup]="form" (ngSubmit)="save()">
+  <mat-card class="card">
+    <mat-card-header><mat-card-title>Informations</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <div class="form-grid">
+        <mat-form-field>
+          <mat-label>Date de vente</mat-label>
+          <input matInput [matDatepicker]="datePicker" formControlName="saleDate">
+          <mat-datepicker-toggle matIconSuffix [for]="datePicker" />
+          <mat-datepicker #datePicker />
+          <mat-error>Date obligatoire</mat-error>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Client</mat-label>
+          <input matInput formControlName="customer" placeholder="Pseudo ou nom (facultatif)">
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Plateforme</mat-label>
+          <mat-select formControlName="platform">
+            @for (p of platforms; track p.value) {
+              <mat-option [value]="p.value">{{ p.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Mode de paiement</mat-label>
+          <mat-select formControlName="paymentMethod">
+            @for (p of payments; track p.value) {
+              <mat-option [value]="p.value">{{ p.label }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>Obligatoire dans le livre des recettes</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Frais (commission, envoi…)</mat-label>
+          <input matInput type="number" min="0" step="0.01" formControlName="fees">
+          <span matTextSuffix>€</span>
+          <mat-hint>Déduits du bénéfice</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field class="span-2">
+          <mat-label>Commentaire</mat-label>
+          <textarea matInput formControlName="comment" rows="2" placeholder="N° de suivi, remarque…"></textarea>
+        </mat-form-field>
+      </div>
+
+      <details class="billing" [open]="!!form.controls.customerAddress.value || !!form.controls.customerSiren.value">
+        <summary><mat-icon>business</mat-icon> Facturation (client professionnel ou facture demandée)</summary>
+        <div class="form-grid">
+          <mat-form-field class="span-2">
+            <mat-label>Adresse du client</mat-label>
+            <textarea matInput formControlName="customerAddress" rows="3" placeholder="Nom de la société&#10;Rue&#10;Code postal Ville"></textarea>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>SIREN du client (pro)</mat-label>
+            <input matInput formControlName="customerSiren" placeholder="9 chiffres">
+            <mat-hint>Ajoute les mentions de paiement B2B</mat-hint>
+            <mat-error>SIREN invalide</mat-error>
+          </mat-form-field>
+        </div>
+        @if (sale()?.invoiceNumber; as num) {
+          <p class="billing-note"><mat-icon>verified</mat-icon> Facture {{ num }} émise le {{ sale()?.invoiceDate | date: 'dd/MM/yyyy' }}. Le numéro est définitif.</p>
+        } @else {
+          <p class="billing-note"><mat-icon>info</mat-icon> Pour une facture : renseignez le nom du client, enregistrez la vente puis cliquez sur « Éditer une facture ».
+            Vos coordonnées (SIRET, adresse) se règlent dans Paramètres.</p>
+        }
+      </details>
+    </mat-card-content>
+  </mat-card>
+
+  @if (locked()) {
+    <div class="info-banner">
+      <mat-icon>lock</mat-icon>
+      <span>Cette vente a des remboursements : ses articles ne sont plus modifiables (vous pouvez encore changer les informations).
+        Annulez le remboursement pour les modifier.</span>
+    </div>
+  }
+
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title>Articles vendus</mat-card-title>
+      <mat-card-subtitle>Recherchez un article en stock par nom, catégorie, localisation ou ID</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="lines">
+        @for (line of items.controls; track line; let i = $index) {
+          @let item = selectedItem(line);
+          <div class="line sale-line" [formGroup]="line">
+            <div class="line-index">{{ i + 1 }}</div>
+
+            <mat-form-field class="f-item">
+              <mat-label>Article</mat-label>
+              <mat-icon matPrefix>search</mat-icon>
+              <input matInput formControlName="search" [matAutocomplete]="itemAuto"
+                     (input)="clearSelection(line)" placeholder="Rechercher dans le stock…">
+              <mat-autocomplete #itemAuto="matAutocomplete" class="item-autocomplete">
+                @for (opt of filterItems(line.controls.search.value); track opt.id) {
+                  <mat-option [value]="opt.name" (onSelectionChange)="$event.isUserInput && selectItem(line, opt)">
+                    <div class="opt-name">{{ opt.name }}</div>
+                    <div class="opt-meta">
+                      #{{ opt.id }} · {{ opt.type | label: 'type' }} · {{ opt.condition | label: 'condition' }}
+                      · stock {{ stockFor(opt) }} · coût {{ opt.purchasePrice | currency }}
+                      @if (opt.origin === 'PersonalCollection') { · ma collection }
+                    </div>
+                  </mat-option>
+                } @empty {
+                  <mat-option disabled>Aucun article en stock ne correspond</mat-option>
+                }
+              </mat-autocomplete>
+              @if (item) {
+                <mat-hint>{{ item.type | label: 'type' }} · coût unitaire {{ unitCost(item.id) | currency }} · disponible {{ availableFor(line) }}</mat-hint>
+              } @else if (line.controls.search.touched || line.controls.inventoryItemId.touched) {
+                <mat-hint class="hint-error">Sélectionnez un article dans la liste</mat-hint>
+              }
+            </mat-form-field>
+
+            <mat-form-field class="f-qty">
+              <mat-label>Quantité</mat-label>
+              <input matInput type="number" min="1" [attr.max]="item ? availableFor(line) : null" formControlName="quantity">
+              @if (item && line.controls.quantity.value > availableFor(line)) {
+                <mat-hint class="hint-error">Max. {{ availableFor(line) }}</mat-hint>
+              }
+            </mat-form-field>
+
+            <mat-form-field class="f-price">
+              <mat-label>Prix de vente unitaire</mat-label>
+              <input matInput type="number" min="0" step="0.01" formControlName="salePrice">
+              <span matTextSuffix>€</span>
+            </mat-form-field>
+
+            <div class="line-total">
+              <div>{{ lineTotal(line) | currency }}</div>
+              @if (item) {
+                <div class="line-profit" [class.negative]="lineProfit(line) < 0">
+                  {{ lineProfit(line) >= 0 ? '+' : '' }}{{ lineProfit(line) | currency }}
+                </div>
+              }
+            </div>
+
+            <div class="line-actions">
+              <button mat-icon-button type="button" matTooltip="Retirer la ligne"
+                      [disabled]="items.length === 1 || locked()" (click)="removeLine(i)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <button mat-stroked-button type="button" (click)="addLine()" class="add-line" [disabled]="locked()">
+        <mat-icon>add</mat-icon> Ajouter un article
+      </button>
+    </mat-card-content>
+  </mat-card>
+
+  @if (sale(); as s) {
+    @if (s.refunds.length) {
+      <mat-card class="card">
+        <mat-card-header>
+          <mat-card-title>Remboursements et retours</mat-card-title>
+          <mat-card-subtitle>Total remboursé : {{ s.refundedAmount | currency }} · encaissé net : {{ s.netAmount | currency }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="table-wrap">
+            <table class="simple-table">
+              <thead><tr><th>Date</th><th>Motif</th><th>Articles retournés</th><th class="num">Montant</th><th></th></tr></thead>
+              <tbody>
+                @for (r of s.refunds; track r.id) {
+                  <tr>
+                    <td>{{ r.refundDate | date: 'dd/MM/yyyy' }}</td>
+                    <td>{{ r.reason || '—' }}</td>
+                    <td>
+                      @for (ri of r.items; track ri.saleItemId) {
+                        <div>{{ ri.itemName }} ×{{ ri.quantity }}
+                          <span class="muted">{{ ri.restocked ? '(remis en stock)' : '(non remis en stock)' }}</span></div>
+                      } @empty { <span class="muted">Aucun</span> }
+                    </td>
+                    <td class="num negative">−{{ r.amount | currency }}</td>
+                    <td class="actions-cell">
+                      <button mat-icon-button type="button" matTooltip="Annuler ce remboursement" (click)="deleteRefund(r)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Justificatifs</mat-card-title>
+        <mat-card-subtitle>Captures de l'annonce, conversation, preuve d'envoi…</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <app-attachments ownerType="Sale" [ownerId]="s.id" [kinds]="['Listing', 'Receipt', 'Other']"
+                         emptyText="Aucun justificatif pour cette vente." />
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <div class="form-footer">
+    <div class="totals">
+      <div><span>Coût d'achat</span><strong>{{ t.cost | currency }}</strong></div>
+      <div><span>Frais</span><strong>{{ t.fees | currency }}</strong></div>
+      @if (sale()?.refundedAmount; as refunded) {
+        <div class="negative"><span>Remboursé</span><strong>−{{ refunded | currency }}</strong></div>
+        <div [class.negative]="(sale()?.profit ?? 0) < 0" [class.positive]="(sale()?.profit ?? 0) >= 0">
+          <span>Bénéfice après remb.</span><strong>{{ sale()?.profit | currency }}</strong>
+        </div>
+      } @else {
+        <div [class.negative]="t.profit < 0" [class.positive]="t.profit >= 0">
+          <span>Bénéfice</span><strong>{{ t.profit | currency }}</strong>
+        </div>
+        <div><span>Marge</span><strong>{{ t.margin | number: '1.0-1' }} %</strong></div>
+      }
+      <div class="total-main"><span>Montant total</span><strong>{{ t.total | currency }}</strong></div>
+    </div>
+    <div class="footer-actions">
+      <a mat-button routerLink="/sales">Annuler</a>
+      <button mat-flat-button type="submit" [disabled]="saving() || loading()">
+        <mat-icon>save</mat-icon> Enregistrer la vente
+      </button>
+    </div>
+  </div>
+</form>

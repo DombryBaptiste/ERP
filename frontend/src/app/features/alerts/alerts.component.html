@@ -1,0 +1,137 @@
+<div class="page-header">
+  <div>
+    <h1>Alertes</h1>
+    <p class="subtitle">Les cartes à vendre maintenant, et celles qui dorment dans vos classeurs</p>
+  </div>
+  <div class="page-actions">
+    <a mat-stroked-button routerLink="/settings"><mat-icon>tune</mat-icon> Régler les seuils</a>
+  </div>
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (alerts(); as a) {
+  <div class="kpi-grid">
+    <app-kpi-card icon="savings" label="Stock au prix d'achat" color="#00897b" [value]="a.stockCost | currency" />
+    <app-kpi-card icon="trending_up" label="Stock à la valeur de marché" color="#3949ab"
+                  [value]="a.stockMarketValue | currency" [sub]="a.itemsWithMarketValue + ' article(s) estimé(s) sur ' + (a.itemsWithMarketValue + a.itemsWithoutMarketValue)" />
+    <app-kpi-card icon="emoji_events" label="Plus-value latente" color="#2e7d32"
+                  [value]="a.latentGain | currency" [negative]="a.latentGain < 0" sub="si tout était vendu au prix estimé" />
+    <app-kpi-card icon="bedtime" label="Stock dormant" color="#ef6c00"
+                  [value]="a.dormant.length + ' article(s)'" [sub]="(dormantValue() | currency) + ' immobilisés · ' + criticalCount() + ' à liquider'" />
+  </div>
+
+  @if (a.itemsWithoutMarketValue > 0) {
+    <div class="info-banner">
+      <mat-icon>lightbulb</mat-icon>
+      <span>{{ a.itemsWithoutMarketValue }} article(s) n'ont pas encore de valeur de marché. Renseignez-la dans l'inventaire
+        (colonne « Valeur marché ») pour être prévenu quand une carte prend de la valeur.</span>
+    </div>
+  }
+
+  <mat-tab-group mat-stretch-tabs="false" animationDuration="150ms">
+    <!-- ========== VALEUR DE MARCHÉ ========== -->
+    <mat-tab>
+      <ng-template mat-tab-label><mat-icon>local_fire_department</mat-icon>&nbsp;Prennent de la valeur ({{ a.marketAlerts.length }})</ng-template>
+      <div class="tab-body">
+        <p class="tab-intro">
+          Articles dont la valeur estimée dépasse le prix d'achat d'au moins <strong>{{ a.settings.marketGainThreshold }} %</strong>,
+          ou a augmenté d'au moins <strong>{{ a.settings.marketRiseThreshold }} %</strong> depuis l'estimation précédente.
+          Bon moment pour les mettre en vente !
+        </p>
+        <div class="alert-grid">
+          @for (m of a.marketAlerts; track m.item.id) {
+            <div class="alert-card" [class.rise]="m.reason === 'rise'">
+              <div class="alert-top">
+                @if (m.item.photoId) {
+                  <img class="alert-photo" [src]="photoUrl(m.item.photoId)" [alt]="m.item.name">
+                } @else {
+                  <div class="alert-photo empty"><mat-icon>style</mat-icon></div>
+                }
+                <div class="alert-title">
+                  <a [routerLink]="['/inventory', m.item.id]" class="strong">{{ m.item.name }}</a>
+                  <div class="muted small">{{ m.item.type | label: 'type' }} · {{ m.item.condition | label: 'condition' }} · {{ m.item.remainingQuantity }} en stock</div>
+                  @if (m.reason === 'rise') {
+                    <span class="badge badge-rise"><mat-icon>north_east</mat-icon> +{{ m.risePercent | number: '1.0-0' }} % depuis la dernière estimation</span>
+                  } @else {
+                    <span class="badge badge-gain"><mat-icon>trending_up</mat-icon>
+                      {{ m.gainPercent !== null ? '+' + (m.gainPercent | number: '1.0-0') + ' % vs achat' : 'Sans coût d\'achat' }}</span>
+                  }
+                </div>
+              </div>
+              <div class="alert-figures">
+                <div><span>Acheté</span><strong>{{ m.item.purchasePrice | currency }}</strong></div>
+                <div><span>Vaut</span><strong>{{ m.item.marketValue | currency }}</strong></div>
+                <div><span>Plus-value</span><strong class="positive">{{ m.latentGain | currency }}</strong></div>
+              </div>
+              <div class="alert-actions">
+                <button mat-flat-button (click)="sell(m.item)"><mat-icon>sell</mat-icon> Vendre</button>
+                <button mat-button (click)="editMarketValue(m.item)"><mat-icon>edit</mat-icon> Estimation</button>
+                <a mat-button [href]="searchUrl(m.item)" target="_blank" rel="noopener"><mat-icon>travel_explore</mat-icon> Cardmarket</a>
+              </div>
+            </div>
+          } @empty {
+            <p class="empty">Aucune carte au-dessus des seuils pour l'instant.</p>
+          }
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- ========== STOCK DORMANT ========== -->
+    <mat-tab>
+      <ng-template mat-tab-label><mat-icon>bedtime</mat-icon>&nbsp;Stock qui dort ({{ a.dormant.length }})</ng-template>
+      <div class="tab-body">
+        <p class="tab-intro">
+          En stock depuis plus de <strong>{{ a.settings.dormantWarningDays }} jours</strong> (à baisser) ou
+          <strong>{{ a.settings.dormantCriticalDays }} jours</strong> (à liquider). L'argent immobilisé ne rapporte rien :
+          mieux vaut vendre un peu moins cher et réinvestir.
+        </p>
+        <div class="table-card">
+          <div class="table-wrap">
+            <table class="simple-table dormant-table">
+              <thead>
+                <tr><th>Article</th><th class="num">En stock depuis</th><th class="num">Qté</th><th class="num">Coût</th><th class="num">Valeur marché</th><th>Conseil</th><th></th></tr>
+              </thead>
+              <tbody>
+                @for (d of a.dormant; track d.item.id) {
+                  <tr>
+                    <td>
+                      <div class="name-cell">
+                        @if (d.item.photoId) {
+                          <img class="thumb" [src]="photoUrl(d.item.photoId)" [alt]="d.item.name" loading="lazy">
+                        } @else {
+                          <div class="thumb thumb-empty"><mat-icon>image</mat-icon></div>
+                        }
+                        <div>
+                          <a [routerLink]="['/inventory', d.item.id]" class="strong">{{ d.item.name }}</a>
+                          <div class="muted small">{{ d.item.type | label: 'type' }}{{ d.item.location ? ' · ' + d.item.location : '' }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="num">
+                      <span class="level" [class]="'level level-' + d.level">{{ d.daysInStock }} j</span>
+                    </td>
+                    <td class="num">{{ d.item.remainingQuantity }}</td>
+                    <td class="num">{{ d.item.purchasePrice | currency }}</td>
+                    <td class="num">
+                      @if (d.item.marketValue !== null) { {{ d.item.marketValue | currency }} } @else { <span class="muted">—</span> }
+                    </td>
+                    <td class="suggestion">{{ d.suggestion }}</td>
+                    <td class="actions-cell">
+                      <button mat-icon-button matTooltip="Vendre" (click)="sell(d.item)"><mat-icon>sell</mat-icon></button>
+                      <button mat-icon-button matTooltip="Modifier l'estimation" (click)="editMarketValue(d.item)"><mat-icon>edit</mat-icon></button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="7" class="empty">Rien ne dort : tout tourne bien !</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+}

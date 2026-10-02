@@ -1,0 +1,45 @@
+# PokéStock — lancement complet avec Docker :  docker compose up -d --build
+# Application : http://localhost:8080   (MySQL exposé sur le port 3307 de l'hôte)
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: pokestock
+      MYSQL_USER: pokestock
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-pokestock}
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root --password=$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__Default: "Server=db;Port=3306;Database=pokestock;User=pokestock;Password=${MYSQL_PASSWORD:-pokestock};"
+    volumes:
+      # Photos et justificatifs
+      - uploads:/app/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      # Application sans authentification : accessible uniquement depuis ce PC.
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - api
+
+volumes:
+  db-data:
+  uploads:

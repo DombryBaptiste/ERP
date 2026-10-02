@@ -1,0 +1,248 @@
+@let st = s();
+@let ex = example();
+<div class="guide-hero">
+  <div class="guide-hero-text">
+    <h2>La micro-entreprise, version dresseur</h2>
+    <p>
+      Tout ce qu'il faut savoir pour acheter et revendre des cartes et des produits scellés en règle, sans jargon.
+      Les chiffres de ce guide suivent vos paramètres ; barème de référence : {{ ratesYear }}.
+    </p>
+  </div>
+  <div class="golden-rule">
+    <mat-icon>lightbulb</mat-icon>
+    <div>
+      <strong>La règle d'or</strong>
+      <span>Vous payez sur ce que vous <em>encaissez</em>, pas sur ce que vous <em>gagnez</em>.</span>
+    </div>
+  </div>
+</div>
+
+<!-- Exemple chiffré -->
+<div class="example-card">
+  <div class="example-title"><mat-icon>style</mat-icon> Exemple : une carte achetée {{ ex.cost | currency: 'EUR' : 'symbol' : '1.0-0' }}, revendue {{ ex.price | currency: 'EUR' : 'symbol' : '1.0-0' }}</div>
+  <div class="example-flow">
+    <div class="step"><span>Vous encaissez</span><strong>{{ ex.price | currency }}</strong></div>
+    <mat-icon>arrow_forward</mat-icon>
+    <div class="step"><span>Achat de la carte</span><strong>− {{ ex.cost | currency }}</strong></div>
+    <mat-icon>arrow_forward</mat-icon>
+    <div class="step urssaf"><span>URSSAF ({{ rates().urssaf | number: '1.0-2' }} % des {{ ex.price }} €)</span><strong>− {{ ex.urssaf | currency }}</strong></div>
+    @if (ex.incomeTax > 0) {
+      <mat-icon>arrow_forward</mat-icon>
+      <div class="step tax"><span>Impôt estimé</span><strong>− {{ ex.incomeTax | currency }}</strong></div>
+    }
+    <mat-icon>arrow_forward</mat-icon>
+    <div class="step net"><span>Il vous reste</span><strong>{{ ex.net | currency }}</strong></div>
+  </div>
+  <p>Les cotisations portent sur les <strong>{{ ex.price }} €</strong> encaissés, pas sur les {{ ex.price - ex.cost }} € de marge : c'est pourquoi les petites marges sont vite mangées.</p>
+</div>
+
+<mat-accordion class="guide-accordion" multi>
+  <mat-expansion-panel expanded>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>badge</mat-icon> Mon statut en bref</mat-panel-title>
+    </mat-expansion-panel-header>
+    <ul>
+      <li>Acheter des cartes ou des produits scellés <strong>pour les revendre</strong> est une activité commerciale :
+        <strong>« achat-revente / vente de marchandises » (BIC)</strong>, la catégorie la moins taxée de la micro-entreprise.</li>
+      <li>Pas de comptabilité complexe ni de bilan : l'URSSAF applique un pourcentage à votre chiffre d'affaires (CA).</li>
+      <li>Vos achats ne sont <strong>pas déductibles</strong> : c'est la contrepartie de la simplicité. Le fisc tient compte forfaitairement de vos frais avec un abattement de {{ st.flatAllowanceRate }} %.</li>
+      <li>Vous êtes inscrit au Registre national des entreprises (RNE) en tant que commerçant, avec un numéro SIRET à indiquer sur vos factures.</li>
+    </ul>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>percent</mat-icon> Ce que je paie ({{ ratesYear }})</mat-panel-title>
+    </mat-expansion-panel-header>
+    <div class="table-wrap">
+      <table class="simple-table">
+        <thead>
+          <tr><th>Prélèvement</th><th class="num">Vente de marchandises</th><th class="num">Services BIC</th><th class="num">Libéral BNC</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Cotisations sociales</td><td class="num strong">{{ presets.Sales.values.socialRate | number: '1.0-2' }} %</td><td class="num">{{ presets.ServicesBic.values.socialRate | number: '1.0-2' }} %</td><td class="num">{{ presets.Bnc.values.socialRate | number: '1.0-2' }} %</td></tr>
+          <tr><td>Formation professionnelle (CFP)</td><td class="num strong">{{ presets.Sales.values.trainingRate | number: '1.0-2' }} %</td><td class="num">{{ presets.ServicesBic.values.trainingRate | number: '1.0-2' }} %</td><td class="num">{{ presets.Bnc.values.trainingRate | number: '1.0-2' }} %</td></tr>
+          <tr><td>Chambre consulaire (CCI)</td><td class="num strong">{{ presets.Sales.values.chamberTaxRate | number: '1.0-3' }} %</td><td class="num">{{ presets.ServicesBic.values.chamberTaxRate | number: '1.0-3' }} %</td><td class="num">—</td></tr>
+          <tr><td>Versement libératoire (option)</td><td class="num strong">{{ presets.Sales.values.liberatoryIncomeTaxRate | number: '1.0-2' }} %</td><td class="num">{{ presets.ServicesBic.values.liberatoryIncomeTaxRate | number: '1.0-2' }} %</td><td class="num">{{ presets.Bnc.values.liberatoryIncomeTaxRate | number: '1.0-2' }} %</td></tr>
+          <tr><td>Abattement fiscal (sans versement libératoire)</td><td class="num strong">{{ presets.Sales.values.flatAllowanceRate }} %</td><td class="num">{{ presets.ServicesBic.values.flatAllowanceRate }} %</td><td class="num">{{ presets.Bnc.values.flatAllowanceRate }} %</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Les cotisations sociales financent votre assurance maladie, votre retraite (vous validez des trimestres selon votre CA) et la CSG-CRDS. <strong>Pas de CA = pas de cotisations</strong> : il n'y a aucun minimum à payer.</p>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>event_available</mat-icon> Déclarer mon chiffre d'affaires</mat-panel-title>
+    </mat-expansion-panel-header>
+    <ul>
+      <li><strong>Où ?</strong> Uniquement sur <a [href]="urssafUrl" target="_blank" rel="noopener">autoentrepreneur.urssaf.fr</a> (ou l'appli mobile de l'URSSAF). C'est gratuit : méfiez-vous des sites payants qui imitent l'URSSAF.</li>
+      <li><strong>Quand ?</strong>
+        @if (st.frequency === 'Monthly') {
+          Vous avez choisi la déclaration <strong>mensuelle</strong> : avant la fin du mois suivant (les ventes de septembre se déclarent avant le 31 octobre).
+        } @else {
+          Vous avez choisi la déclaration <strong>trimestrielle</strong> : avant le <strong>30 avril, 31 juillet, 31 octobre et 31 janvier</strong>.
+        }
+      </li>
+      <li><strong>Quoi ?</strong> Le CA <strong>encaissé</strong> sur la période : le prix payé par l'acheteur, frais de port facturés compris,
+        <strong>avant</strong> la commission de Cardmarket, eBay ou autre. Arrondi à l'euro.</li>
+      <li><strong>Même à 0 €</strong> : une période sans vente doit être déclarée avec un CA de 0, sinon vous risquez une pénalité.</li>
+      <li>Première déclaration : elle peut couvrir plus de 3 mois selon votre date de création ; l'URSSAF vous indique la première échéance.</li>
+      <li>Le paiement se fait par prélèvement au moment de la déclaration. L'onglet « Déclarations » vous donne le montant exact et permet de copier le CA en un clic.</li>
+    </ul>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>receipt</mat-icon> L'impôt sur le revenu : versement libératoire ou barème ?</mat-panel-title>
+    </mat-expansion-panel-header>
+    <div class="two-options">
+      <div class="option" [class.active]="st.liberatoryIncomeTax">
+        <h4>Versement libératoire</h4>
+        <p>Vous payez <strong>{{ presets.Sales.values.liberatoryIncomeTaxRate }} % du CA</strong> en même temps que les cotisations, et c'est réglé.</p>
+        <p class="small">Condition : revenu fiscal de référence du foyer de l'année N-2 ≤ 29 315 € par part (seuil pour {{ ratesYear }}). L'option se demande sur le site de l'URSSAF, avant le <strong>30 septembre</strong> pour l'année suivante (ou à la création).</p>
+        <p class="small">Intéressant si votre foyer a une tranche marginale de 11 % ou plus.</p>
+      </div>
+      <div class="option" [class.active]="!st.liberatoryIncomeTax">
+        <h4>Imposition classique (barème)</h4>
+        <p>Vous déclarez votre CA une fois par an (formulaire 2042-C-PRO, au printemps). Le fisc retire l'abattement de <strong>{{ presets.Sales.values.flatAllowanceRate }} %</strong> et impose les 29 % restants avec vos autres revenus.</p>
+        <p class="small">Avec une tranche à 11 %, cela représente environ 3,2 % du CA ; avec une tranche à 0 %, rien du tout.</p>
+      </div>
+    </div>
+    <p>Dans les deux cas, <strong>déclarez votre CA annuel sur votre déclaration de revenus</strong> : il sert aussi au calcul du revenu fiscal de référence.</p>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>rocket_launch</mat-icon> ACRE : moins de cotisations au démarrage</mat-panel-title>
+    </mat-expansion-panel-header>
+    <ul>
+      <li>Réduction des <strong>cotisations sociales</strong> (pas de la CFP ni de l'impôt) pendant environ <strong>12 mois</strong> à partir de la création.</li>
+      <li><strong>Créations jusqu'au 30 juin 2026 : -50 %</strong>, soit 6,15 % au lieu de 12,3 % en vente.</li>
+      <li><strong>Créations à partir du 1er juillet 2026 : -25 %</strong>, soit environ 9,2 % au lieu de 12,3 %.</li>
+      <li>L'ACRE se demande à l'URSSAF dans les semaines qui suivent la création ; vérifiez les conditions sur urssaf.fr.</li>
+      <li>Dans l'onglet « Paramètres », le bouton « Calculer depuis ma date de début » remplit la période et le taux automatiquement.</li>
+    </ul>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>euro</mat-icon> TVA : franchise, dépassement et régime de la marge</mat-panel-title>
+    </mat-expansion-panel-header>
+    <ul>
+      <li>Tant que votre CA annuel reste sous <strong>{{ st.vatThreshold | currency: 'EUR' : 'symbol' : '1.0-0' }}</strong>, vous êtes en <strong>franchise en base</strong> : pas de TVA sur vos ventes, et pas de TVA récupérable sur vos achats.
+        Mention obligatoire sur vos factures : <code>TVA non applicable, art. 293 B du CGI</code>.</li>
+      <li>La baisse de ce seuil à 25 000 €, un temps envisagée, a été <strong>abandonnée</strong> fin 2025 : les seuils restent 85 000 € et 93 500 € en vente.</li>
+      <li>Entre {{ st.vatThreshold | currency: 'EUR' : 'symbol' : '1.0-0' }} et {{ st.vatThresholdIncreased | currency: 'EUR' : 'symbol' : '1.0-0' }}, vous devenez redevable de la TVA au 1er janvier suivant.
+        Au-delà de {{ st.vatThresholdIncreased | currency: 'EUR' : 'symbol' : '1.0-0' }}, <strong>dès le jour du dépassement</strong>.</li>
+      <li>Bon à savoir pour les cartes : les <strong>biens d'occasion</strong> achetés à des particuliers (cartes à l'unité, collections) peuvent relever du
+        <strong>régime de la marge</strong> : la TVA ne porte que sur la marge, pas sur tout le prix. Les produits scellés neufs achetés à des professionnels relèvent de la TVA normale (20 %).
+        Si vous approchez du seuil, faites-vous accompagner par un expert-comptable.</li>
+    </ul>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>speed</mat-icon> Plafond de la micro-entreprise</mat-panel-title>
+    </mat-expansion-panel-header>
+    <ul>
+      <li>En vente de marchandises, le plafond est de <strong>{{ st.revenueCeiling | currency: 'EUR' : 'symbol' : '1.0-0' }}</strong> de CA par an (2026 à 2028).</li>
+      <li>Un dépassement ponctuel ne fait pas sortir du régime : il faut le dépasser <strong>deux années civiles de suite</strong>.</li>
+      <li>Si vous faites aussi des prestations de services, le CA de services ne doit pas dépasser {{ presets.ServicesBic.values.revenueCeiling | currency: 'EUR' : 'symbol' : '1.0-0' }} dans le total.</li>
+    </ul>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>store</mat-icon> CFE : la taxe locale de fin d'année</mat-panel-title>
+    </mat-expansion-panel-header>
+    <ul>
+      <li>La cotisation foncière des entreprises est due même si vous travaillez chez vous. Son montant dépend de la commune (souvent de 100 à 500 €).</li>
+      <li><strong>Exonérée l'année de création</strong>, et la base est réduite de moitié l'année suivante.</li>
+      <li><strong>Exonérée aussi quand le CA de l'année N-2 est ≤ 5 000 €.</strong></li>
+      <li>Créez votre espace professionnel sur impots.gouv.fr : l'avis y arrive en novembre, à payer avant le <strong>15 décembre</strong>.</li>
+    </ul>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>menu_book</mat-icon> Mes obligations comptables</mat-panel-title>
+    </mat-expansion-panel-header>
+    <ul>
+      <li><strong>Livre des recettes</strong> : chaque vente avec sa date, le client, le montant et le mode de paiement. C'est l'onglet <strong>Ventes</strong> de PokéStock.</li>
+      <li><strong>Registre des achats</strong> (obligatoire en achat-revente) : chaque achat avec sa date, le fournisseur et le montant. C'est l'onglet <strong>Achats</strong>.</li>
+      <li>Conservez les justificatifs (factures, captures des annonces, relevés des plateformes) pendant <strong>10 ans</strong>.</li>
+      <li><strong>Compte bancaire dédié</strong> obligatoire si votre CA dépasse 10 000 € deux années de suite. Conseillé dès le début, pour y placer l'argent de l'URSSAF.</li>
+      <li>Facture obligatoire pour une vente à un professionnel. Pour un particulier, seulement s'il la demande.</li>
+    </ul>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>travel_explore</mat-icon> Plateformes (Vinted, eBay, Cardmarket…) et DAC7</mat-panel-title>
+    </mat-expansion-panel-header>
+    <ul>
+      <li>Depuis la directive européenne <strong>DAC7</strong>, les plateformes transmettent chaque année au fisc les ventes d'un vendeur dès
+        <strong>{{ dac7.sales }} ventes ou {{ dac7.revenue | currency: 'EUR' : 'symbol' : '1.0-0' }}</strong> de recettes (un seul des deux suffit).</li>
+      <li>En micro-entreprise, ce n'est pas un problème, à condition que le CA déclaré à l'URSSAF corresponde. L'onglet Synthèse suit ces seuils plateforme par plateforme.</li>
+      <li>Utilisez un <strong>compte vendeur professionnel</strong> (Cardmarket Professional, eBay Pro, Vinted Pro…) pour votre activité : c'est plus clair pour les acheteurs comme pour le fisc.</li>
+    </ul>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>collections_bookmark</mat-icon> Ma collection perso ou mon stock pro ?</mat-panel-title>
+    </mat-expansion-panel-header>
+    <p>Vous avez des cartes de votre collection à revendre ? Deux façons de faire sont légales. Choisissez-en une <strong>pour chaque carte</strong> et ne mélangez pas :</p>
+    <div class="two-options">
+      <div class="option active">
+        <h4>① Je la transfère dans mon activité (recommandé)</h4>
+        <p>Dans PokéStock : <strong>Achats → « Depuis ma collection »</strong>. La carte entre en stock <strong>sans prix d'achat</strong> (0 €), ou avec le prix payé à l'époque si vous voulez suivre votre vrai bénéfice.</p>
+        <p class="small">Sa vente est une vente professionnelle : elle va dans le CA déclaré à l'URSSAF ({{ rates().urssaf | number: '1.0-2' }} % du prix). En micro-entreprise, le prix d'achat ne change rien aux cotisations, donc un coût à 0 € ne pose aucun problème fiscal.</p>
+        <p class="small">C'est la solution la plus simple et la plus sûre quand vous vendez déjà en tant que pro sur les mêmes plateformes.</p>
+      </div>
+      <div class="option">
+        <h4>② Je la vends comme particulier</h4>
+        <p>Vente ponctuelle d'un bien personnel, <strong>hors micro-entreprise</strong> : elle n'apparaît pas dans PokéStock et ne se déclare pas à l'URSSAF.</p>
+        <p class="small">Pas d'impôt si le prix de vente ne dépasse pas <strong>5 000 € par objet</strong> (un lot vendu d'un bloc compte comme un seul objet). Au-delà : taxation de la plus-value (36,2 %, avec un abattement selon la durée de détention) ou taxe forfaitaire de 6,5 % pour un objet de collection, déclarée dans le mois (formulaire 2048-M).</p>
+        <p class="small">À faire depuis un compte de vente <strong>particulier distinct</strong>, de façon occasionnelle. Sinon, l'administration peut considérer ces ventes comme professionnelles.</p>
+      </div>
+    </div>
+    <ul class="mt">
+      <li>Acheter <strong>dans le but de revendre</strong>, régulièrement et avec un bénéfice, est toujours une activité professionnelle : ces achats passent par « Nouvel achat ».</li>
+      <li>Gardez des preuves de l'origine des cartes transférées : photos du classeur, anciennes factures, captures datées. Notez-le dans le commentaire du transfert.</li>
+      <li>Une carte transférée dans l'activité y reste : si vous la gardez finalement, supprimez le transfert tant qu'elle n'est pas vendue.</li>
+    </ul>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title><mat-icon>savings</mat-icon> Mes bons réflexes</mat-panel-title>
+    </mat-expansion-panel-header>
+    <ol>
+      <li>Mettez de côté <strong>{{ (setAsideRate() ?? rates().total) | number: '1.0-1' }} %</strong> de chaque vente sur un compte séparé.</li>
+      <li>Enregistrez chaque achat et chaque vente dans PokéStock le jour même : vos déclarations se préparent toutes seules.</li>
+      <li>Une carte de votre collection à vendre ? Passez par « Depuis ma collection » plutôt que de la vendre « en douce » sur votre compte pro.</li>
+      <li>Déclarez dès l'ouverture de la période de déclaration, cochez-la dans l'onglet « Déclarations » et gardez une capture du récapitulatif.</li>
+      <li>Utilisez le simulateur avant de fixer un prix : une carte à faible marge peut ne rien vous rapporter.</li>
+      <li>Surveillez les seuils de TVA si l'activité décolle, et faites le point avec un expert-comptable en cas de doute.</li>
+    </ol>
+  </mat-expansion-panel>
+</mat-accordion>
+
+<h3 class="links-title">Sites officiels</h3>
+<div class="links-grid">
+  @for (l of links; track l.url) {
+    <a class="link-card" [href]="l.url" target="_blank" rel="noopener">
+      <strong>{{ l.label }} <mat-icon>open_in_new</mat-icon></strong>
+      <span>{{ l.description }}</span>
+    </a>
+  }
+</div>
+
+<p class="disclaimer">
+  <mat-icon>info</mat-icon>
+  Informations données à titre indicatif, d'après les règles en vigueur en septembre 2026 (URSSAF, impots.gouv.fr).
+  Les taux et seuils évoluent : vérifiez-les chaque année sur les sites officiels et mettez-les à jour dans « Paramètres ».
+  Ce guide ne remplace pas un expert-comptable.
+</p>

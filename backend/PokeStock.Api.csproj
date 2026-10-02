@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PokeStock.Api</RootNamespace>
+    <AssemblyName>PokeStock.Api</AssemblyName>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ORM : Entity Framework Core + fournisseur MySQL -->
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
+    <!-- Génération des PDF (factures, registres) : licence Community gratuite sous 1 M$ de CA -->
+    <PackageReference Include="QuestPDF" Version="2024.*" />
+    <!-- Export Excel (.xlsx) du livre des recettes et du registre des achats -->
+    <PackageReference Include="ClosedXML" Version="0.104.*" />
+    <!-- Documentation interactive de l'API (Swagger) -->
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+  </ItemGroup>
+
+</Project>

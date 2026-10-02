@@ -1,0 +1,233 @@
+<div class="page-header">
+  <div>
+    <a mat-button routerLink="/purchases" class="back"><mat-icon>arrow_back</mat-icon> Achats</a>
+    <h1>
+      @if (isEdit()) {
+        {{ isCollection ? 'Transfert' : 'Achat' }} {{ purchase()?.purchaseNumber }}
+      } @else {
+        {{ isCollection ? 'Transfert depuis ma collection' : 'Nouvel achat' }}
+      }
+    </h1>
+    <p class="subtitle">
+      @if (isEdit()) {
+        Saisi le {{ purchase()?.purchaseDate | date: 'dd/MM/yyyy' }} — les articles vendus ne peuvent pas être retirés.
+      } @else {
+        Le numéro est généré automatiquement. Chaque ligne crée un article dans l'inventaire.
+      }
+    </p>
+  </div>
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+<form [formGroup]="form" (ngSubmit)="save()">
+  <div class="source-switch">
+    <mat-button-toggle-group formControlName="source" aria-label="Origine des articles">
+      <mat-button-toggle value="Supplier"><mat-icon>shopping_cart</mat-icon> J'ai acheté ces articles</mat-button-toggle>
+      <mat-button-toggle value="PersonalCollection"><mat-icon>collections_bookmark</mat-icon> Ils viennent de ma collection</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+
+  @if (isCollection) {
+    <div class="collection-banner">
+      <mat-icon>verified</mat-icon>
+      <div>
+        <strong>Transfert de votre collection personnelle vers le stock de la micro-entreprise : c'est légal.</strong>
+        <ul>
+          <li>Pas besoin de prix d'achat : la valeur peut rester à <strong>0 €</strong>. Indiquez éventuellement le prix payé à l'époque (ou une estimation) pour mieux suivre vos bénéfices.</li>
+          <li>Une fois transférés, ces articles sont du stock professionnel : <strong>leur vente entre dans le CA déclaré à l'URSSAF</strong>, comme les autres.</li>
+          <li>Les transferts sont numérotés <strong>C + année</strong> (ex. C2026001) et ne comptent pas dans le total de vos achats.</li>
+          <li>Gardez une trace de l'origine (photos, ancien classeur, factures d'époque) et notez le transfert dans le commentaire.</li>
+        </ul>
+      </div>
+    </div>
+  }
+
+  <mat-card class="card">
+    <mat-card-header><mat-card-title>Informations</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <div class="form-grid">
+        <mat-form-field>
+          <mat-label>{{ isCollection ? 'Date du transfert' : "Date d'achat" }}</mat-label>
+          <input matInput [matDatepicker]="datePicker" formControlName="purchaseDate">
+          <mat-datepicker-toggle matIconSuffix [for]="datePicker" />
+          <mat-datepicker #datePicker />
+          <mat-error>Date obligatoire</mat-error>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>{{ isCollection ? 'Provenance (facultatif)' : 'Fournisseur' }}</mat-label>
+          <input matInput formControlName="supplier"
+                 [placeholder]="isCollection ? 'Collection personnelle' : 'ex. Leclerc, particulier, Cardmarket…'">
+          <mat-error>Fournisseur obligatoire</mat-error>
+        </mat-form-field>
+
+        @if (!isCollection) {
+          <mat-form-field>
+            <mat-label>Plateforme d'achat</mat-label>
+            <mat-select formControlName="platform">
+              <mat-option [value]="null">Non précisée</mat-option>
+              @for (platform of purchasePlatforms; track platform.value) {
+                <mat-option [value]="platform.value">{{ platform.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field>
+            <mat-label>Mode de règlement</mat-label>
+            <mat-select formControlName="paymentMethod">
+              @for (p of payments; track p.value) {
+                <mat-option [value]="p.value">{{ p.label }}</mat-option>
+              }
+            </mat-select>
+            <mat-hint>Mention du registre des achats</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field>
+            <mat-label>Frais de plateforme</mat-label>
+            <input matInput type="number" min="0" step="0.01" formControlName="platformFees">
+            <span matTextSuffix>€</span>
+            <mat-error>Montant invalide</mat-error>
+          </mat-form-field>
+
+          <mat-form-field>
+            <mat-label>Frais de port</mat-label>
+            <input matInput type="number" min="0" step="0.01" formControlName="shippingFees">
+            <span matTextSuffix>€</span>
+            <mat-error>Montant invalide</mat-error>
+          </mat-form-field>
+        }
+
+        <mat-form-field class="span-2">
+          <mat-label>Commentaire</mat-label>
+          <textarea matInput formControlName="comment" rows="2"></textarea>
+        </mat-form-field>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title>Articles</mat-card-title>
+      <mat-card-subtitle>{{ items.length }} ligne(s) · {{ totalQuantity() }} unité(s)</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="lines">
+        @for (line of items.controls; track line; let i = $index) {
+          <div class="line purchase-line" [formGroup]="line">
+            <div class="line-index">{{ i + 1 }}</div>
+
+            <mat-form-field class="f-name">
+              <mat-label>Nom</mat-label>
+              <input matInput formControlName="name" placeholder="ex. Booster EV08, Dracaufeu PSA 10">
+              <mat-error>Nom obligatoire</mat-error>
+            </mat-form-field>
+
+            <mat-form-field class="f-category">
+              <mat-label>Catégorie / série</mat-label>
+              <input matInput formControlName="category" [matAutocomplete]="catAuto">
+              <mat-autocomplete #catAuto="matAutocomplete">
+                @for (c of filterCategories(line.controls.category.value); track c) {
+                  <mat-option [value]="c">{{ c }}</mat-option>
+                }
+              </mat-autocomplete>
+            </mat-form-field>
+
+            <mat-form-field class="f-type">
+              <mat-label>Type</mat-label>
+              <mat-select formControlName="type">
+                @for (t of types; track t.value) {
+                  <mat-option [value]="t.value">{{ t.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field class="f-condition">
+              <mat-label>État</mat-label>
+              <mat-select formControlName="condition">
+                @for (c of conditions; track c.value) {
+                  <mat-option [value]="c.value">{{ c.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field class="f-qty">
+              <mat-label>Quantité</mat-label>
+              <input matInput type="number" min="1" formControlName="quantity">
+              @if (line.controls.soldQuantity.value > 0) {
+                <mat-hint>{{ line.controls.soldQuantity.value }} vendu(s)</mat-hint>
+              }
+              <mat-error>Min. {{ line.controls.soldQuantity.value > 0 ? line.controls.soldQuantity.value : 1 }}</mat-error>
+            </mat-form-field>
+
+            <mat-form-field class="f-price">
+              <mat-label>{{ isCollection ? 'Valeur retenue' : 'Prix unitaire' }}</mat-label>
+              <input matInput type="number" min="0" step="0.01" formControlName="unitPrice">
+              <span matTextSuffix>€</span>
+              @if (isCollection) {
+                <mat-hint>0 € accepté</mat-hint>
+              }
+              <mat-error>Prix invalide</mat-error>
+            </mat-form-field>
+
+            <mat-form-field class="f-location">
+              <mat-label>Localisation</mat-label>
+              <input matInput formControlName="location" placeholder="ex. Classeur 2, Étagère A">
+            </mat-form-field>
+
+            <div class="line-total">{{ lineTotal(line) | currency }}</div>
+
+            <div class="line-actions">
+              <button mat-icon-button type="button" matTooltip="Dupliquer la ligne" (click)="duplicateLine(i)">
+                <mat-icon>content_copy</mat-icon>
+              </button>
+              <button mat-icon-button type="button"
+                      [matTooltip]="line.controls.soldQuantity.value > 0 ? 'Article déjà vendu' : 'Retirer la ligne'"
+                      [disabled]="items.length === 1 || line.controls.soldQuantity.value > 0"
+                      (click)="removeLine(i)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <button mat-stroked-button type="button" (click)="addLine()" class="add-line">
+        <mat-icon>add</mat-icon> Ajouter un article
+      </button>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title>Justificatifs</mat-card-title>
+      <mat-card-subtitle>
+        {{ isCollection ? "Preuves d'origine : photos du classeur, anciennes factures, captures datées…" : "Ticket, facture, capture de l'annonce ou de la conversation…" }}
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <app-attachments ownerType="Purchase" [ownerId]="purchase()?.id ?? null"
+                       [kinds]="isCollection ? ['OriginProof', 'Other'] : ['Receipt', 'Listing', 'Other']"
+                       emptyText="Aucun justificatif. À conserver 10 ans en cas de contrôle." />
+    </mat-card-content>
+  </mat-card>
+
+  <div class="form-footer">
+    <div class="totals">
+      <div class="total-main">
+        <span>{{ isCollection ? 'Valeur totale retenue' : 'Coût total' }}</span><strong>{{ total() | currency }}</strong>
+      </div>
+      @if (!isCollection) {
+        <div class="total-detail">Articles {{ itemsTotal() | currency }} · plateforme {{ form.controls.platformFees.value | currency }} · port {{ form.controls.shippingFees.value | currency }}</div>
+      }
+    </div>
+    <div class="footer-actions">
+      <a mat-button routerLink="/purchases">Annuler</a>
+      <button mat-flat-button type="submit" [disabled]="saving() || loading()">
+        <mat-icon>save</mat-icon> {{ isCollection ? 'Enregistrer le transfert' : "Enregistrer l'achat" }}
+      </button>
+    </div>
+  </div>
+</form>

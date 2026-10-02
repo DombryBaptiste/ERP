@@ -1,0 +1,180 @@
+<div class="page-header">
+  <div>
+    <h1>Statistiques</h1>
+    <p class="subtitle">Chiffre d'affaires, bénéfices et produits les plus performants</p>
+  </div>
+  <div class="page-actions">
+    <mat-form-field class="year-select">
+      <mat-label>Année</mat-label>
+      <mat-select [value]="year()" (selectionChange)="changeYear($event.value)">
+        @for (y of stats()?.availableYears ?? [currentYear]; track y) {
+          <mat-option [value]="y">{{ y }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (stats(); as s) {
+  <div class="kpi-grid">
+    <app-kpi-card icon="payments" label="CA annuel" color="#3949ab"
+                  [value]="s.annualRevenue | currency" [sub]="s.annualSalesCount + ' vente(s)'" />
+    <app-kpi-card icon="trending_up" label="Bénéfice annuel" color="#2e7d32"
+                  [value]="s.annualProfit | currency" [negative]="s.annualProfit < 0" />
+    @if (s.year === currentYear) {
+      <app-kpi-card icon="calendar_month" label="CA du mois" color="#1e88e5"
+                    [value]="s.currentMonthRevenue | currency" [sub]="'moyenne ' + (s.averageMonthlyRevenue | currency) + ' / mois'" />
+      <app-kpi-card icon="show_chart" label="Bénéfice du mois" color="#43a047"
+                    [value]="s.currentMonthProfit | currency" [negative]="s.currentMonthProfit < 0"
+                    [sub]="'moyenne ' + (s.averageMonthlyProfit | currency) + ' / mois'" />
+    } @else {
+      <app-kpi-card icon="calendar_month" label="CA mensuel moyen" color="#1e88e5" [value]="s.averageMonthlyRevenue | currency" />
+      <app-kpi-card icon="show_chart" label="Bénéfice mensuel moyen" color="#43a047"
+                    [value]="s.averageMonthlyProfit | currency" [negative]="s.averageMonthlyProfit < 0" />
+    }
+    <app-kpi-card icon="shopping_cart" label="Achats de l'année" color="#ef6c00" [value]="s.annualPurchases | currency" />
+    <app-kpi-card icon="savings" label="Valeur du stock actuel" color="#00897b" [value]="s.stockValue | currency" />
+  </div>
+
+  <div class="chart-grid">
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>CA par mois</mat-card-title>
+        <mat-card-subtitle>{{ s.year }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content><app-chart [config]="revenueChart()" /></mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Bénéfices par mois</mat-card-title>
+        <mat-card-subtitle>{{ s.year }}, frais déduits</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content><app-chart [config]="profitChart()" /></mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Meilleures ventes</mat-card-title>
+        <mat-card-subtitle>Top 10 des produits par chiffre d'affaires</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (s.topProductsByRevenue.length) {
+          <app-chart [config]="bestSellersChart()" [height]="320" />
+        } @else {
+          <p class="empty">Aucune vente sur cette année.</p>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Produits les plus rentables</mat-card-title>
+        <mat-card-subtitle>Top 10 par bénéfice brut (hors frais de vente)</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (s.topProductsByProfit.length) {
+          <app-chart [config]="mostProfitableChart()" [height]="320" />
+        } @else {
+          <p class="empty">Aucune vente sur cette année.</p>
+        }
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="chart-grid">
+    <mat-card class="card">
+      <mat-card-header><mat-card-title>Récapitulatif mensuel</mat-card-title></mat-card-header>
+      <mat-card-content>
+        <div class="table-wrap">
+          <table class="simple-table">
+            <thead>
+              <tr><th>Mois</th><th class="num">Ventes</th><th class="num">CA</th><th class="num">Bénéfice</th><th class="num">Marge</th></tr>
+            </thead>
+            <tbody>
+              @for (m of s.monthly; track m.month) {
+                <tr [class.muted]="m.salesCount === 0">
+                  <td class="capitalize">{{ monthName(m.year, m.month) }}</td>
+                  <td class="num">{{ m.salesCount }}</td>
+                  <td class="num">{{ m.revenue | currency }}</td>
+                  <td class="num" [class.negative]="m.profit < 0">{{ m.profit | currency }}</td>
+                  <td class="num">{{ m.revenue > 0 ? ((m.profit / m.revenue * 100) | number: '1.0-1') + ' %' : '—' }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr>
+                <td class="strong">Total {{ s.year }}</td>
+                <td class="num strong">{{ s.annualSalesCount }}</td>
+                <td class="num strong">{{ s.annualRevenue | currency }}</td>
+                <td class="num strong" [class.negative]="s.annualProfit < 0">{{ s.annualProfit | currency }}</td>
+                <td class="num strong">{{ s.annualRevenue > 0 ? ((s.annualProfit / s.annualRevenue * 100) | number: '1.0-1') + ' %' : '—' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header><mat-card-title>Plus grosses ventes</mat-card-title></mat-card-header>
+      <mat-card-content>
+        @if (s.topSales.length === 0) {
+          <p class="empty">Aucune vente sur cette année.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="simple-table">
+              <thead>
+                <tr><th>N°</th><th>Date</th><th>Plateforme</th><th class="num">Montant</th><th class="num">Bénéfice</th></tr>
+              </thead>
+              <tbody>
+                @for (sale of s.topSales; track sale.id) {
+                  <tr class="clickable" [routerLink]="['/sales', sale.id]">
+                    <td><span class="ref">{{ sale.saleNumber }}</span></td>
+                    <td>{{ sale.saleDate | date: 'dd/MM/yyyy' }}</td>
+                    <td>{{ sale.platform | label: 'platform' }}</td>
+                    <td class="num strong">{{ sale.totalAmount | currency }}</td>
+                    <td class="num" [class.negative]="sale.profit < 0" [class.positive]="sale.profit >= 0">{{ sale.profit | currency }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <mat-card class="card">
+    <mat-card-header><mat-card-title>Détail par produit</mat-card-title><mat-card-subtitle>Top 10 par bénéfice</mat-card-subtitle></mat-card-header>
+    <mat-card-content>
+      @if (s.topProductsByProfit.length === 0) {
+        <p class="empty">Aucune vente sur cette année.</p>
+      } @else {
+        <div class="table-wrap">
+          <table class="simple-table">
+            <thead>
+              <tr><th>Produit</th><th>Type</th><th class="num">Qté vendue</th><th class="num">CA</th><th class="num">Bénéfice brut</th><th class="num">Marge</th></tr>
+            </thead>
+            <tbody>
+              @for (p of s.topProductsByProfit; track p.name + p.type) {
+                <tr>
+                  <td class="strong">{{ p.name }}</td>
+                  <td>{{ p.type | label: 'type' }}</td>
+                  <td class="num">{{ p.quantitySold }}</td>
+                  <td class="num">{{ p.revenue | currency }}</td>
+                  <td class="num" [class.negative]="p.profit < 0" [class.positive]="p.profit >= 0">{{ p.profit | currency }}</td>
+                  <td class="num">{{ p.margin | number: '1.0-1' }} %</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+}

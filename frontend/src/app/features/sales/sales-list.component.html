@@ -1,0 +1,141 @@
+@let t = totals();
+<div class="page-header">
+  <div>
+    <h1>Historique des ventes</h1>
+    <p class="subtitle">
+      {{ t.count }} vente(s) · CA {{ t.amount | currency }} ·
+      bénéfice <span [class.negative]="t.profit < 0" [class.positive]="t.profit >= 0">{{ t.profit | currency }}</span>
+    </p>
+  </div>
+  <div class="page-actions">
+    <a mat-stroked-button routerLink="/books"><mat-icon>menu_book</mat-icon> Livre des recettes</a>
+    <a mat-flat-button routerLink="/sales/new"><mat-icon>add</mat-icon> Nouvelle vente</a>
+  </div>
+</div>
+
+<form class="filters" [formGroup]="filterForm">
+  <mat-form-field>
+    <mat-label>Période</mat-label>
+    <mat-date-range-input [rangePicker]="rangePicker">
+      <input matStartDate formControlName="from" placeholder="Début">
+      <input matEndDate formControlName="to" placeholder="Fin">
+    </mat-date-range-input>
+    <mat-datepicker-toggle matIconSuffix [for]="rangePicker" />
+    <mat-date-range-picker #rangePicker />
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Plateforme</mat-label>
+    <mat-select formControlName="platform">
+      <mat-option value="">Toutes</mat-option>
+      @for (p of platforms; track p.value) {
+        <mat-option [value]="p.value">{{ p.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Client</mat-label>
+    <mat-icon matPrefix>person_search</mat-icon>
+    <input matInput formControlName="customer">
+  </mat-form-field>
+
+  <div class="quick-filters">
+    <button mat-button type="button" (click)="setPeriod('month')">Ce mois</button>
+    <button mat-button type="button" (click)="setPeriod('year')">Cette année</button>
+    <button mat-button type="button" (click)="resetFilters()"><mat-icon>filter_alt_off</mat-icon> Tout</button>
+  </div>
+</form>
+
+<div class="table-card">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  <div class="table-wrap">
+    <table mat-table [dataSource]="dataSource" matSort matSortActive="saleDate" matSortDirection="desc">
+      <ng-container matColumnDef="saleNumber">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>N° vente</th>
+        <td mat-cell *matCellDef="let s">
+          <span class="ref">{{ s.saleNumber }}</span>
+          @if (s.invoiceNumber) {
+            <div class="muted small"><mat-icon class="inline-icon">receipt_long</mat-icon>{{ s.invoiceNumber }}</div>
+          }
+        </td>
+        <td mat-footer-cell *matFooterCellDef class="strong">Total</td>
+      </ng-container>
+
+      <ng-container matColumnDef="saleDate">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Date</th>
+        <td mat-cell *matCellDef="let s">{{ s.saleDate | date: 'dd/MM/yyyy' }}</td>
+        <td mat-footer-cell *matFooterCellDef></td>
+      </ng-container>
+
+      <ng-container matColumnDef="customer">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Client</th>
+        <td mat-cell *matCellDef="let s">{{ s.customer || '—' }}</td>
+        <td mat-footer-cell *matFooterCellDef></td>
+      </ng-container>
+
+      <ng-container matColumnDef="platform">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Plateforme</th>
+        <td mat-cell *matCellDef="let s">
+          <span class="chip">{{ s.platform | label: 'platform' }}</span>
+          <div class="muted small">{{ s.paymentMethod | label: 'payment' }}</div>
+        </td>
+        <td mat-footer-cell *matFooterCellDef></td>
+      </ng-container>
+
+      <ng-container matColumnDef="items">
+        <th mat-header-cell *matHeaderCellDef>Articles</th>
+        <td mat-cell *matCellDef="let s">
+          <div class="ellipsis items-summary" [matTooltip]="itemsSummary(s)">{{ itemsSummary(s) }}</div>
+        </td>
+        <td mat-footer-cell *matFooterCellDef></td>
+      </ng-container>
+
+      <ng-container matColumnDef="totalAmount">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Montant</th>
+        <td mat-cell *matCellDef="let s" class="num">
+          <span class="strong">{{ s.netAmount | currency }}</span>
+          @if (s.refundedAmount > 0) {
+            <div class="small negative">remb. −{{ s.refundedAmount | currency }}</div>
+          }
+        </td>
+        <td mat-footer-cell *matFooterCellDef class="num strong">{{ t.amount | currency }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="profit">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Bénéfice</th>
+        <td mat-cell *matCellDef="let s" class="num" [class.negative]="s.profit < 0" [class.positive]="s.profit >= 0">
+          {{ s.profit | currency }}
+        </td>
+        <td mat-footer-cell *matFooterCellDef class="num strong" [class.negative]="t.profit < 0">{{ t.profit | currency }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="margin">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Marge</th>
+        <td mat-cell *matCellDef="let s" class="num muted">{{ s.margin | number: '1.0-1' }} %</td>
+        <td mat-footer-cell *matFooterCellDef></td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let s" class="actions-cell">
+          <button mat-icon-button matTooltip="Modifier" (click)="$event.stopPropagation(); edit(s)"><mat-icon>edit</mat-icon></button>
+          <button mat-icon-button matTooltip="Supprimer" (click)="delete(s, $event)"><mat-icon>delete</mat-icon></button>
+        </td>
+        <td mat-footer-cell *matFooterCellDef></td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns" class="clickable" (click)="edit(row)"></tr>
+      <tr mat-footer-row *matFooterRowDef="columns"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="mat-mdc-cell no-data" [attr.colspan]="columns.length">
+          {{ loading() ? 'Chargement…' : 'Aucune vente ne correspond aux filtres.' }}
+        </td>
+      </tr>
+    </table>
+  </div>
+  <mat-paginator [pageSizeOptions]="[10, 25, 50, 100]" [pageSize]="25" showFirstLastButtons />
+</div>

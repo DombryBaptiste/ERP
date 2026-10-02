@@ -1,0 +1,47 @@
+<mat-sidenav-container class="shell">
+  <mat-sidenav #drawer class="sidenav"
+               [mode]="isHandset() ? 'over' : 'side'"
+               [opened]="!isHandset()"
+               [fixedInViewport]="isHandset()">
+    <div class="brand">
+      <img src="favicon.svg" alt="" width="34" height="34">
+      <div>
+        <div class="brand-name">PokéStock</div>
+        <div class="brand-sub">Achat · Revente · Stock</div>
+      </div>
+    </div>
+
+    <mat-nav-list class="nav">
+      @for (link of links; track link.path) {
+        <a mat-list-item [routerLink]="link.path" routerLinkActive="active-link"
+           (click)="isHandset() && drawer.close()">
+          <mat-icon matListItemIcon>{{ link.icon }}</mat-icon>
+          <span matListItemTitle>{{ link.label }}</span>
+        </a>
+      }
+    </mat-nav-list>
+
+    <div class="nav-footer">
+      <a mat-stroked-button class="quick" routerLink="/sales/new" (click)="isHandset() && drawer.close()">
+        <mat-icon>add</mat-icon> Nouvelle vente
+      </a>
+    </div>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="main">
+    <mat-toolbar class="topbar">
+      @if (isHandset()) {
+        <button mat-icon-button (click)="drawer.toggle()" aria-label="Ouvrir le menu">
+          <mat-icon>menu</mat-icon>
+        </button>
+        <span class="topbar-title">PokéStock</span>
+      }
+      <span class="spacer"></span>
+      <a mat-button routerLink="/tax"><mat-icon>account_balance</mat-icon> URSSAF & impôts</a>
+    </mat-toolbar>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

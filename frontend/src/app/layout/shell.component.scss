@@ -1,0 +1,99 @@
+.shell {
+  height: 100vh;
+  background: var(--app-bg);
+}
+
+.sidenav {
+  width: 248px;
+  display: flex;
+  flex-direction: column;
+  border-right: none;
+  border-radius: 0;
+  background-color: var(--app-nav-bg) !important;
+  color: var(--app-nav-text);
+
+  // Couleurs des éléments de liste Material sur fond sombre
+  --mat-list-list-item-label-text-color: var(--app-nav-text);
+  --mat-list-list-item-leading-icon-color: var(--app-nav-icon);
+  --mat-list-list-item-hover-label-text-color: #fff;
+  --mat-list-list-item-hover-leading-icon-color: #fff;
+  --mat-list-list-item-focus-label-text-color: #fff;
+  --mdc-list-list-item-label-text-color: var(--app-nav-text);
+  --mdc-list-list-item-leading-icon-color: var(--app-nav-icon);
+  --mdc-list-list-item-hover-label-text-color: #fff;
+  --mdc-list-list-item-hover-leading-icon-color: #fff;
+  --mdc-list-list-item-focus-label-text-color: #fff;
+
+  ::ng-deep .mat-drawer-inner-container {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 16px;
+
+  .brand-name { font-size: 19px; font-weight: 700; color: #fff; letter-spacing: .3px; }
+  .brand-sub { font-size: 12px; color: var(--app-nav-icon); }
+}
+
+.nav {
+  padding: 8px 10px;
+
+  a {
+    border-radius: 10px;
+    margin-bottom: 2px;
+  }
+
+  .active-link {
+    background: rgba(255, 255, 255, .1);
+    --mat-list-list-item-label-text-color: #fff;
+    --mat-list-list-item-leading-icon-color: #ffca28;
+    --mdc-list-list-item-label-text-color: #fff;
+    --mdc-list-list-item-leading-icon-color: #ffca28;
+  }
+}
+
+.nav-footer {
+  margin-top: auto;
+  padding: 16px;
+
+  .quick {
+    width: 100%;
+    color: #fff;
+    border-color: rgba(255, 255, 255, .3);
+  }
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 60px;
+  background: var(--app-surface);
+  border-bottom: 1px solid var(--app-border);
+  gap: 8px;
+
+  .topbar-title { font-weight: 600; }
+  .spacer { flex: 1; }
+}
+
+.content {
+  padding: 24px;
+  max-width: 1500px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+@media (max-width: 599.98px) {
+  .content { padding: 16px; }
+}

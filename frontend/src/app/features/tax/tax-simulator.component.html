@@ -1,0 +1,126 @@
+@let r = result();
+@let rt = rates();
+<div class="sim-grid">
+  <!-- ========== Combien me reste-t-il ? ========== -->
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title><mat-icon class="title-icon">sell</mat-icon> Combien me reste-t-il sur une vente ?</mat-card-title>
+      <mat-card-subtitle>Prélèvements : {{ rt.total | number: '1.0-2' }} % du prix de vente</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="sim-inputs">
+        <mat-form-field>
+          <mat-label>Prix de vente</mat-label>
+          <input matInput type="number" min="0" step="0.5" [ngModel]="salePrice()" (ngModelChange)="salePrice.set($event)">
+          <span matTextSuffix>€</span>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Prix d'achat de l'article</mat-label>
+          <input matInput type="number" min="0" step="0.5" [ngModel]="purchaseCost()" (ngModelChange)="purchaseCost.set($event)">
+          <span matTextSuffix>€</span>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Frais (commission, envoi)</mat-label>
+          <input matInput type="number" min="0" step="0.5" [ngModel]="saleFees()" (ngModelChange)="saleFees.set($event)">
+          <span matTextSuffix>€</span>
+        </mat-form-field>
+      </div>
+      @if (settings().acreEnabled) {
+        <mat-slide-toggle [checked]="withAcre()" (change)="withAcre.set($event.checked)">Appliquer l'ACRE (-{{ settings().acreReductionRate }} % de cotisations)</mat-slide-toggle>
+      }
+
+      <div class="stack-bar">
+        @for (seg of segments(); track seg.label) {
+          <div class="stack-seg" [style.width.%]="segmentWidth(seg.value)" [style.background]="seg.color"
+               [attr.title]="seg.label + ' : ' + (seg.value | currency)"></div>
+        }
+      </div>
+      <div class="stack-legend">
+        @for (seg of segments(); track seg.label) {
+          <span><i [style.background]="seg.color"></i>{{ seg.label }}</span>
+        }
+      </div>
+
+      <table class="simple-table breakdown">
+        <tbody>
+          <tr><td>Prix de vente (CA à déclarer)</td><td class="num strong">{{ salePrice() || 0 | currency }}</td></tr>
+          <tr><td>− Prix d'achat et frais</td><td class="num">{{ (purchaseCost() || 0) + (saleFees() || 0) | currency }}</td></tr>
+          <tr class="subtotal"><td>= Bénéfice avant charges</td><td class="num strong" [class.negative]="r.grossProfit < 0">{{ r.grossProfit | currency }}</td></tr>
+          <tr><td>− Cotisations sociales ({{ rt.social | number: '1.0-3' }} %)</td><td class="num">{{ r.social | currency }}</td></tr>
+          <tr><td>− CFP + chambre consulaire ({{ rt.training + rt.chamber | number: '1.0-3' }} %)</td><td class="num">{{ r.other | currency }}</td></tr>
+          <tr>
+            <td>− Impôt sur le revenu
+              <span class="muted">({{ settings().liberatoryIncomeTax ? 'versement libératoire' : 'estimation, TMI ' + settings().marginalTaxRate + ' %' }})</span>
+            </td>
+            <td class="num">{{ r.incomeTax | currency }}</td>
+          </tr>
+          <tr class="total"><td>Il vous reste</td><td class="num" [class.negative]="r.net < 0" [class.positive]="r.net >= 0">{{ r.net | currency }}</td></tr>
+        </tbody>
+      </table>
+      @if (r.grossProfit > 0) {
+        <p class="sim-note">
+          Les charges représentent <strong>{{ r.chargesOnProfit | number: '1.0-0' }} %</strong> de votre bénéfice.
+          En micro-entreprise, elles sont calculées sur le <strong>prix de vente</strong>, pas sur la marge :
+          une vente à faible marge peut coûter plus qu'elle ne rapporte.
+        </p>
+      } @else if (r.grossProfit < 0 || r.net < 0) {
+        <p class="sim-note warn">
+          <mat-icon>warning</mat-icon>
+          Cette vente vous fait perdre de l'argent : les cotisations restent dues sur le prix même sans bénéfice.
+        </p>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <!-- ========== À quel prix vendre ? ========== -->
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title><mat-icon class="title-icon">price_check</mat-icon> À quel prix vendre ?</mat-card-title>
+      <mat-card-subtitle>Pour gagner le montant voulu, une fois tout payé</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="sim-inputs">
+        <mat-form-field>
+          <mat-label>Prix d'achat de l'article</mat-label>
+          <input matInput type="number" min="0" step="0.5" [ngModel]="targetCost()" (ngModelChange)="targetCost.set($event)">
+          <span matTextSuffix>€</span>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Frais fixes (envoi, protection)</mat-label>
+          <input matInput type="number" min="0" step="0.5" [ngModel]="targetFees()" (ngModelChange)="targetFees.set($event)">
+          <span matTextSuffix>€</span>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Commission de la plateforme</mat-label>
+          <input matInput type="number" min="0" max="50" step="0.5" [ngModel]="commissionRate()" (ngModelChange)="commissionRate.set($event)">
+          <span matTextSuffix>%</span>
+          <mat-hint>Vérifiez le barème de votre plateforme (0 % en main propre)</mat-hint>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Gain net souhaité</mat-label>
+          <input matInput type="number" min="0" step="0.5" [ngModel]="targetNet()" (ngModelChange)="targetNet.set($event)">
+          <span matTextSuffix>€</span>
+        </mat-form-field>
+      </div>
+
+      @if (pricing(); as p) {
+        <div class="price-results">
+          <div class="price-box">
+            <span>Prix minimum (ni perte ni gain)</span>
+            <strong>{{ p.breakEven | currency }}</strong>
+          </div>
+          <div class="price-box recommended">
+            <span>Prix pour gagner {{ targetNet() || 0 | currency }} net</span>
+            <strong>{{ p.recommended | currency }}</strong>
+          </div>
+        </div>
+        <p class="sim-note">
+          Sur ce prix, {{ p.rate | number: '1.0-1' }} % partent en commission, cotisations et impôt.
+          Rappel : le CA à déclarer est le prix payé par l'acheteur, même si la plateforme garde sa commission.
+        </p>
+      } @else {
+        <p class="sim-note warn"><mat-icon>warning</mat-icon> Les taux cumulés atteignent 100 % : impossible de calculer un prix.</p>
+      }
+    </mat-card-content>
+  </mat-card>
+</div>

@@ -1,0 +1,344 @@
+<div class="page-header">
+  <div>
+    <h1>Fiscalité</h1>
+    <p class="subtitle">URSSAF, impôts et seuils de la micro-entreprise, calculés à partir de vos ventes</p>
+  </div>
+  <div class="page-actions">
+    <a mat-stroked-button [href]="urssafUrl" target="_blank" rel="noopener">
+      <mat-icon>open_in_new</mat-icon> Site officiel URSSAF
+    </a>
+    <mat-form-field class="year-select">
+      <mat-label>Année</mat-label>
+      <mat-select [value]="year()" (selectionChange)="changeYear($event.value)">
+        @for (y of summary()?.availableYears ?? [currentYear]; track y) {
+          <mat-option [value]="y">{{ y }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+<mat-tab-group class="tax-tabs" [selectedIndex]="selectedTab()" (selectedIndexChange)="selectedTab.set($event)"
+               mat-stretch-tabs="false" animationDuration="150ms">
+
+  <!-- ===================== SYNTHÈSE ===================== -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>space_dashboard</mat-icon>&nbsp;Synthèse</ng-template>
+
+    @if (summary(); as s) {
+      <div class="tab-body">
+        <div class="hero-grid">
+          <!-- Prochaine déclaration -->
+          @if (s.nextDeclaration; as next) {
+            <div class="hero next-declaration" [class]="'hero next-declaration status-' + next.status">
+              <div class="hero-top">
+                <span class="hero-kicker"><mat-icon>event</mat-icon> Prochaine déclaration URSSAF</span>
+                <span class="status-pill" [class]="'status-pill pill-' + next.status">{{ statusLabels[next.status] }}</span>
+              </div>
+              <div class="hero-title">{{ next.label }}</div>
+              <div class="hero-amounts">
+                <div>
+                  <span>CA à déclarer</span>
+                  <strong>{{ next.revenue | currency: 'EUR' : 'symbol' : '1.0-0' }}</strong>
+                </div>
+                <div>
+                  <span>Montant à payer</span>
+                  <strong class="amount-due">{{ next.total | currency }}</strong>
+                </div>
+                <div>
+                  <span>Échéance</span>
+                  <strong>{{ next.deadline | date: 'd MMMM yyyy' }}</strong>
+                  @if (nextDays() !== null) {
+                    <small>
+                      @if (nextDays()! > 0) { dans {{ nextDays() }} jour(s) }
+                      @else if (nextDays() === 0) { aujourd'hui ! }
+                      @else { dépassée de {{ -nextDays()! }} jour(s) }
+                    </small>
+                  }
+                </div>
+              </div>
+              @if (next.status === 'ongoing') {
+                <p class="hero-note">Période en cours : le montant augmentera avec vos prochaines ventes. Vous pourrez déclarer à partir du {{ next.end | date: 'd MMMM' }}.</p>
+              }
+              <div class="hero-actions">
+                <a mat-flat-button [href]="urssafUrl" target="_blank" rel="noopener"><mat-icon>open_in_new</mat-icon> Déclarer sur l'URSSAF</a>
+                <button mat-stroked-button (click)="copyRevenue(next)"><mat-icon>content_copy</mat-icon> Copier le CA</button>
+                @if (next.status !== 'ongoing') {
+                  <button mat-button (click)="toggleDeclared(next, true)"><mat-icon>check_circle</mat-icon> C'est fait</button>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="hero next-declaration status-declared">
+              <div class="hero-kicker"><mat-icon>celebration</mat-icon> Tout est à jour</div>
+              <div class="hero-title">Aucune déclaration en attente pour {{ s.year }}</div>
+            </div>
+          }
+
+          <!-- Conseil épargne -->
+          <div class="hero set-aside">
+            <div class="hero-kicker"><mat-icon>savings</mat-icon> Le bon réflexe</div>
+            <div class="set-aside-rate">{{ s.setAsideRate | number: '1.0-1' }} %</div>
+            <p>
+              Mettez de côté <strong>{{ s.setAsideRate | number: '1.0-1' }} % du prix de chaque vente</strong>
+              (cotisations, impôt{{ s.settings.safetyMarginRate > 0 ? ' et ' + s.settings.safetyMarginRate + ' % de marge de sécurité' : '' }}).
+              Exemple : pour une carte vendue 100 €, gardez {{ s.setAsideRate | number: '1.0-0' }} € sur un compte à part.
+            </p>
+          </div>
+        </div>
+
+        @if (s.collectionRevenue > 0) {
+          <div class="info-banner collection-info">
+            <mat-icon>collections_bookmark</mat-icon>
+            <span>
+              Dont <strong>{{ s.collectionRevenue | currency }}</strong> de ventes d'articles transférés depuis votre collection :
+              ils sont bien inclus dans le CA à déclarer (articles devenus du stock professionnel).
+            </span>
+          </div>
+        }
+
+        <div class="kpi-grid">
+          <app-kpi-card icon="payments" label="CA encaissé" color="#3949ab"
+                        [value]="s.revenue | currency" [sub]="'projection ' + (s.projectedRevenue | currency: 'EUR' : 'symbol' : '1.0-0') + ' sur l\'année'" />
+          <app-kpi-card icon="account_balance" label="Total URSSAF" color="#1e88e5"
+                        [value]="s.urssafTotal | currency"
+                        [sub]="s.settings.liberatoryIncomeTax ? 'impôt (versement libératoire) inclus' : 'cotisations, CFP et chambre'" />
+          <app-kpi-card icon="receipt" label="Impôt sur le revenu" color="#ef6c00"
+                        [value]="(s.settings.liberatoryIncomeTax ? s.liberatoryIncomeTax : s.estimatedIncomeTax) | currency"
+                        [sub]="s.settings.liberatoryIncomeTax ? 'déjà payé via l\'URSSAF' : 'estimation au barème (TMI ' + s.settings.marginalTaxRate + ' %)'" />
+          <app-kpi-card icon="store" label="CFE" color="#8e24aa"
+                        [value]="s.cfeAmount | currency" [sub]="s.cfeAmount === 0 ? 'exonérée ou non renseignée' : 'avis de novembre'" />
+          <app-kpi-card icon="trending_up" label="Bénéfice des ventes" color="#00897b"
+                        [value]="s.profit | currency" sub="CA − achats − frais de vente" [negative]="s.profit < 0" />
+          <app-kpi-card icon="emoji_events" label="Net après charges" color="#2e7d32"
+                        [value]="s.netIncome | currency" [negative]="s.netIncome < 0"
+                        [sub]="s.profit > 0 ? (s.effectiveRateOnProfit | number: '1.0-1') + ' % du bénéfice part en charges' : ''" />
+        </div>
+
+        <div class="chart-grid">
+          <mat-card class="card">
+            <mat-card-header>
+              <mat-card-title>Où va chaque euro encaissé ?</mat-card-title>
+              <mat-card-subtitle>Année {{ s.year }}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              @if (s.revenue > 0) {
+                <app-chart [config]="splitChart()" [height]="260" />
+              } @else {
+                <p class="empty">Aucune vente enregistrée sur {{ s.year }}.</p>
+              }
+            </mat-card-content>
+          </mat-card>
+
+          <mat-card class="card">
+            <mat-card-header>
+              <mat-card-title>À payer par période</mat-card-title>
+              <mat-card-subtitle>Déclaration {{ s.settings.frequency === 'Monthly' ? 'mensuelle' : 'trimestrielle' }}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content><app-chart [config]="periodsChart()" [height]="260" /></mat-card-content>
+          </mat-card>
+        </div>
+
+        <mat-card class="card">
+          <mat-card-header>
+            <mat-card-title>Seuils à surveiller</mat-card-title>
+            <mat-card-subtitle>CA {{ s.year }} : {{ s.revenue | currency: 'EUR' : 'symbol' : '1.0-0' }} · projection fin d'année : {{ s.projectedRevenue | currency: 'EUR' : 'symbol' : '1.0-0' }}</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="thresholds">
+              @for (t of thresholds(); track t.label) {
+                <div class="threshold" [class]="'threshold level-' + t.level">
+                  <div class="threshold-head">
+                    <strong>{{ t.label }}</strong>
+                    <span>{{ t.percent | number: '1.0-1' }} % de {{ t.limit | currency: 'EUR' : 'symbol' : '1.0-0' }}</span>
+                  </div>
+                  <div class="bar">
+                    <div class="bar-projected" [style.width.%]="t.projectedPercent > 100 ? 100 : t.projectedPercent"></div>
+                    <div class="bar-fill" [style.width.%]="t.percent > 100 ? 100 : t.percent"></div>
+                  </div>
+                  <div class="threshold-hint">
+                    {{ t.hint }}
+                    @if (t.level === 'warn') { <strong> Attention : la projection approche ce seuil.</strong> }
+                    @if (t.level === 'over') { <strong> Seuil dépassé : consultez l'onglet Guide.</strong> }
+                  </div>
+                </div>
+              }
+            </div>
+            <div class="legend-inline">
+              <span><i class="dot dot-fill"></i> CA réalisé</span>
+              <span><i class="dot dot-projected"></i> Projection sur l'année</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="card">
+          <mat-card-header>
+            <mat-card-title>Plateformes et DAC7</mat-card-title>
+            <mat-card-subtitle>
+              Au-delà de {{ dac7.sales }} ventes ou {{ dac7.revenue | currency: 'EUR' : 'symbol' : '1.0-0' }} par an,
+              une plateforme transmet vos ventes aux impôts. C'est normal quand on est déclaré : il faut juste que votre CA URSSAF soit cohérent.
+            </mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            @if (s.platforms.length === 0) {
+              <p class="empty">Aucune vente sur {{ s.year }}.</p>
+            } @else {
+              <div class="table-wrap">
+                <table class="simple-table">
+                  <thead><tr><th>Plateforme</th><th class="num">Ventes</th><th class="num">CA</th><th>Transmission DAC7</th></tr></thead>
+                  <tbody>
+                    @for (p of s.platforms; track p.platform) {
+                      <tr>
+                        <td class="strong">{{ p.platform | label: 'platform' }}</td>
+                        <td class="num">{{ p.salesCount }}</td>
+                        <td class="num">{{ p.revenue | currency }}</td>
+                        <td>
+                          @if (p.platform === 'InPerson' || p.platform === 'Other') {
+                            <span class="muted">Non concerné</span>
+                          } @else if (p.dac7Reported) {
+                            <span class="status-pill pill-todo">Seuil atteint : vos ventes sont transmises</span>
+                          } @else {
+                            <span class="status-pill pill-declared">Sous le seuil</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
+      </div>
+    }
+  </mat-tab>
+
+  <!-- ===================== DÉCLARATIONS ===================== -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>event_available</mat-icon>&nbsp;Déclarations</ng-template>
+
+    @if (summary(); as s) {
+      @let totals = periodTotals();
+      <div class="tab-body">
+        <div class="info-banner">
+          <mat-icon>info</mat-icon>
+          <span>
+            Déclarez le <strong>CA encaissé</strong> (prix payé par l'acheteur, port inclus, avant commission de la plateforme)
+            sur autoentrepreneur.urssaf.fr, <strong>même s'il est de 0 €</strong>. Le site calcule et prélève les cotisations.
+          </span>
+        </div>
+
+        <div class="table-card">
+          <div class="table-wrap">
+            <table class="simple-table declarations">
+              <thead>
+                <tr>
+                  <th>Période</th><th class="num">Ventes</th><th class="num">CA à déclarer</th>
+                  <th class="num">Cotisations</th><th class="num">CFP</th><th class="num">Chambre</th>
+                  <th class="num">Impôt (VL)</th><th class="num">Total</th><th>Échéance</th><th>Statut</th><th>Déclarée</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of s.periods; track p.key) {
+                  <tr [class.muted]="p.status === 'inactive'" [class.row-late]="p.status === 'late'">
+                    <td class="strong">
+                      {{ p.label }}
+                      @if (p.acreApplied) { <span class="acre-badge" matTooltip="Cotisations sociales réduites par l'ACRE">ACRE</span> }
+                    </td>
+                    <td class="num">{{ p.salesCount }}</td>
+                    <td class="num">
+                      <button class="copy-amount" (click)="copyRevenue(p)" matTooltip="Copier le montant (euros entiers)">
+                        {{ p.revenue | currency: 'EUR' : 'symbol' : '1.0-0' }} <mat-icon>content_copy</mat-icon>
+                      </button>
+                      @if (p.refunds > 0) {
+                        <div class="small negative">après −{{ p.refunds | currency }} de remb.</div>
+                      }
+                    </td>
+                    <td class="num">{{ p.socialContributions | currency }}</td>
+                    <td class="num">{{ p.trainingContribution | currency }}</td>
+                    <td class="num">{{ p.chamberTax | currency }}</td>
+                    <td class="num">{{ p.liberatoryIncomeTax | currency }}</td>
+                    <td class="num strong">{{ p.total | currency }}</td>
+                    <td>{{ p.deadline | date: 'dd/MM/yyyy' }}</td>
+                    <td><span class="status-pill" [class]="'status-pill pill-' + p.status">{{ statusLabels[p.status] }}</span></td>
+                    <td>
+                      <mat-checkbox [checked]="p.status === 'declared'"
+                                    [disabled]="p.status === 'inactive' || p.status === 'ongoing'"
+                                    (change)="toggleDeclared(p, $event.checked)" />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td class="strong">Total {{ s.year }}</td>
+                  <td class="num strong">{{ totals.salesCount }}</td>
+                  <td class="num strong">{{ totals.revenue | currency }}</td>
+                  <td class="num strong">{{ s.socialContributions | currency }}</td>
+                  <td class="num strong">{{ s.trainingContribution | currency }}</td>
+                  <td class="num strong">{{ s.chamberTax | currency }}</td>
+                  <td class="num strong">{{ s.liberatoryIncomeTax | currency }}</td>
+                  <td class="num strong">{{ totals.total | currency }}</td>
+                  <td colspan="3"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="yearly-reminders">
+          <mat-card class="card">
+            <mat-card-header><mat-card-title><mat-icon class="title-icon">description</mat-icon> Déclaration de revenus (mai-juin {{ s.year + 1 }})</mat-card-title></mat-card-header>
+            <mat-card-content>
+              <p>Reportez votre CA {{ s.year }} (<strong>{{ s.revenue | currency: 'EUR' : 'symbol' : '1.0-0' }}</strong>) dans la déclaration complémentaire 2042-C-PRO, case « régime micro-BIC, ventes de marchandises ».</p>
+              @if (s.settings.liberatoryIncomeTax) {
+                <p>Avec le versement libératoire, l'impôt est déjà payé : la déclaration sert au calcul de votre revenu fiscal de référence.</p>
+              } @else {
+                <p>L'administration applique l'abattement de {{ s.settings.flatAllowanceRate }} % : le revenu imposable estimé est <strong>{{ s.taxableIncome | currency }}</strong>, soit environ <strong>{{ s.estimatedIncomeTax | currency }}</strong> d'impôt avec une tranche à {{ s.settings.marginalTaxRate }} %.</p>
+              }
+            </mat-card-content>
+          </mat-card>
+          <mat-card class="card">
+            <mat-card-header><mat-card-title><mat-icon class="title-icon">store</mat-icon> CFE (décembre)</mat-card-title></mat-card-header>
+            <mat-card-content>
+              <p>L'avis de CFE arrive en novembre dans votre espace professionnel sur impots.gouv.fr. Il se paie en ligne avant le <strong>15 décembre</strong>.</p>
+              <p>Exonération l'année de création, et chaque année où le CA de l'année N-2 ne dépasse pas 5 000 €. Renseignez le montant dans Paramètres pour l'intégrer aux calculs.</p>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </div>
+    }
+  </mat-tab>
+
+  <!-- ===================== SIMULATEUR ===================== -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>calculate</mat-icon>&nbsp;Simulateur</ng-template>
+    <ng-template matTabContent>
+      @if (settings(); as st) {
+        <div class="tab-body"><app-tax-simulator [settings]="st" /></div>
+      }
+    </ng-template>
+  </mat-tab>
+
+  <!-- ===================== PARAMÈTRES ===================== -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>tune</mat-icon>&nbsp;Paramètres</ng-template>
+    <ng-template matTabContent>
+      @if (settings(); as st) {
+        <div class="tab-body"><app-tax-settings [settings]="st" (saved)="onSettingsSaved()" /></div>
+      }
+    </ng-template>
+  </mat-tab>
+
+  <!-- ===================== GUIDE ===================== -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>school</mat-icon>&nbsp;Guide</ng-template>
+    <ng-template matTabContent>
+      <div class="tab-body"><app-tax-guide [settings]="settings()" [setAsideRate]="summary()?.setAsideRate ?? null" /></div>
+    </ng-template>
+  </mat-tab>
+</mat-tab-group>

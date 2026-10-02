@@ -1,0 +1,92 @@
+<div class="page-header">
+  <div>
+    <h1>Achats</h1>
+    <p class="subtitle">{{ dataSource.filteredData.length }} entrée(s) · total des achats {{ filteredTotal() | currency }} (hors transferts de collection)</p>
+  </div>
+  <div class="page-actions">
+    <a mat-stroked-button routerLink="/books"><mat-icon>menu_book</mat-icon> Registre des achats</a>
+    <a mat-stroked-button routerLink="/purchases/new" [queryParams]="{ source: 'collection' }"
+       matTooltip="Mettre en vente des cartes de votre collection personnelle, sans prix d'achat">
+      <mat-icon>collections_bookmark</mat-icon> Depuis ma collection
+    </a>
+    <a mat-flat-button routerLink="/purchases/new"><mat-icon>add</mat-icon> Nouvel achat</a>
+  </div>
+</div>
+
+<div class="filters">
+  <mat-form-field class="filter-search">
+    <mat-label>Rechercher</mat-label>
+    <mat-icon matPrefix>search</mat-icon>
+    <input matInput #search (input)="applyFilter(search.value)" placeholder="N°, fournisseur, article…">
+  </mat-form-field>
+</div>
+
+<div class="table-card">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  <div class="table-wrap">
+    <table mat-table [dataSource]="dataSource" matSort matSortActive="purchaseDate" matSortDirection="desc">
+      <ng-container matColumnDef="purchaseNumber">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>N° achat</th>
+        <td mat-cell *matCellDef="let p">
+          <span class="ref">{{ p.purchaseNumber }}</span>
+          @if (p.source === 'PersonalCollection') {
+            <div><span class="chip chip-collection">Ma collection</span></div>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="purchaseDate">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Date</th>
+        <td mat-cell *matCellDef="let p">{{ p.purchaseDate | date: 'dd/MM/yyyy' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="supplier">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Fournisseur</th>
+        <td mat-cell *matCellDef="let p">
+          <div class="strong">{{ p.supplier }}</div>
+          @if (p.platform) { <div class="muted small">{{ platformLabel(p.platform) }}</div> }
+          @if (p.platformFees || p.shippingFees) {
+            <div class="muted small">Plateforme {{ p.platformFees | currency }} · port {{ p.shippingFees | currency }}</div>
+          }
+          @if (p.comment) { <div class="muted small ellipsis">{{ p.comment }}</div> }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="items">
+        <th mat-header-cell *matHeaderCellDef>Articles</th>
+        <td mat-cell *matCellDef="let p">
+          <div class="ellipsis items-summary" [matTooltip]="itemsSummary(p)">{{ itemsSummary(p) }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="itemCount">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Qté</th>
+        <td mat-cell *matCellDef="let p" class="num">{{ p.itemCount }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="totalAmount">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Montant</th>
+        <td mat-cell *matCellDef="let p" class="num strong">{{ p.totalAmount | currency }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let p" class="actions-cell">
+          <button mat-icon-button matTooltip="Modifier" (click)="$event.stopPropagation(); edit(p)"><mat-icon>edit</mat-icon></button>
+          <button mat-icon-button matTooltip="Supprimer" (click)="delete(p, $event)"><mat-icon>delete</mat-icon></button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns" class="clickable" (click)="edit(row)"></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="mat-mdc-cell no-data" [attr.colspan]="columns.length">
+          {{ loading() ? 'Chargement…' : 'Aucun achat trouvé.' }}
+        </td>
+      </tr>
+    </table>
+  </div>
+  <mat-paginator [pageSizeOptions]="[10, 25, 50, 100]" [pageSize]="25" showFirstLastButtons />
+</div>

@@ -1,0 +1,63 @@
+<div class="page-header">
+  <div>
+    <h1>Registres comptables</h1>
+    <p class="subtitle">Les deux documents à présenter en cas de contrôle, générés à partir de vos achats et ventes</p>
+  </div>
+  <div class="page-actions">
+    <mat-form-field class="year-select">
+      <mat-label>Année</mat-label>
+      <mat-select [value]="year()" (selectionChange)="year.set($event.value)">
+        @for (y of years; track y) {
+          <mat-option [value]="y">{{ y }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+</div>
+
+<div class="books-grid">
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title><mat-icon class="title-icon">point_of_sale</mat-icon> Livre des recettes {{ year() }}</mat-card-title>
+      <mat-card-subtitle>Chaque encaissement, dans l'ordre chronologique</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <p>Date, référence (vente et facture), client, nature de la vente, <strong>mode de règlement</strong> et montant.
+        Les remboursements apparaissent en négatif à leur date.</p>
+      <div class="book-actions">
+        <a mat-flat-button [href]="url('receipts', 'xlsx')" download><mat-icon>table_view</mat-icon> Excel</a>
+        <a mat-stroked-button [href]="url('receipts', 'pdf')" download><mat-icon>picture_as_pdf</mat-icon> PDF</a>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title><mat-icon class="title-icon">shopping_cart</mat-icon> Registre des achats {{ year() }}</mat-card-title>
+      <mat-card-subtitle>Obligatoire pour une activité d'achat-revente</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <p>Date, référence, fournisseur, articles, mode de règlement et montant. Les transferts depuis votre collection
+        personnelle figurent à part (ce ne sont pas des achats).</p>
+      <div class="book-actions">
+        <a mat-flat-button [href]="url('purchases', 'xlsx')" download><mat-icon>table_view</mat-icon> Excel</a>
+        <a mat-stroked-button [href]="url('purchases', 'pdf')" download><mat-icon>picture_as_pdf</mat-icon> PDF</a>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title><mat-icon class="title-icon">gavel</mat-icon> Les règles</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <ul class="tips">
+        <li>Tenez ces registres <strong>au fil de l'eau</strong> : c'est fait automatiquement dès que vous saisissez achats et ventes.</li>
+        <li>Conservez-les avec les justificatifs (tickets, factures, captures) pendant <strong>10 ans</strong>.
+          Exportez-les chaque année et rangez-les avec vos photos de justificatifs.</li>
+        <li>Pensez à renseigner le <strong>mode de paiement</strong> de chaque vente et de chaque achat.</li>
+        <li>Vos coordonnées (nom, SIRET) apparaissent en en-tête des PDF : complétez <a routerLink="/settings">Paramètres</a>.</li>
+      </ul>
+    </mat-card-content>
+  </mat-card>
+</div>

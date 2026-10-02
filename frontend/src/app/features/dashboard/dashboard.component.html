@@ -1,0 +1,123 @@
+<div class="page-header">
+  <div>
+    <h1>Tableau de bord</h1>
+    <p class="subtitle">Vue d'ensemble de l'activité — {{ today | date: 'MMMM yyyy' }}</p>
+  </div>
+  <div class="page-actions">
+    <a mat-stroked-button routerLink="/purchases/new"><mat-icon>add_shopping_cart</mat-icon> Nouvel achat</a>
+    <a mat-flat-button routerLink="/sales/new"><mat-icon>sell</mat-icon> Nouvelle vente</a>
+  </div>
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (alerts(); as a) {
+  @if (a.marketAlerts.length || a.dormant.length) {
+    <a class="info-banner alert-banner" routerLink="/alerts">
+      <mat-icon>notifications_active</mat-icon>
+      <span>
+        @if (a.marketAlerts.length) { <strong>{{ a.marketAlerts.length }} carte(s)</strong> prennent de la valeur. }
+        @if (a.dormant.length) { <strong>{{ a.dormant.length }} article(s)</strong> dorment en stock depuis plus de {{ a.settings.dormantWarningDays }} jours. }
+        Voir les alertes →
+      </span>
+    </a>
+  }
+}
+
+@if (data(); as d) {
+  <div class="kpi-grid">
+    <app-kpi-card icon="inventory_2" label="Articles en stock" color="#3949ab"
+                  [value]="d.stockItemCount | number" [sub]="d.stockReferenceCount + ' référence(s)'" />
+    <app-kpi-card icon="savings" label="Valeur du stock" color="#00897b"
+                  [value]="d.stockValue | currency" sub="au prix d'achat" />
+    <a routerLink="/alerts" class="kpi-link">
+      <app-kpi-card icon="trending_up" label="Valeur de marché du stock" color="#5e35b1"
+                    [value]="d.stockMarketValue | currency"
+                    [sub]="'plus-value latente ' + (d.latentGain >= 0 ? '+' : '') + (d.latentGain | currency)" />
+    </a>
+    <app-kpi-card icon="receipt_long" label="Ventes du mois" color="#8e24aa"
+                  [value]="d.monthSalesCount | number" />
+    <app-kpi-card icon="payments" label="CA du mois" color="#1e88e5"
+                  [value]="d.monthRevenue | currency" />
+    <app-kpi-card icon="trending_up" label="Bénéfice du mois" color="#2e7d32"
+                  [value]="d.monthProfit | currency" [negative]="d.monthProfit < 0" />
+    <app-kpi-card icon="shopping_cart" label="Total des achats" color="#ef6c00"
+                  [value]="d.totalPurchases | currency" [sub]="'dont ' + (d.monthPurchases | currency) + ' ce mois'" />
+    @if (tax()?.nextDeclaration; as next) {
+      <a routerLink="/tax" class="kpi-link">
+        <app-kpi-card icon="account_balance" label="Prochaine échéance URSSAF" color="#c62828"
+                      [value]="next.total | currency"
+                      [sub]="next.label + ' · avant le ' + (next.deadline | date: 'dd/MM')" />
+      </a>
+    }
+  </div>
+
+  <div class="chart-grid">
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Évolution du chiffre d'affaires</mat-card-title>
+        <mat-card-subtitle>12 derniers mois</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content><app-chart [config]="revenueChart()" /></mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Évolution des bénéfices</mat-card-title>
+        <mat-card-subtitle>12 derniers mois, frais déduits</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content><app-chart [config]="profitChart()" /></mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="chart-grid chart-grid--aside">
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Répartition du stock</mat-card-title>
+        <mat-card-subtitle>Cartes / produits scellés</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <app-chart [config]="distributionChart()" [height]="240" />
+        <div class="split-legend">
+          @for (s of d.stockDistribution; track s.label) {
+            <div><strong>{{ s.label }}</strong> : {{ s.quantity }} article(s) · {{ s.value | currency }}</div>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Dernières ventes</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        @if (d.recentSales.length === 0) {
+          <p class="empty">Aucune vente enregistrée pour l'instant.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="simple-table">
+              <thead>
+                <tr><th>N°</th><th>Date</th><th>Client</th><th>Plateforme</th><th class="num">Montant</th><th class="num">Bénéfice</th></tr>
+              </thead>
+              <tbody>
+                @for (s of d.recentSales; track s.id) {
+                  <tr class="clickable" [routerLink]="['/sales', s.id]">
+                    <td><span class="ref">{{ s.saleNumber }}</span></td>
+                    <td>{{ s.saleDate | date: 'dd/MM/yyyy' }}</td>
+                    <td>{{ s.customer || '—' }}</td>
+                    <td>{{ s.platform | label: 'platform' }}</td>
+                    <td class="num">{{ s.totalAmount | currency }}</td>
+                    <td class="num" [class.negative]="s.profit < 0" [class.positive]="s.profit >= 0">{{ s.profit | currency }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        <a mat-button routerLink="/sales" class="see-all">Voir tout l'historique <mat-icon iconPositionEnd>arrow_forward</mat-icon></a>
+      </mat-card-content>
+    </mat-card>
+  </div>
+}

@@ -1,0 +1,23 @@
+# .NET
+backend/bin/
+backend/obj/
+# Photos et justificatifs (à sauvegarder, pas à versionner)
+backend/data/
+*.user
+.vs/
+
+# Angular / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/out-tsc/
+
+# Configuration locale
+.env
+backend/appsettings.Development.json
+backend/appsettings.Local.json
+
+# Divers
+.vscode/
+.idea/
+Thumbs.db
