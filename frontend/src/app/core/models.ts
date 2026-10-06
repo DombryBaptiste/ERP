@@ -3,8 +3,8 @@
  * et sont envoyées au format "2026-09-30".
  */
 
-export type ItemType = 'RawCard' | 'GradedCard' | 'Booster' | 'Blister' | 'Etb' | 'Box' | 'Display' | 'MiniTin' | 'Bundle' | 'Other';
-export type ItemCondition = 'New' | 'Excellent' | 'VeryGood' | 'Good' | 'Fair' | 'Poor';
+export type ItemType = 'RawCard' | 'GradedCard' | 'Booster' | 'Blister' | 'Etb' | 'Box' | 'Display' | 'MiniTin' | 'Bundle' | 'Bulk' | 'Other';
+export type ItemCondition = 'NM' | 'EXC' | 'GOOD' | 'LP' | 'PL' | 'PO';
 export type SalePlatform = 'Cardmarket' | 'Ebay' | 'Vinted' | 'Leboncoin' | 'FacebookMarketplace' | 'InPerson' | 'Other';
 /** Supplier = achat classique ; PersonalCollection = transfert depuis la collection personnelle. */
 export type PurchaseSource = 'Supplier' | 'PersonalCollection';
@@ -409,4 +409,17 @@ export interface AppPreferences {
 export interface CardSeriesEntry {
   language: string;
   series: string;
+}
+// ----- Bulk (cartes en vrac vendues au lot) -----
+export interface BulkCategory {
+  /** Nom de la catégorie, utilisé aussi comme nom du produit dans l'inventaire. */
+  name: string;
+  /** Prix de vente conseillé par carte. */
+  suggestedPricePerCard: number;
+}
+
+export interface BulkSettings {
+  /** Poids moyen d'une carte en grammes, pour compter au poids. */
+  gramsPerCard: number;
+  categories: BulkCategory[];
 }

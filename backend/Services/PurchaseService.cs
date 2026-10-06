@@ -109,7 +109,7 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
             ApplyLine(existing.Item, line, purchase.PurchaseDate);
             existing.Item.RemainingQuantity = line.Quantity - sold;
             existing.Quantity = line.Quantity;
-            existing.UnitPrice = Math.Round(line.UnitPrice, 2);
+            existing.UnitPrice = Math.Round(line.UnitPrice, 6);
         }
 
         // Tous les articles de l'achat héritent de la date d'achat.
@@ -156,7 +156,7 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
         item.Type = line.Type;
         item.Condition = line.Condition;
         item.Quantity = line.Quantity;
-        item.PurchasePrice = Math.Round(line.UnitPrice, 2);
+        item.PurchasePrice = Math.Round(line.UnitPrice, 6);
         item.Location = Clean(line.Location);
         item.PurchaseDate = purchaseDate;
     }

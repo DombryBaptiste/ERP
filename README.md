@@ -175,6 +175,18 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - Les remboursements apparaissent en négatif dans le livre des recettes. Les transferts de collection figurent
   à part dans le registre des achats.
 
+### Bulk (cartes en vrac)
+Onglet **Bulk** : les communes, peu communes, reverses, etc. se gèrent **au nombre de cartes**, sans fiche par carte.
+- **Catégories** réglables (communes / peu communes, reverses, holos, V / ex / GX, dresseurs, énergies…), chacune avec
+  un **prix conseillé par carte**. Chaque catégorie est un produit de type « Bulk » dans l'inventaire.
+- **Ajouter du bulk** : nombre de cartes **ou poids** (≈ 1,8 g par carte, réglable) et coût total.
+  Cela crée un achat (A…) ou un transfert de collection (C…, 0 €), avec un coût par carte (ex. 30 € / 3 000 = 0,01 €).
+- **Vendre un lot** : catégorie, nombre de cartes (ou poids), prix du lot proposé d'après le prix conseillé.
+  Les cartes les plus anciennes partent en premier (FIFO) ; coût réel, bénéfice et marge sont affichés avant de valider.
+  C'est une vente normale : CA, URSSAF, livre des recettes et statistiques sont à jour.
+- Calculatrice « compter au poids », historique des ajouts et des ventes de bulk.
+- Les prix unitaires sont stockés avec 6 décimales (0,133333 € la carte), pour que le total d'un lot tombe juste au centime.
+
 ### Cartes de votre collection personnelle
 - **Achats → « Depuis ma collection »** (aussi depuis l'Inventaire) : transfert de cartes de la collection perso vers le stock
   professionnel, **sans prix d'achat** (valeur retenue à 0 €, ou le prix payé à l'époque pour suivre le vrai bénéfice).
@@ -267,7 +279,7 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 
 Valeurs des énumérations (JSON) :
 - `type` : `RawCard`, `GradedCard`, `Booster`, `Blister`, `Etb`, `Box` (coffret), `Display`, `Other`
-- `condition` : `New`, `Excellent`, `VeryGood`, `Good`, `Fair`
+- `condition` : `NM`, `EXC`, `GOOD`, `LP`, `PL`, `PO` (comme sur Cardmarket ; les anciennes valeurs `New`, `Excellent`… sont converties automatiquement au démarrage)
 - `platform` : `Cardmarket`, `Ebay`, `Vinted`, `Leboncoin`, `FacebookMarketplace`, `InPerson`, `Other`
 
 ---

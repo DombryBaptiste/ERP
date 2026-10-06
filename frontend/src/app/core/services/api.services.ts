@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, Dashboard, InventoryItem, InventoryItemInput,
+  Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, BulkSettings, Dashboard, InventoryItem, InventoryItemInput,
   Purchase, PurchaseInput, RefundInput, Sale, SaleInput, Statistics, TaxSettings, TaxSummary
 } from '../models';
 
@@ -58,6 +58,16 @@ export class SaleService {
   /** Attribue un numéro de facture (une seule fois). */
   issueInvoice(id: number): Observable<Sale> { return this.http.post<Sale>(`${this.url}/${id}/invoice`, {}); }
   invoiceUrl(id: number, download = false): string { return `${this.url}/${id}/invoice${download ? '?download=true' : ''}`; }
+}
+
+/** Réglages du bulk (/api/bulk/settings) */
+@Injectable({ providedIn: 'root' })
+export class BulkService {
+  private readonly http = inject(HttpClient);
+  private readonly url = '/api/bulk/settings';
+
+  settings(): Observable<BulkSettings> { return this.http.get<BulkSettings>(this.url); }
+  saveSettings(settings: BulkSettings): Observable<BulkSettings> { return this.http.put<BulkSettings>(this.url, settings); }
 }
 
 /** Fichiers joints (/api/attachments) */

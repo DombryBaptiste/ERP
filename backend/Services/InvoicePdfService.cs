@@ -97,7 +97,7 @@ public class InvoicePdfService
                     {
                         table.Cell().Element(BodyCell).Text(item.InventoryItem.Name);
                         table.Cell().Element(BodyCell).AlignRight().Text(item.Quantity.ToString(Fr));
-                        table.Cell().Element(BodyCell).AlignRight().Text(Money(item.SalePrice));
+                        table.Cell().Element(BodyCell).AlignRight().Text(UnitMoney(item.SalePrice));
                         table.Cell().Element(BodyCell).AlignRight().Text(Money(item.Quantity * item.SalePrice));
                     }
                 });
@@ -164,6 +164,12 @@ public class InvoicePdfService
         (text ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// <summary>Montant au format français (espaces normales : la police n'a pas toujours l'espace fine).</summary>
+    /// <summary>Prix unitaire : jusqu'à 4 décimales quand il le faut (cartes de bulk à 0,1333 €).</summary>
+    public static string UnitMoney(decimal value) =>
+        value == Math.Round(value, 2)
+            ? Money(value)
+            : Math.Round(value, 4).ToString("#,##0.00##", Fr).Replace(' ', ' ').Replace(' ', ' ') + " €";
+
     public static string Money(decimal value) =>
         value.ToString("N2", Fr).Replace(' ', ' ').Replace(' ', ' ') + " €";
 

@@ -91,3 +91,27 @@ function toGroup(key: string, lots: InventoryItem[]): ProductGroup {
     hasCollection: lots.some(l => l.origin === 'PersonalCollection')
   };
 }
+
+/** Part d'une quantité prélevée sur un lot. */
+export interface LotAllocation {
+  lot: InventoryItem;
+  quantity: number;
+}
+
+/**
+ * Répartit une quantité sur les lots en FIFO (les plus anciens d'abord).
+ * Renvoie null si le stock total ne suffit pas.
+ */
+export function allocateFifo(lots: InventoryItem[], quantity: number): LotAllocation[] | null {
+  const result: LotAllocation[] = [];
+  let wanted = quantity;
+  for (const lot of [...lots].sort(byFifo)) {
+    if (wanted <= 0) break;
+    const take = Math.min(lot.remainingQuantity, wanted);
+    if (take > 0) {
+      result.push({ lot, quantity: take });
+      wanted -= take;
+    }
+  }
+  return wanted > 0 ? null : result;
+}

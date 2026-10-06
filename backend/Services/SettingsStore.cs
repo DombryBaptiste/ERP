@@ -34,6 +34,35 @@ public class SettingsStore(AppDbContext db)
     }
 }
 
+/// <summary>Réglages du bulk (poids d'une carte, catégories et prix conseillés).</summary>
+public class BulkSettingsService(SettingsStore store)
+{
+    private const string Key = "bulk.settings";
+
+    public async Task<BulkSettings> GetAsync() => await store.ReadAsync<BulkSettings>(Key) ?? new BulkSettings();
+
+    public async Task<BulkSettings> SaveAsync(BulkSettings settings)
+    {
+        if (settings.GramsPerCard is < 0.5m or > 10m)
+            throw new BusinessException("Le poids d'une carte doit être compris entre 0,5 et 10 g.");
+        var categories = (settings.Categories ?? new List<BulkCategory>())
+            .Where(c => !string.IsNullOrWhiteSpace(c.Name))
+            .Select(c => new BulkCategory { Name = c.Name.Trim(), SuggestedPricePerCard = Math.Round(c.SuggestedPricePerCard, 4) })
+            .ToList();
+        if (categories.Count == 0)
+            throw new BusinessException("Gardez au moins une catégorie de bulk.");
+        if (categories.Any(c => c.SuggestedPricePerCard < 0))
+            throw new BusinessException("Le prix conseillé ne peut pas être négatif.");
+        if (categories.GroupBy(c => c.Name.ToLowerInvariant()).Any(g => g.Count() > 1))
+            throw new BusinessException("Deux catégories de bulk portent le même nom.");
+
+        settings.Categories = categories;
+        settings.GramsPerCard = Math.Round(settings.GramsPerCard, 2);
+        await store.WriteAsync(Key, settings);
+        return settings;
+    }
+}
+
 /// <summary>Préférences : informations de l'entreprise (factures) et seuils d'alerte.</summary>
 public class PreferencesService(SettingsStore store)
 {

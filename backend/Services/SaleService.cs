@@ -70,7 +70,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
                        && sale.Items.OrderBy(i => i.Id).Zip(input.Items).All(pair =>
                            pair.First.InventoryItemId == pair.Second.InventoryItemId
                            && pair.First.Quantity == pair.Second.Quantity
-                           && pair.First.SalePrice == Math.Round(pair.Second.SalePrice, 2));
+                           && pair.First.SalePrice == Math.Round(pair.Second.SalePrice, 6));
             if (!same)
                 throw BusinessException.Conflict("Cette vente a des remboursements : supprimez-les avant de modifier les articles.");
             ApplyHeader(sale, input);
@@ -262,7 +262,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
                 InventoryItem = item,
                 InventoryItemId = item.Id,
                 Quantity = line.Quantity,
-                SalePrice = Math.Round(line.SalePrice, 2),
+                SalePrice = Math.Round(line.SalePrice, 6),
                 UnitCost = previousCosts.TryGetValue(item.Id, out var cost) ? cost : item.PurchasePrice
             });
         }

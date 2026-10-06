@@ -1,0 +1,98 @@
+.pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.pool {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 14px;
+  border-top: 4px solid #8d6e63;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+
+  &.empty { opacity: .75; border-top-color: #d7ccc8; }
+}
+
+.pool-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  mat-icon { color: #8d6e63; }
+}
+
+.pool-count {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+
+  span { font-size: 14px; font-weight: 400; color: var(--app-muted); }
+}
+
+.pool-figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #f7f5f4;
+
+  div { display: flex; flex-direction: column; }
+  span { font-size: 11px; color: var(--app-muted); }
+  strong { font-size: 14px; }
+}
+
+.pool-actions {
+  display: flex;
+  gap: 8px;
+
+  button { flex: 1; }
+}
+
+.grams-field { width: 260px; margin-bottom: 8px; }
+
+.settings-table {
+  margin-top: 8px;
+
+  td { padding: 4px 8px; }
+}
+
+.cell-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.num-input { width: 90px; text-align: right; }
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+
+  .spacer { flex: 1; }
+}
+
+.calc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+
+  mat-form-field { width: 200px; }
+}
+
+.calc-result {
+  font-size: 18px;
+
+  strong { font-size: 28px; color: #5d4037; }
+}

@@ -147,7 +147,7 @@ public class InventoryService(AppDbContext db, AttachmentService attachments)
         item.Category = string.IsNullOrWhiteSpace(input.Category) ? null : input.Category.Trim();
         item.Type = input.Type;
         item.Condition = input.Condition;
-        item.PurchasePrice = Math.Round(input.PurchasePrice, 2);
+        item.PurchasePrice = Math.Round(input.PurchasePrice, 6);
         item.Quantity = input.Quantity;
         item.Location = string.IsNullOrWhiteSpace(input.Location) ? null : input.Location.Trim();
         item.PurchaseDate = input.PurchaseDate.Date;

@@ -1,0 +1,176 @@
+@let t = totals();
+<div class="page-header">
+  <div>
+    <h1>Bulk</h1>
+    <p class="subtitle">Communes, peu communes, reverses… comptées à la carte, vendues par lots. Pas besoin de fiche par carte.</p>
+  </div>
+  <div class="page-actions">
+    <button mat-stroked-button (click)="showSettings.set(!showSettings())"><mat-icon>tune</mat-icon> Réglages</button>
+    <button mat-stroked-button (click)="openAdd()"><mat-icon>add</mat-icon> Ajouter du bulk</button>
+    <button mat-flat-button (click)="openSell()"><mat-icon>sell</mat-icon> Vendre un lot</button>
+  </div>
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (settings()) {
+  <div class="kpi-grid">
+    <app-kpi-card icon="layers" label="Cartes en bulk" color="#5d4037" [value]="t.cards | number" [sub]="'≈ ' + (t.weightKg | number: '1.0-1') + ' kg'" />
+    <app-kpi-card icon="savings" label="Coût du stock" color="#00897b" [value]="t.cost | currency" sub="ce que le bulk vous a coûté" />
+    <app-kpi-card icon="trending_up" label="Valeur au prix conseillé" color="#3949ab" [value]="t.potential | currency"
+                  [sub]="'marge potentielle ' + ((t.potential - t.cost) | currency)" />
+  </div>
+
+  @if (showSettings()) {
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Réglages du bulk</mat-card-title>
+        <mat-card-subtitle>Chaque catégorie est un produit de l'inventaire. Les prix conseillés servent à proposer le prix d'un lot.</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-form-field class="grams-field">
+          <mat-label>Poids moyen d'une carte</mat-label>
+          <input matInput type="number" min="0.5" max="10" step="0.05" [(ngModel)]="editGrams">
+          <span matTextSuffix>g</span>
+          <mat-hint>≈ 1,8 g sans protection. Pesez 100 cartes pour affiner.</mat-hint>
+        </mat-form-field>
+
+        <table class="simple-table settings-table">
+          <thead><tr><th>Catégorie</th><th class="num">Prix conseillé / carte</th><th class="num">Soit pour 100</th><th></th></tr></thead>
+          <tbody>
+            @for (c of editCategories; track $index; let i = $index) {
+              <tr>
+                <td><input class="cell-input" [(ngModel)]="c.name" placeholder="ex. Bulk reverses EV"></td>
+                <td class="num"><input class="cell-input num-input" type="number" min="0" step="0.01" [(ngModel)]="c.suggestedPricePerCard"> €</td>
+                <td class="num muted">{{ (c.suggestedPricePerCard || 0) * 100 | currency }}</td>
+                <td class="actions-cell">
+                  <button mat-icon-button type="button" matTooltip="Supprimer" (click)="removeCategory(i)"><mat-icon>delete</mat-icon></button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <div class="settings-actions">
+          <button mat-button type="button" (click)="addCategory()"><mat-icon>add</mat-icon> Catégorie</button>
+          <span class="spacer"></span>
+          <button mat-button type="button" (click)="resetSettingsForm(); showSettings.set(false)">Annuler</button>
+          <button mat-flat-button type="button" (click)="saveSettings()" [disabled]="savingSettings()">Enregistrer</button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <div class="pool-grid">
+    @for (p of pools(); track p.name) {
+      <div class="pool" [class.empty]="p.cards === 0">
+        <div class="pool-head">
+          <mat-icon>layers</mat-icon>
+          <strong>{{ p.name }}</strong>
+        </div>
+        <div class="pool-count">{{ p.cards | number }} <span>cartes</span></div>
+        <div class="pool-figures">
+          <div><span>Coût moyen</span><strong>{{ p.averageCost | currency: 'EUR' : 'symbol' : '1.2-4' }}</strong></div>
+          <div><span>Prix conseillé</span><strong>{{ p.suggestedPricePerCard | currency: 'EUR' : 'symbol' : '1.2-4' }}</strong></div>
+          <div><span>Coût du stock</span><strong>{{ p.stockValue | currency }}</strong></div>
+          <div><span>Poids</span><strong>{{ p.weightKg | number: '1.0-2' }} kg</strong></div>
+        </div>
+        <div class="pool-actions">
+          <button mat-stroked-button (click)="openAdd(p.name)"><mat-icon>add</mat-icon> Ajouter</button>
+          <button mat-flat-button (click)="openSell(p.name)" [disabled]="p.cards === 0"><mat-icon>sell</mat-icon> Vendre</button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="chart-grid">
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title><mat-icon class="title-icon">scale</mat-icon> Compter au poids</mat-card-title>
+        <mat-card-subtitle>Posez la boîte sur une balance de cuisine (en retirant le poids de la boîte)</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="calc">
+          <mat-form-field>
+            <mat-label>Poids des cartes</mat-label>
+            <input matInput type="number" min="0" step="10" [ngModel]="calcGrams()" (ngModelChange)="calcGrams.set(+$event)">
+            <span matTextSuffix>g</span>
+          </mat-form-field>
+          <div class="calc-result">≈ <strong>{{ calcCards() | number }}</strong> cartes</div>
+        </div>
+        <p class="muted small">Repères : 100 cartes ≈ {{ (settings()?.gramsPerCard ?? 1.8) * 100 | number: '1.0-0' }} g · 1 kg ≈ {{ 1000 / (settings()?.gramsPerCard ?? 1.8) | number: '1.0-0' }} cartes.</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title><mat-icon class="title-icon">lightbulb</mat-icon> Comment ça marche</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <ul class="tips">
+          <li><strong>Ajouter</strong> : un lot de bulk acheté (ex. 3 000 cartes pour 30 €) ou les cartes de votre collection (0 €). Il apparaît dans les achats et le registre comme les autres achats.</li>
+          <li><strong>Vendre un lot</strong> : choisissez la catégorie, le nombre de cartes (ou le poids) et le prix du lot. Les cartes les plus anciennes partent en premier, et le bénéfice utilise leur coût réel.</li>
+          <li>Les ventes de bulk entrent dans le CA, l'URSSAF, le livre des recettes et les statistiques, comme les autres ventes.</li>
+          <li>Les catégories apparaissent aussi dans l'<a routerLink="/inventory">inventaire</a> (type « Bulk »).</li>
+        </ul>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="chart-grid">
+    <mat-card class="card">
+      <mat-card-header><mat-card-title>Dernières ventes de bulk</mat-card-title></mat-card-header>
+      <mat-card-content>
+        @if (recentSales().length === 0) {
+          <p class="empty">Aucune vente de bulk pour l'instant.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="simple-table">
+              <thead><tr><th>Vente</th><th>Date</th><th>Catégorie</th><th class="num">Cartes</th><th class="num">Montant</th><th class="num">Bénéfice</th></tr></thead>
+              <tbody>
+                @for (r of recentSales(); track r.sale.id) {
+                  <tr class="clickable" [routerLink]="['/sales', r.sale.id]">
+                    <td><span class="ref">{{ r.sale.saleNumber }}</span></td>
+                    <td>{{ r.sale.saleDate | date: 'dd/MM/yyyy' }}</td>
+                    <td>{{ r.category }}</td>
+                    <td class="num">{{ r.cards | number }}</td>
+                    <td class="num">{{ r.amount | currency }}</td>
+                    <td class="num" [class.positive]="r.profit >= 0" [class.negative]="r.profit < 0">{{ r.profit | currency }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header><mat-card-title>Derniers ajouts</mat-card-title></mat-card-header>
+      <mat-card-content>
+        @if (recentLots().length === 0) {
+          <p class="empty">Aucun bulk ajouté pour l'instant.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="simple-table">
+              <thead><tr><th>Entrée</th><th>Date</th><th>Catégorie</th><th class="num">Cartes</th><th class="num">Coût / carte</th><th class="num">Restant</th></tr></thead>
+              <tbody>
+                @for (lot of recentLots(); track lot.id) {
+                  <tr class="clickable" [routerLink]="lot.purchaseId ? ['/purchases', lot.purchaseId] : ['/inventory', lot.id]">
+                    <td><span class="ref">{{ lot.purchaseNumber ?? '#' + lot.id }}</span></td>
+                    <td>{{ lot.purchaseDate | date: 'dd/MM/yyyy' }}</td>
+                    <td>{{ lot.name }}</td>
+                    <td class="num">{{ lot.quantity | number }}</td>
+                    <td class="num">{{ lot.purchasePrice | currency: 'EUR' : 'symbol' : '1.2-4' }}</td>
+                    <td class="num">{{ lot.remainingQuantity | number }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  </div>
+}
