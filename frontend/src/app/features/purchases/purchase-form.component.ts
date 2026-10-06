@@ -291,6 +291,7 @@ export class PurchaseFormComponent implements OnInit {
       next: p => {
         const kind = p.source === 'PersonalCollection' ? 'Transfert' : 'Achat';
         this.notify.success(`${kind} ${p.purchaseNumber} enregistré (${p.itemCount} article(s) en stock).`);
+        this.saving.set(false);
         this.router.navigate(['/purchases', p.id]);
       },
       error: err => {
