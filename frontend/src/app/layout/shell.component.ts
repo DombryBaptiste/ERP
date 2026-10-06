@@ -36,6 +36,7 @@ export class ShellComponent {
     { path: '/dashboard', icon: 'dashboard', label: 'Tableau de bord' },
     { path: '/purchases', icon: 'shopping_cart', label: 'Achats' },
     { path: '/inventory', icon: 'inventory_2', label: 'Inventaire' },
+    { path: '/bulk', icon: 'layers', label: 'Bulk' },
     { path: '/sales', icon: 'point_of_sale', label: 'Ventes' },
     { path: '/alerts', icon: 'notifications_active', label: 'Alertes' },
     { path: '/statistics', icon: 'insights', label: 'Statistiques' },

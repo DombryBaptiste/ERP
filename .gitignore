@@ -1,8 +1,10 @@
 # .NET
 backend/bin/
 backend/obj/
-# Photos et justificatifs (à sauvegarder, pas à versionner)
-backend/data/
+# Photos et justificatifs (à sauvegarder, pas à versionner).
+# Sous Windows, « data » et « Data » désignent le même dossier : on n'exclut que uploads,
+# sinon le code de backend/Data (DbContext, initialisation de la base) sort du dépôt.
+backend/data/uploads/
 *.user
 .vs/
 

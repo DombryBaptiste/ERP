@@ -12,6 +12,7 @@ public enum ItemType
     Display,
     MiniTin,
     Bundle,
+    Bulk,        // Vrac : cartes communes, reverses... comptées à la carte
     Other        // Autre
 }
 
@@ -104,5 +105,5 @@ public enum AttachmentKind
 public static class ItemTypeExtensions
 {
     /// <summary>Vrai pour les cartes (brutes ou gradées), faux pour les produits scellés.</summary>
-    public static bool IsCard(this ItemType type) => type is ItemType.RawCard or ItemType.GradedCard;
+    public static bool IsCard(this ItemType type) => type is ItemType.RawCard or ItemType.GradedCard or ItemType.Bulk;
 }

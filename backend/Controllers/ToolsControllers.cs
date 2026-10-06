@@ -83,3 +83,15 @@ public class SettingsController(PreferencesService service) : ControllerBase
     [HttpPut]
     public Task<AppPreferences> Save(AppPreferences preferences) => service.SaveAsync(preferences);
 }
+
+/// <summary>Réglages du bulk (cartes en vrac vendues au lot).</summary>
+[ApiController]
+[Route("api/bulk/settings")]
+public class BulkSettingsController(BulkSettingsService service) : ControllerBase
+{
+    [HttpGet]
+    public Task<BulkSettings> Get() => service.GetAsync();
+
+    [HttpPut]
+    public Task<BulkSettings> Save(BulkSettings settings) => service.SaveAsync(settings);
+}

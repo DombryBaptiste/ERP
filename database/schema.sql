@@ -22,9 +22,9 @@ CREATE TABLE IF NOT EXISTS inventory_items (
   name               VARCHAR(200)  NOT NULL,
   category           VARCHAR(100)  NULL,
   language           VARCHAR(50)   NULL,
-  type               VARCHAR(30)   NOT NULL,  -- RawCard, GradedCard, Booster, Blister, Etb, Box, Display, MiniTin, Bundle, Other
+  type               VARCHAR(30)   NOT NULL,  -- RawCard, GradedCard, Booster, Blister, Etb, Box, Display, MiniTin, Bundle, Bulk, Other
   `condition`        VARCHAR(30)   NOT NULL,  -- New, Excellent, VeryGood, Good, Fair, Poor
-  purchase_price     DECIMAL(10,2) NOT NULL,  -- prix d'achat unitaire
+  purchase_price     DECIMAL(14,6) NOT NULL,  -- prix d'achat unitaire
   quantity           INT           NOT NULL,  -- quantité achetée
   remaining_quantity INT           NOT NULL,  -- quantité restante en stock
   location           VARCHAR(100)  NULL,
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS purchase_items (
   purchase_id INT           NOT NULL,
   item_id     INT           NOT NULL,
   quantity    INT           NOT NULL,
-  unit_price  DECIMAL(10,2) NOT NULL,
+  unit_price  DECIMAL(14,6) NOT NULL,
   PRIMARY KEY (id),
   KEY IX_purchase_items_purchase_id (purchase_id),
   UNIQUE KEY IX_purchase_items_item_id (item_id),
@@ -96,8 +96,8 @@ CREATE TABLE IF NOT EXISTS sale_items (
   sale_id           INT           NOT NULL,
   inventory_item_id INT           NOT NULL,
   quantity          INT           NOT NULL,
-  sale_price        DECIMAL(10,2) NOT NULL,   -- prix de vente unitaire
-  unit_cost         DECIMAL(10,2) NOT NULL,   -- coût d'achat unitaire figé à la vente
+  sale_price        DECIMAL(14,6) NOT NULL,   -- prix de vente unitaire
+  unit_cost         DECIMAL(14,6) NOT NULL,   -- coût d'achat unitaire figé à la vente
   PRIMARY KEY (id),
   KEY IX_sale_items_sale_id (sale_id),
   KEY IX_sale_items_inventory_item_id (inventory_item_id),

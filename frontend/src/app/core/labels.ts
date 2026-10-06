@@ -12,6 +12,7 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   Display: 'Display',
   MiniTin: 'Mini-Tin',
   Bundle: 'Bundle',
+  Bulk: 'Bulk (vrac)',
   Other: 'Autre'
 };
 
@@ -106,4 +107,4 @@ export function cardmarketSearchUrl(name: string): string {
 }
 
 /** Vrai pour les cartes (brutes ou gradées), faux pour les produits scellés. */
-export const isCard = (type: ItemType): boolean => type === 'RawCard' || type === 'GradedCard';
+export const isCard = (type: ItemType): boolean => type === 'RawCard' || type === 'GradedCard' || type === 'Bulk';

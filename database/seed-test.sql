@@ -3,8 +3,8 @@
 --
 -- Crée la base `pokestock_test` (elle est SUPPRIMÉE puis recréée à chaque exécution),
 -- son schéma complet et un an d'activité fictive (octobre 2025 → septembre 2026) :
---   - 7 achats + 1 transfert depuis la collection personnelle, 16 articles
---   - 18 ventes (dont une facturée à un pro), 2 remboursements (dont un retour remis en stock)
+--   - 8 achats + 2 transferts depuis la collection personnelle, 18 articles (dont 2 catégories de bulk)
+--   - 20 ventes (dont une facturée à un pro et 2 lots de bulk), 2 remboursements (dont un retour remis en stock)
 --   - des valeurs de marché (alertes « prennent de la valeur ») et du stock dormant
 --   - les paramètres fiscaux (ACRE, déclaration trimestrielle) et les infos d'entreprise (factures)
 --
@@ -44,7 +44,7 @@ CREATE TABLE inventory_items (
   category                VARCHAR(100)  NULL,
   type                    VARCHAR(30)   NOT NULL,
   `condition`             VARCHAR(30)   NOT NULL,
-  purchase_price          DECIMAL(10,2) NOT NULL,
+  purchase_price          DECIMAL(14,6) NOT NULL,
   quantity                INT           NOT NULL,
   remaining_quantity      INT           NOT NULL,
   location                VARCHAR(100)  NULL,
@@ -76,7 +76,7 @@ CREATE TABLE purchase_items (
   purchase_id INT           NOT NULL,
   item_id     INT           NOT NULL,
   quantity    INT           NOT NULL,
-  unit_price  DECIMAL(10,2) NOT NULL,
+  unit_price  DECIMAL(14,6) NOT NULL,
   PRIMARY KEY (id),
   KEY IX_purchase_items_purchase_id (purchase_id),
   UNIQUE KEY IX_purchase_items_item_id (item_id),
@@ -111,8 +111,8 @@ CREATE TABLE sale_items (
   sale_id           INT           NOT NULL,
   inventory_item_id INT           NOT NULL,
   quantity          INT           NOT NULL,
-  sale_price        DECIMAL(10,2) NOT NULL,
-  unit_cost         DECIMAL(10,2) NOT NULL,
+  sale_price        DECIMAL(14,6) NOT NULL,
+  unit_cost         DECIMAL(14,6) NOT NULL,
   PRIMARY KEY (id),
   KEY IX_sale_items_sale_id (sale_id),
   KEY IX_sale_items_inventory_item_id (inventory_item_id),
@@ -197,7 +197,9 @@ INSERT INTO inventory_items
 (13, 'Noctali ex 217/131 SIR',                    'EV8.5 Évolutions Prismatiques','RawCard',   'Excellent',140.00, 1,  1, 'Classeur 1 p.12',   '2026-08-22', 128.00, 150.00, '2026-09-28 20:05:00', NOW(6)),
 (14, 'Dracaufeu 4/102 Set de Base (1999)',        'Set de Base',                 'RawCard',    'Good',      0.00,  1,  0, 'Classeur vintage',  '2026-02-01', NULL,   NULL,   NULL,                  NOW(6)),
 (15, 'Florizarre 15/102 Set de Base',             'Set de Base',                 'RawCard',    'Fair',      0.00,  1,  0, 'Classeur vintage',  '2026-02-01', NULL,   NULL,   NULL,                  NOW(6)),
-(16, 'Lot de 100 cartes communes Écarlate et Violet','Lots',                     'Other',      'VeryGood',  0.00,  1,  0, 'Boîte à lots',      '2026-02-01', NULL,   NULL,   NULL,                  NOW(6));
+(16, 'Lot de 100 cartes communes Écarlate et Violet','Lots',                     'Other',      'VeryGood',  0.00,  1,  0, 'Boîte à lots',      '2026-02-01', NULL,   NULL,   NULL,                  NOW(6)),
+(17, 'Bulk communes / peu communes',              NULL,                          'Bulk',       'Excellent', 0.010000, 3000, 2500, 'Boîte à bulk 1', '2026-09-02', NULL, NULL, NULL, NOW(6)),
+(18, 'Bulk reverses',                             NULL,                          'Bulk',       'Excellent', 0.000000,  400,  300, 'Boîte à bulk 2', '2026-09-05', NULL, NULL, NULL, NOW(6));
 
 -- ----------------------------------------------------------------------------
 -- Achats (A…) et transfert depuis la collection personnelle (C…)
@@ -211,7 +213,9 @@ INSERT INTO purchases (id, purchase_number, source, purchase_date, supplier, pay
 (5, 'A2026002', 'Supplier',           '2026-03-08', 'Salon TCG Lille',              'Cash',     NULL,                                     205.00, NOW(6)),
 (6, 'A2026003', 'Supplier',           '2026-05-12', 'Micromania Lille',             'Card',     NULL,                                     240.00, NOW(6)),
 (7, 'A2026004', 'Supplier',           '2026-08-22', 'Cardmarket - PokéDeals',       'PayPal',   NULL,                                     305.00, NOW(6)),
-(8, 'C2026001', 'PersonalCollection', '2026-02-01', 'Collection personnelle',       NULL,       'Cartes de mon ancienne collection (classeur 1999-2001), photos du classeur conservées', 0.00, NOW(6));
+(8, 'C2026001', 'PersonalCollection', '2026-02-01', 'Collection personnelle',       NULL,       'Cartes de mon ancienne collection (classeur 1999-2001), photos du classeur conservées', 0.00, NOW(6)),
+(9,  'A2026005', 'Supplier',           '2026-09-02', 'Particulier (Vinted)',         'PayPal',   'Lot de bulk 3 000 cartes (5,4 kg)',      30.00, NOW(6)),
+(10, 'C2026002', 'PersonalCollection', '2026-09-05', 'Collection personnelle',       NULL,       'Reverses de mes anciennes ouvertures',  0.00, NOW(6));
 
 INSERT INTO purchase_items (id, purchase_id, item_id, quantity, unit_price) VALUES
 ( 1, 1,  1, 20,   4.50),
@@ -229,7 +233,9 @@ INSERT INTO purchase_items (id, purchase_id, item_id, quantity, unit_price) VALU
 (13, 7, 13,  1, 140.00),
 (14, 8, 14,  1,   0.00),
 (15, 8, 15,  1,   0.00),
-(16, 8, 16,  1,   0.00);
+(16, 8, 16,  1,   0.00),
+(17, 9, 17, 3000, 0.010000),
+(18,10, 18,  400, 0.000000);
 
 -- ----------------------------------------------------------------------------
 -- Ventes
@@ -257,7 +263,9 @@ INSERT INTO sales
 (15, 'V2026011', '2026-08-14', 'Thomas B.',           'Vinted',              'Platform',     0.00, NULL,                         96.00,  0.00,  22.00, NULL, NULL, NULL, NULL, NOW(6)),
 (16, 'V2026012', '2026-09-06', 'Léa K.',              'Leboncoin',           'PayPal',       0.00, NULL,                        156.00,  0.00,  36.00, NULL, NULL, NULL, NULL, NOW(6)),
 (17, 'V2026013', '2026-09-21', 'drakkar_cards',       'Cardmarket',          'Platform',     3.80, NULL,                         25.00,  0.00,  21.20, NULL, NULL, NULL, NULL, NOW(6)),
-(18, 'V2026014', '2026-09-28', 'Hugo',                'InPerson',            'Card',         0.00, NULL,                         54.99,  0.00,  15.00, NULL, NULL, NULL, NULL, NOW(6));
+(18, 'V2026014', '2026-09-28', 'Hugo',                'InPerson',            'Card',         0.00, NULL,                         54.99,  0.00,  15.00, NULL, NULL, NULL, NULL, NOW(6)),
+(19, 'V2026015', '2026-09-30', 'collecbulk',          'Vinted',              'Platform',     0.00, 'Lot de 500 cartes (Bulk communes / peu communes)', 10.00, 0.00, 5.00, NULL, NULL, NULL, NULL, NOW(6)),
+(20, 'V2026016', '2026-10-03', 'Enzo',                'InPerson',            'Cash',         0.00, 'Lot de 100 cartes (Bulk reverses)',  8.00,  0.00,  8.00, NULL, NULL, NULL, NULL, NOW(6));
 
 INSERT INTO sale_items (id, sale_id, inventory_item_id, quantity, sale_price, unit_cost) VALUES
 ( 1,  1,  1,  6,   7.00,   4.50),
@@ -281,7 +289,9 @@ INSERT INTO sale_items (id, sale_id, inventory_item_id, quantity, sale_price, un
 (19, 15,  8,  8,   9.00,   7.00),
 (20, 16, 11,  2,  78.00,  60.00),
 (21, 17, 16,  1,  25.00,   0.00),
-(22, 18,  7,  1,  54.99,  39.99);
+(22, 18,  7,  1,  54.99,  39.99),
+(23, 19, 17, 500,  0.020000, 0.010000),
+(24, 20, 18, 100,  0.080000, 0.000000);
 
 -- ----------------------------------------------------------------------------
 -- Remboursements
