@@ -16,11 +16,12 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
 };
 
 export const CONDITION_LABELS: Record<ItemCondition, string> = {
-  New: 'Neuf',
-  Excellent: 'Excellent',
-  VeryGood: 'Très bon',
-  Good: 'Bon',
-  Fair: 'Moyen'
+  New: 'NM',
+  Excellent: 'EXC',
+  VeryGood: 'GOOD',
+  Good: 'LP',
+  Fair: 'PL',
+  Poor: 'PO'
 };
 
 export const PLATFORM_LABELS: Record<SalePlatform, string> = {

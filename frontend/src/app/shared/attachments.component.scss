@@ -29,6 +29,24 @@
   overflow: hidden;
 }
 
+.att-order {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  gap: 2px;
+
+  button {
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    background: rgba(255, 255, 255, .9);
+  }
+
+  mat-icon { width: 18px; height: 18px; font-size: 18px; }
+}
+
 .att-thumb {
   display: grid;
   place-items: center;

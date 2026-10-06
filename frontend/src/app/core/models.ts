@@ -4,7 +4,7 @@
  */
 
 export type ItemType = 'RawCard' | 'GradedCard' | 'Booster' | 'Blister' | 'Etb' | 'Box' | 'Display' | 'MiniTin' | 'Bundle' | 'Other';
-export type ItemCondition = 'New' | 'Excellent' | 'VeryGood' | 'Good' | 'Fair';
+export type ItemCondition = 'New' | 'Excellent' | 'VeryGood' | 'Good' | 'Fair' | 'Poor';
 export type SalePlatform = 'Cardmarket' | 'Ebay' | 'Vinted' | 'Leboncoin' | 'FacebookMarketplace' | 'InPerson' | 'Other';
 /** Supplier = achat classique ; PersonalCollection = transfert depuis la collection personnelle. */
 export type PurchaseSource = 'Supplier' | 'PersonalCollection';
@@ -59,6 +59,7 @@ export interface PurchaseLine {
   itemId: number;
   name: string;
   category: string | null;
+  language: string | null;
   type: ItemType;
   condition: ItemCondition;
   quantity: number;
@@ -380,6 +381,7 @@ export interface Attachment {
   fileName: string;
   contentType: string;
   size: number;
+  sortOrder: number;
   isImage: boolean;
   uploadedAt: string;
   url: string;
@@ -401,4 +403,10 @@ export interface CompanyInfo {
 export interface AppPreferences {
   company: CompanyInfo;
   alerts: AlertSettings;
+  cardSeries: CardSeriesEntry[];
+}
+
+export interface CardSeriesEntry {
+  language: string;
+  series: string;
 }

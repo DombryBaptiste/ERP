@@ -7,7 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
-import { AppPreferences } from '../../core/models';
+import { AppPreferences, CardSeriesEntry } from '../../core/models';
 import { ToolsService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 
@@ -24,6 +24,15 @@ export class SettingsComponent implements OnInit {
 
   readonly loading = signal(true);
   readonly saving = signal(false);
+  readonly cardSeries = signal<CardSeriesEntry[]>([]);
+  readonly editingSeries = signal<CardSeriesEntry | null>(null);
+  readonly seriesSearch = this.fb.control('');
+  readonly seriesName = this.fb.control('', [Validators.required, Validators.maxLength(100)]);
+
+  readonly seriesForm = this.fb.group({
+    language: ['', [Validators.required, Validators.maxLength(50)]],
+    series: ['', [Validators.required, Validators.maxLength(100)]]
+  });
 
   readonly company = this.fb.group({
     fullName: ['', [Validators.required, Validators.maxLength(120)]],
@@ -54,6 +63,8 @@ export class SettingsComponent implements OnInit {
           vatMention: c.vatMention || 'TVA non applicable, art. 293 B du CGI', invoiceFooter: c.invoiceFooter ?? ''
         });
         this.alerts.patchValue(prefs.alerts);
+        this.cardSeries.set([...(prefs.cardSeries ?? [])].sort((a, b) =>
+          a.language.localeCompare(b.language) || a.series.localeCompare(b.series)));
         this.loading.set(false);
       },
       error: err => {
@@ -61,6 +72,70 @@ export class SettingsComponent implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  addCardSeries(): void {
+    if (this.seriesForm.invalid) {
+      this.seriesForm.markAllAsTouched();
+      return;
+    }
+    const entry = this.seriesForm.getRawValue();
+    const duplicate = this.cardSeries().some(x =>
+      x.language.toLocaleLowerCase() === entry.language.trim().toLocaleLowerCase()
+      && x.series.toLocaleLowerCase() === entry.series.trim().toLocaleLowerCase());
+    if (duplicate) {
+      this.notify.error(null, 'Cette série existe déjà pour cette langue.');
+      return;
+    }
+    this.cardSeries.update(entries => [...entries, {
+      language: entry.language.trim(), series: entry.series.trim()
+    }].sort((a, b) => a.language.localeCompare(b.language) || a.series.localeCompare(b.series)));
+    this.seriesForm.reset();
+  }
+
+  filteredSeriesGroups(): { language: string; entries: CardSeriesEntry[] }[] {
+    const term = this.seriesSearch.value.trim().toLocaleLowerCase();
+    const filtered = this.cardSeries().filter(entry =>
+      !term || entry.language.toLocaleLowerCase().includes(term) || entry.series.toLocaleLowerCase().includes(term));
+    return [...new Set(filtered.map(entry => entry.language))].map(language => ({
+      language,
+      entries: filtered.filter(entry => entry.language === language)
+    }));
+  }
+
+  removeCardSeries(entry: CardSeriesEntry): void {
+    this.cardSeries.update(entries => entries.filter(x =>
+      x.language !== entry.language || x.series !== entry.series));
+  }
+
+  editCardSeries(entry: CardSeriesEntry): void {
+    this.editingSeries.set(entry);
+    this.seriesName.setValue(entry.series);
+    this.seriesName.markAsUntouched();
+  }
+
+  cancelSeriesEdit(): void {
+    this.editingSeries.set(null);
+    this.seriesName.reset();
+  }
+
+  saveSeriesEdit(entry: CardSeriesEntry): void {
+    if (this.seriesName.invalid) {
+      this.seriesName.markAsTouched();
+      return;
+    }
+    const series = this.seriesName.value.trim();
+    const duplicate = this.cardSeries().some(x =>
+      x.language === entry.language && x.series.toLocaleLowerCase() === series.toLocaleLowerCase()
+      && x.series !== entry.series);
+    if (duplicate) {
+      this.notify.error(null, 'Cette série existe déjà pour cette langue.');
+      return;
+    }
+    this.cardSeries.update(entries => entries.map(x =>
+      x.language === entry.language && x.series === entry.series ? { ...x, series } : x
+    ).sort((a, b) => a.language.localeCompare(b.language) || a.series.localeCompare(b.series)));
+    this.cancelSeriesEdit();
   }
 
   save(): void {
@@ -84,7 +159,8 @@ export class SettingsComponent implements OnInit {
         vatMention: c.vatMention.trim(),
         invoiceFooter: blankToNull(c.invoiceFooter)
       },
-      alerts: this.alerts.getRawValue()
+      alerts: this.alerts.getRawValue(),
+      cardSeries: this.cardSeries()
     };
     this.saving.set(true);
     this.api.savePreferences(prefs).subscribe({

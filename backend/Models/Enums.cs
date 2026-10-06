@@ -22,7 +22,8 @@ public enum ItemCondition
     Excellent,
     VeryGood,   // Très bon
     Good,       // Bon
-    Fair        // Moyen
+    Fair,       // Moyen
+    Poor        // Mauvais
 }
 
 /// <summary>Plateforme de vente.</summary>

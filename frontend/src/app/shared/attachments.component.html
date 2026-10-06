@@ -28,6 +28,20 @@
        (dragover)="$event.preventDefault(); dragOver.set(true)" (dragleave)="dragOver.set(false)" (drop)="onDrop($event)">
     @for (f of files(); track f.id) {
       <div class="att-tile">
+        @if (f.kind === 'Photo') {
+          <div class="att-order">
+            <button mat-icon-button type="button" matTooltip="Déplacer vers le début"
+                    [attr.aria-label]="'Déplacer ' + f.fileName + ' vers le début'"
+                    [disabled]="reordering() || photoIndex(f) === 0" (click)="movePhoto(f, -1)">
+              <mat-icon>arrow_upward</mat-icon>
+            </button>
+            <button mat-icon-button type="button" matTooltip="Déplacer vers la fin"
+                    [attr.aria-label]="'Déplacer ' + f.fileName + ' vers la fin'"
+                    [disabled]="reordering() || photoIndex(f) === photoFiles().length - 1" (click)="movePhoto(f, 1)">
+              <mat-icon>arrow_downward</mat-icon>
+            </button>
+          </div>
+        }
         @if (f.isImage) {
           <button type="button" class="att-thumb" (click)="preview.set(f)" [matTooltip]="f.fileName">
             <img [src]="f.url" [alt]="f.fileName" loading="lazy">

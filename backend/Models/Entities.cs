@@ -21,6 +21,7 @@ public class InventoryItem
     public string Name { get; set; } = string.Empty;
     /// <summary>Catégorie libre : série / extension (ex. "EV08 Étincelles Déferlantes").</summary>
     public string? Category { get; set; }
+    public string? Language { get; set; }
     public ItemType Type { get; set; }
     public ItemCondition Condition { get; set; }
     /// <summary>Prix d'achat unitaire.</summary>
@@ -172,5 +173,6 @@ public class Attachment
     public string StoredName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
     public long Size { get; set; }
+    public int SortOrder { get; set; }
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 }

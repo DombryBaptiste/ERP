@@ -353,6 +353,79 @@ a.link:hover { text-decoration: underline; }
   gap: 12px;
 }
 
+.series-add-form {
+  display: grid;
+  grid-template-columns: minmax(72px, .35fr) minmax(0, 1.65fr) auto;
+  gap: 12px;
+  align-items: start;
+
+  .series-language-input { max-width: 110px; }
+}
+
+.series-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+
+  .series-search { flex: 1; min-width: 0; }
+  .series-count { flex: none; color: var(--app-muted); font-size: 13px; }
+}
+
+.series-list {
+  max-height: 340px;
+  overflow: auto;
+  border-top: 1px solid var(--app-border);
+}
+
+.series-group {
+  border-bottom: 1px solid var(--app-border);
+
+  summary {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 8px;
+    background: var(--app-surface);
+    cursor: pointer;
+    list-style: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary span { color: var(--app-muted); font-size: 12px; }
+}
+
+.series-group-items { padding-left: 12px; }
+
+.series-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px 2px 8px;
+  border-top: 1px solid #eef0f3;
+
+  strong { overflow: hidden; text-overflow: ellipsis; }
+}
+
+.series-entry-actions,
+.series-entry-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.series-entry-edit {
+  grid-column: 1 / -1;
+  width: 100%;
+
+  mat-form-field { flex: 1; min-width: 0; }
+}
+
+.series-empty { margin: 0; padding: 16px 8px; color: var(--app-muted); }
+
 .tips {
   margin: 0;
   padding-left: 20px;
@@ -399,6 +472,14 @@ a.link:hover { text-decoration: underline; }
   gap: 12px;
 }
 
+.purchase-lines {
+  max-height: min(48vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 6px 2px 2px;
+  scrollbar-gutter: stable;
+}
+
 .line {
   display: grid;
   gap: 8px 12px;
@@ -410,9 +491,23 @@ a.link:hover { text-decoration: underline; }
 }
 
 .purchase-line {
-  grid-template-columns: 28px minmax(180px, 2.2fr) minmax(140px, 1.4fr) minmax(120px, 1fr) minmax(110px, .9fr)
+  grid-template-columns: 28px minmax(180px, 2.2fr) minmax(110px, .9fr) minmax(140px, 1.4fr) minmax(120px, 1fr)
                          90px 120px minmax(120px, 1fr) 96px auto;
 }
+
+.purchase-line.card-line {
+  grid-template-columns: 28px minmax(180px, 2fr) minmax(110px, .9fr) minmax(72px, .55fr) minmax(140px, 1.35fr)
+                         minmax(100px, .8fr) 76px 110px minmax(110px, .9fr) 96px auto;
+}
+
+.purchase-line.missing-series {
+  border-color: #efc58e;
+  background: #fff4e5;
+}
+
+.f-language { min-width: 72px; max-width: 96px; }
+.f-series { min-width: 0; }
+.f-qty { max-width: 82px; }
 
 .sale-line {
   grid-template-columns: 28px minmax(260px, 3fr) 110px 150px 120px auto;
@@ -513,9 +608,11 @@ a.link:hover { text-decoration: underline; }
     grid-template-columns: repeat(4, minmax(0, 1fr));
 
     .line-index { display: none; }
-    .f-name, .f-category, .f-location { grid-column: span 2; }
+    .f-name, .f-category, .f-series, .f-location { grid-column: span 2; }
     .line-actions { justify-content: flex-end; }
   }
+
+  .purchase-line.card-line { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (max-width: 959.98px) {
@@ -528,13 +625,18 @@ a.link:hover { text-decoration: underline; }
   .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
   .form-grid { grid-template-columns: minmax(0, 1fr); .span-2 { grid-column: auto; } }
   .filters mat-form-field { width: 100%; }
+  .series-add-form { grid-template-columns: 76px minmax(0, 1fr); }
+  .series-add-form button { grid-column: 1 / -1; justify-self: end; }
+  .series-language-input { max-width: none; }
+  .series-toolbar { align-items: flex-start; flex-direction: column; gap: 0; }
+  .series-search { width: 100%; }
 
   .purchase-line, .sale-line {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 
     > * { grid-column: auto !important; }
     .line-index { display: none; }
-    .f-name, .f-category, .f-item, .f-location { grid-column: 1 / -1 !important; }
+    .f-name, .f-category, .f-series, .f-item, .f-location { grid-column: 1 / -1 !important; }
   }
 
   .form-footer { padding: 12px 16px; }

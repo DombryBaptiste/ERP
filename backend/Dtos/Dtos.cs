@@ -29,7 +29,7 @@ public record MarketValueInput(decimal? Value);
 // ----- Achats -----
 /// <summary>Ligne d'achat envoyée par le client. ItemId est renseigné pour une ligne existante (modification).</summary>
 public record PurchaseLineInput(
-    int? ItemId, string Name, string? Category, ItemType Type, ItemCondition Condition,
+    int? ItemId, string Name, string? Category, string? Language, ItemType Type, ItemCondition Condition,
     int Quantity, decimal UnitPrice, string? Location);
 
 /// <summary>
@@ -42,7 +42,7 @@ public record PurchaseInput(
     PurchasePlatform? Platform = null, decimal PlatformFees = 0, decimal ShippingFees = 0);
 
 public record PurchaseLineDto(
-    int Id, int ItemId, string Name, string? Category, ItemType Type, ItemCondition Condition,
+    int Id, int ItemId, string Name, string? Category, string? Language, ItemType Type, ItemCondition Condition,
     int Quantity, decimal UnitPrice, decimal LineTotal, string? Location, int RemainingQuantity, int SoldQuantity);
 
 public record PurchaseDto(
@@ -122,7 +122,9 @@ public record AlertsDto(
 // ----- Fichiers joints -----
 public record AttachmentDto(
     int Id, AttachmentOwner OwnerType, int OwnerId, AttachmentKind Kind,
-    string FileName, string ContentType, long Size, bool IsImage, DateTime UploadedAt, string Url);
+    string FileName, string ContentType, long Size, int SortOrder, bool IsImage, DateTime UploadedAt, string Url);
+
+public record ReorderAttachmentsInput(AttachmentOwner OwnerType, int OwnerId, List<int> AttachmentIds);
 
 /// <summary>Formulaire d'envoi d'un fichier (multipart/form-data).</summary>
 public class UploadAttachmentForm

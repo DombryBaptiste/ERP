@@ -27,8 +27,8 @@ public static class Mappings
         p.Id, p.PurchaseNumber, p.Source, p.PurchaseDate, p.Supplier, p.Platform, p.PaymentMethod, p.Comment,
         p.PlatformFees, p.ShippingFees, p.TotalAmount,
         p.Items.Sum(i => i.Quantity),
-        p.Items.OrderBy(i => i.Id).Select(i => new PurchaseLineDto(
-            i.Id, i.ItemId, i.Item.Name, i.Item.Category, i.Item.Type, i.Item.Condition,
+        p.Items.OrderByDescending(i => i.Id).Select(i => new PurchaseLineDto(
+            i.Id, i.ItemId, i.Item.Name, i.Item.Category, i.Item.Language, i.Item.Type, i.Item.Condition,
             i.Quantity, i.UnitPrice, i.Quantity * i.UnitPrice, i.Item.Location,
             i.Item.RemainingQuantity, i.Item.Quantity - i.Item.RemainingQuantity)).ToList());
 

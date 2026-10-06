@@ -32,7 +32,7 @@ public class AttachmentService(AppDbContext db, IConfiguration config, IWebHostE
     {
         var rows = await db.Attachments.AsNoTracking()
             .Where(a => a.OwnerType == owner && a.OwnerId == ownerId)
-            .OrderBy(a => a.Kind).ThenBy(a => a.Id)
+            .OrderBy(a => a.Kind).ThenBy(a => a.SortOrder).ThenBy(a => a.Id)
             .ToListAsync();
         return rows.Select(ToDto).ToList();
     }
@@ -42,10 +42,12 @@ public class AttachmentService(AppDbContext db, IConfiguration config, IWebHostE
     {
         var ids = itemIds.ToList();
         var photos = await db.Attachments.AsNoTracking()
-            .Where(a => a.OwnerType == AttachmentOwner.InventoryItem && a.Kind == AttachmentKind.Photo && ids.Contains(a.OwnerId))
-            .Select(a => new { a.OwnerId, a.Id })
+            .Where(a => a.OwnerType == AttachmentOwner.InventoryItem && a.Kind == AttachmentKind.Photo
+                        && a.ContentType.StartsWith("image/") && ids.Contains(a.OwnerId))
+            .Select(a => new { a.OwnerId, a.Id, a.SortOrder })
             .ToListAsync();
-        return photos.GroupBy(p => p.OwnerId).ToDictionary(g => g.Key, g => g.Min(p => p.Id));
+        return photos.GroupBy(p => p.OwnerId).ToDictionary(g => g.Key,
+            g => g.OrderBy(p => p.SortOrder).ThenBy(p => p.Id).First().Id);
     }
 
     public async Task<AttachmentDto> SaveAsync(UploadAttachmentForm form)
@@ -59,6 +61,10 @@ public class AttachmentService(AppDbContext db, IConfiguration config, IWebHostE
             throw new BusinessException("Format non accepté : images (JPG, PNG, WEBP, GIF) ou PDF uniquement.");
 
         await EnsureOwnerExistsAsync(form.OwnerType, form.OwnerId);
+        var sortOrder = (await db.Attachments
+            .Where(a => a.OwnerType == form.OwnerType && a.OwnerId == form.OwnerId && a.Kind == form.Kind)
+            .Select(a => (int?)a.SortOrder)
+            .MaxAsync() ?? -1) + 1;
 
         var folder = Path.Combine(Root, form.OwnerType.ToString());
         Directory.CreateDirectory(folder);
@@ -74,11 +80,29 @@ public class AttachmentService(AppDbContext db, IConfiguration config, IWebHostE
             FileName = Path.GetFileName(file.FileName),
             StoredName = storedName,
             ContentType = contentType,
-            Size = file.Length
+            Size = file.Length,
+            SortOrder = sortOrder
         };
         db.Attachments.Add(attachment);
         await db.SaveChangesAsync();
         return ToDto(attachment);
+    }
+
+    public async Task ReorderPhotosAsync(ReorderAttachmentsInput input)
+    {
+        var photos = await db.Attachments
+            .Where(a => a.OwnerType == input.OwnerType && a.OwnerId == input.OwnerId && a.Kind == AttachmentKind.Photo)
+            .OrderBy(a => a.SortOrder).ThenBy(a => a.Id)
+            .ToListAsync();
+        var ids = input.AttachmentIds;
+        if (ids is null || ids.Count != photos.Count || ids.Distinct().Count() != ids.Count
+            || !ids.ToHashSet().SetEquals(photos.Select(photo => photo.Id)))
+            throw new BusinessException("La liste des photos a changé. Actualisez la page puis réessayez.");
+
+        var byId = photos.ToDictionary(photo => photo.Id);
+        for (var index = 0; index < ids.Count; index++)
+            byId[ids[index]].SortOrder = index;
+        await db.SaveChangesAsync();
     }
 
     /// <summary>Chemin physique et métadonnées d'un fichier, ou null s'il n'existe plus.</summary>
@@ -128,6 +152,6 @@ public class AttachmentService(AppDbContext db, IConfiguration config, IWebHostE
     }
 
     private static AttachmentDto ToDto(Attachment a) => new(
-        a.Id, a.OwnerType, a.OwnerId, a.Kind, a.FileName, a.ContentType, a.Size,
+        a.Id, a.OwnerType, a.OwnerId, a.Kind, a.FileName, a.ContentType, a.Size, a.SortOrder,
         a.ContentType.StartsWith("image/"), a.UploadedAt, $"/api/attachments/{a.Id}/file");
 }

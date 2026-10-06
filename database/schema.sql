@@ -21,8 +21,9 @@ CREATE TABLE IF NOT EXISTS inventory_items (
   id                 INT           NOT NULL AUTO_INCREMENT,
   name               VARCHAR(200)  NOT NULL,
   category           VARCHAR(100)  NULL,
+  language           VARCHAR(50)   NULL,
   type               VARCHAR(30)   NOT NULL,  -- RawCard, GradedCard, Booster, Blister, Etb, Box, Display, MiniTin, Bundle, Other
-  `condition`        VARCHAR(30)   NOT NULL,  -- New, Excellent, VeryGood, Good, Fair
+  `condition`        VARCHAR(30)   NOT NULL,  -- New, Excellent, VeryGood, Good, Fair, Poor
   purchase_price     DECIMAL(10,2) NOT NULL,  -- prix d'achat unitaire
   quantity           INT           NOT NULL,  -- quantité achetée
   remaining_quantity INT           NOT NULL,  -- quantité restante en stock
@@ -141,6 +142,7 @@ CREATE TABLE IF NOT EXISTS attachments (
   stored_name  VARCHAR(100) NOT NULL,
   content_type VARCHAR(100) NOT NULL,
   size         BIGINT       NOT NULL,
+  sort_order   INT          NOT NULL DEFAULT 0,
   uploaded_at  DATETIME(6)  NOT NULL,
   PRIMARY KEY (id),
   KEY IX_attachments_owner_type_owner_id (owner_type, owner_id)

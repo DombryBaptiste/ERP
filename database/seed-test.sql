@@ -154,6 +154,7 @@ CREATE TABLE attachments (
   stored_name  VARCHAR(100) NOT NULL,
   content_type VARCHAR(100) NOT NULL,
   size         BIGINT       NOT NULL,
+  sort_order   INT          NOT NULL DEFAULT 0,
   uploaded_at  DATETIME(6)  NOT NULL,
   PRIMARY KEY (id),
   KEY IX_attachments_owner_type_owner_id (owner_type, owner_id)

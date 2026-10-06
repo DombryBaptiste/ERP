@@ -45,6 +45,12 @@ public class PreferencesService(SettingsStore store)
     {
         prefs.Company ??= new CompanyInfo();
         prefs.Alerts ??= new AlertSettings();
+        prefs.CardSeries ??= [];
+        prefs.CardSeries = prefs.CardSeries
+            .Where(x => !string.IsNullOrWhiteSpace(x.Language) && !string.IsNullOrWhiteSpace(x.Series))
+            .Select(x => new CardSeriesEntry { Language = x.Language.Trim(), Series = x.Series.Trim() })
+            .DistinctBy(x => (x.Language, x.Series))
+            .OrderBy(x => x.Language).ThenBy(x => x.Series).ToList();
         var a = prefs.Alerts;
         if (a.DormantWarningDays < 1 || a.DormantCriticalDays < a.DormantWarningDays)
             throw new BusinessException("Le seuil « à liquider » doit être supérieur ou égal au seuil « à baisser » (en jours).");

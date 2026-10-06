@@ -18,6 +18,13 @@ public class AttachmentsController(AttachmentService service) : ControllerBase
     [RequestSizeLimit(AttachmentService.MaxFileSize + 1024 * 1024)]
     public Task<AttachmentDto> Upload([FromForm] UploadAttachmentForm form) => service.SaveAsync(form);
 
+    [HttpPut("order")]
+    public async Task<IActionResult> ReorderPhotos(ReorderAttachmentsInput input)
+    {
+        await service.ReorderPhotosAsync(input);
+        return NoContent();
+    }
+
     /// <summary>Contenu du fichier (affiché dans le navigateur, ou téléchargé avec ?download=true).</summary>
     [HttpGet("{id:int}/file")]
     public async Task<IActionResult> GetFile(int id, [FromQuery] bool download = false)

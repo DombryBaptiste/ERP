@@ -109,6 +109,79 @@
 
     <mat-card class="card">
       <mat-card-header>
+        <mat-card-title><mat-icon class="title-icon">style</mat-icon> Séries de cartes</mat-card-title>
+        <mat-card-subtitle>Options proposées dans les achats, classées par langue</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="seriesForm" class="series-add-form" (ngSubmit)="addCardSeries()">
+          <mat-form-field class="series-language-input">
+            <mat-label>Langue</mat-label>
+            <input matInput formControlName="language" placeholder="FR">
+            @if (seriesForm.controls.language.hasError('required')) { <mat-error>Langue obligatoire</mat-error> }
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Série</mat-label>
+            <input matInput formControlName="series" placeholder="Écarlate et Violet - Aventures ensemble">
+            @if (seriesForm.controls.series.hasError('required')) { <mat-error>Série obligatoire</mat-error> }
+          </mat-form-field>
+          <button mat-stroked-button type="submit"><mat-icon>add</mat-icon> Ajouter</button>
+        </form>
+        <div class="series-toolbar">
+          <mat-form-field class="series-search">
+            <mat-label>Rechercher une langue ou une série</mat-label>
+            <input matInput [formControl]="seriesSearch">
+            <mat-icon matIconPrefix>search</mat-icon>
+          </mat-form-field>
+          <span class="series-count">{{ cardSeries().length }} séries</span>
+        </div>
+        <div class="series-list">
+          @for (group of filteredSeriesGroups(); track group.language) {
+            <details class="series-group">
+              <summary>
+                <strong>{{ group.language }}</strong>
+                <span>{{ group.entries.length }} séries</span>
+              </summary>
+              <div class="series-group-items">
+                @for (entry of group.entries; track entry.series) {
+                  <div class="series-entry">
+                      @if (editingSeries()?.language === entry.language && editingSeries()?.series === entry.series) {
+                        <div class="series-entry-edit">
+                          <mat-form-field>
+                            <mat-label>Nom de la série</mat-label>
+                            <input matInput [formControl]="seriesName" (keyup.enter)="saveSeriesEdit(entry)">
+                            @if (seriesName.hasError('required')) { <mat-error>Nom obligatoire</mat-error> }
+                          </mat-form-field>
+                          <button mat-icon-button type="button" aria-label="Valider le nom" (click)="saveSeriesEdit(entry)">
+                            <mat-icon>check</mat-icon>
+                          </button>
+                          <button mat-icon-button type="button" aria-label="Annuler la modification" (click)="cancelSeriesEdit()">
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+                      } @else {
+                        <strong>{{ entry.series }}</strong>
+                        <div class="series-entry-actions">
+                          <button mat-icon-button type="button" aria-label="Modifier le nom de la série" (click)="editCardSeries(entry)">
+                            <mat-icon>edit</mat-icon>
+                          </button>
+                          <button mat-icon-button type="button" aria-label="Supprimer la série" (click)="removeCardSeries(entry)">
+                            <mat-icon>delete</mat-icon>
+                          </button>
+                        </div>
+                      }
+                  </div>
+                }
+              </div>
+            </details>
+          } @empty {
+            <p class="series-empty">{{ cardSeries().length ? 'Aucun résultat.' : 'Aucune série configurée.' }}</p>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
         <mat-card-title><mat-icon class="title-icon">receipt_long</mat-icon> À savoir sur les factures</mat-card-title>
       </mat-card-header>
       <mat-card-content>

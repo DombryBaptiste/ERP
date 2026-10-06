@@ -79,6 +79,9 @@ export class AttachmentService {
     return this.http.post<Attachment>(this.url, form);
   }
   delete(id: number): Observable<void> { return this.http.delete<void>(`${this.url}/${id}`); }
+  reorderPhotos(ownerType: AttachmentOwner, ownerId: number, attachmentIds: number[]): Observable<void> {
+    return this.http.put<void>(`${this.url}/order`, { ownerType, ownerId, attachmentIds });
+  }
   fileUrl(id: number): string { return `${this.url}/${id}/file`; }
 }
 

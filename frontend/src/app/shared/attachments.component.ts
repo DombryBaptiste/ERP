@@ -40,6 +40,7 @@ export class AttachmentsComponent {
 
   readonly files = signal<Attachment[]>([]);
   readonly uploading = signal(false);
+  readonly reordering = signal(false);
   readonly dragOver = signal(false);
   readonly preview = signal<Attachment | null>(null);
   selectedKind: AttachmentKind = 'Photo';
@@ -94,6 +95,38 @@ export class AttachmentsComponent {
     event.preventDefault();
     this.dragOver.set(false);
     this.onFiles(event.dataTransfer?.files ?? null);
+  }
+
+  photoFiles(): Attachment[] {
+    return this.files().filter(file => file.kind === 'Photo');
+  }
+
+  photoIndex(file: Attachment): number {
+    return this.photoFiles().findIndex(photo => photo.id === file.id);
+  }
+
+  movePhoto(file: Attachment, direction: -1 | 1): void {
+    const ownerId = this.ownerId();
+    if (!ownerId || this.reordering()) return;
+
+    const photos = this.photoFiles();
+    const index = photos.findIndex(photo => photo.id === file.id);
+    const destination = index + direction;
+    if (index < 0 || destination < 0 || destination >= photos.length) return;
+    [photos[index], photos[destination]] = [photos[destination], photos[index]];
+
+    this.reordering.set(true);
+    this.api.reorderPhotos(this.ownerType(), ownerId, photos.map(photo => photo.id)).subscribe({
+      next: () => {
+        this.reordering.set(false);
+        this.load(ownerId);
+        this.changed.emit();
+      },
+      error: err => {
+        this.reordering.set(false);
+        this.notify.error(err);
+      }
+    });
   }
 
   remove(file: Attachment): void {

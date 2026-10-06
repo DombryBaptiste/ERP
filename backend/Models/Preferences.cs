@@ -38,4 +38,12 @@ public class AppPreferences
 {
     public CompanyInfo Company { get; set; } = new();
     public AlertSettings Alerts { get; set; } = new();
+    public List<CardSeriesEntry> CardSeries { get; set; } = [];
+}
+
+/// <summary>Série Pokémon disponible pour une langue dans les achats de cartes.</summary>
+public class CardSeriesEntry
+{
+    public string Language { get; set; } = string.Empty;
+    public string Series { get; set; } = string.Empty;
 }

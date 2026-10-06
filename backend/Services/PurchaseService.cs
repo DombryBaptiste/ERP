@@ -152,6 +152,7 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
     {
         item.Name = line.Name.Trim();
         item.Category = Clean(line.Category);
+        item.Language = Clean(line.Language);
         item.Type = line.Type;
         item.Condition = line.Condition;
         item.Quantity = line.Quantity;

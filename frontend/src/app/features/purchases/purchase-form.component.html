@@ -114,9 +114,11 @@
       <mat-card-subtitle>{{ items.length }} ligne(s) · {{ totalQuantity() }} unité(s)</mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
-      <div class="lines">
+      <div #purchaseLines class="lines purchase-lines">
         @for (line of items.controls; track line; let i = $index) {
-          <div class="line purchase-line" [formGroup]="line">
+          <div class="line purchase-line" [class.card-line]="usesCardSeries(line.controls.type.value)"
+            [class.missing-series]="usesCardSeries(line.controls.type.value) && !line.controls.category.value"
+            [formGroup]="line">
             <div class="line-index">{{ i + 1 }}</div>
 
             <mat-form-field class="f-name">
@@ -141,24 +143,43 @@
               <mat-error>Nom obligatoire</mat-error>
             </mat-form-field>
 
-            <mat-form-field class="f-category">
-              <mat-label>Catégorie / série</mat-label>
-              <input matInput formControlName="category" [matAutocomplete]="catAuto">
-              <mat-autocomplete #catAuto="matAutocomplete">
-                @for (c of filterCategories(line.controls.category.value); track c) {
-                  <mat-option [value]="c">{{ c }}</mat-option>
-                }
-              </mat-autocomplete>
-            </mat-form-field>
-
             <mat-form-field class="f-type">
               <mat-label>Type</mat-label>
-              <mat-select formControlName="type">
+              <mat-select formControlName="type" (selectionChange)="onTypeChange(line)">
                 @for (t of types; track t.value) {
                   <mat-option [value]="t.value">{{ t.label }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>
+
+            @if (usesCardSeries(line.controls.type.value)) {
+              <mat-form-field class="f-language">
+                <mat-label>Langue</mat-label>
+                <mat-select formControlName="language" (selectionChange)="onLanguageChange(line)">
+                  @for (language of languages(); track language) {
+                    <mat-option [value]="language">{{ language }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field class="f-series">
+                <mat-label>Série</mat-label>
+                <mat-select formControlName="category" [disabled]="!line.controls.language.value">
+                  @for (series of seriesFor(line); track series) {
+                    <mat-option [value]="series">{{ series }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            } @else {
+              <mat-form-field class="f-category">
+                <mat-label>Catégorie</mat-label>
+                <input matInput formControlName="category" [matAutocomplete]="catAuto">
+                <mat-autocomplete #catAuto="matAutocomplete">
+                  @for (c of filterCategories(line.controls.category.value); track c) {
+                    <mat-option [value]="c">{{ c }}</mat-option>
+                  }
+                </mat-autocomplete>
+              </mat-form-field>
+            }
 
             <mat-form-field class="f-condition">
               <mat-label>État</mat-label>
@@ -170,7 +191,7 @@
             </mat-form-field>
 
             <mat-form-field class="f-qty">
-              <mat-label>Quantité</mat-label>
+              <mat-label>Qté</mat-label>
               <input matInput type="number" min="1" formControlName="quantity">
               @if (line.controls.soldQuantity.value > 0) {
                 <mat-hint>{{ line.controls.soldQuantity.value }} vendu(s)</mat-hint>

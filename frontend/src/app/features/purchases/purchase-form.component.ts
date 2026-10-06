@@ -1,5 +1,5 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { Component, computed, ElementRef, inject, input, OnInit, signal, ViewChild } from '@angular/core';
 import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
@@ -14,11 +14,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CONDITIONS, ITEM_TYPES, PAYMENT_METHODS, PURCHASE_PLATFORMS } from '../../core/labels';
-import { ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchasePlatform, PurchaseSource } from '../../core/models';
+import { isCard } from '../../core/labels';
+import { AppPreferences, CardSeriesEntry, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchasePlatform, PurchaseSource } from '../../core/models';
 import { AttachmentsComponent } from '../../shared/attachments.component';
 import { LabelPipe } from '../../shared/label.pipe';
 import { groupProducts, normalizeText, ProductGroup, productKey } from '../../core/products';
-import { InventoryService, PurchaseService } from '../../core/services/api.services';
+import { InventoryService, PurchaseService, ToolsService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 import { parseApiDate, toIsoDate } from '../../core/utils';
 
@@ -27,6 +28,7 @@ type LineForm = FormGroup<{
   itemId: FormControl<number | null>;
   name: FormControl<string>;
   category: FormControl<string>;
+  language: FormControl<string>;
   type: FormControl<ItemType>;
   condition: FormControl<ItemCondition>;
   quantity: FormControl<number>;
@@ -51,6 +53,7 @@ export class PurchaseFormComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly api = inject(PurchaseService);
   private readonly inventoryApi = inject(InventoryService);
+  private readonly toolsApi = inject(ToolsService);
   private readonly notify = inject(NotifyService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -60,9 +63,12 @@ export class PurchaseFormComponent implements OnInit {
   readonly isEdit = computed(() => !!this.id());
   readonly purchase = signal<Purchase | null>(null);
   readonly categories = signal<string[]>([]);
+  readonly cardSeries = signal<CardSeriesEntry[]>([]);
   readonly knownProducts = signal<ProductGroup[]>([]);
   readonly loading = signal(false);
   readonly saving = signal(false);
+
+  @ViewChild('purchaseLines') private purchaseLines?: ElementRef<HTMLDivElement>;
 
   readonly form = this.fb.group({
     /** Achat classique ou transfert depuis la collection personnelle (fixé à la création). */
@@ -99,6 +105,10 @@ export class PurchaseFormComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.toolsApi.preferences().subscribe({
+      next: (prefs: AppPreferences) => this.cardSeries.set(prefs.cardSeries ?? []),
+      error: err => this.notify.error(err)
+    });
     this.inventoryApi.categories().subscribe(c => this.categories.set(c));
     // Produits déjà connus : proposés à la saisie du nom pour regrouper les lots sous le même produit.
     this.inventoryApi.getAll().subscribe(items => this.knownProducts.set(groupProducts(items)));
@@ -139,9 +149,10 @@ export class PurchaseFormComponent implements OnInit {
       itemId: this.fb.control<number | null>(line?.itemId ?? null),
       name: this.fb.control(line?.name ?? '', [Validators.required, Validators.maxLength(200)]),
       category: this.fb.control(line?.category ?? ''),
+      language: this.fb.control(line?.language ?? ''),
       // Valeurs par défaut : une collection contient surtout des cartes déjà ouvertes.
-      type: this.fb.control<ItemType>(line?.type ?? (this.isCollection ? 'RawCard' : 'Booster'), Validators.required),
-      condition: this.fb.control<ItemCondition>(line?.condition ?? (this.isCollection ? 'Excellent' : 'New'), Validators.required),
+      type: this.fb.control<ItemType>(line?.type ?? 'RawCard', Validators.required),
+      condition: this.fb.control<ItemCondition>(line?.condition ?? 'New', Validators.required),
       // On ne peut pas descendre sous la quantité déjà vendue.
       quantity: this.fb.control(line?.quantity ?? 1, [Validators.required, Validators.min(Math.max(1, sold))]),
       unitPrice: this.fb.control(line?.unitPrice ?? 0, [Validators.required, Validators.min(0)]),
@@ -151,7 +162,10 @@ export class PurchaseFormComponent implements OnInit {
   }
 
   addLine(): void {
-    this.items.push(this.createLine());
+    this.items.insert(0, this.createLine());
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => this.purchaseLines?.nativeElement.scrollTo({ top: 0, behavior: 'smooth' }));
+    }
   }
 
   /** Duplique une ligne (pratique pour saisir plusieurs produits proches). */
@@ -178,6 +192,7 @@ export class PurchaseFormComponent implements OnInit {
     line.patchValue({
       name: product.name,
       category: product.category ?? line.controls.category.value,
+      language: this.usesCardSeries(product.type) ? line.controls.language.value : '',
       type: product.type,
       condition: product.condition
     });
@@ -194,6 +209,30 @@ export class PurchaseFormComponent implements OnInit {
   filterCategories(term: string): string[] {
     const t = (term ?? '').toLowerCase();
     return this.categories().filter(c => c.toLowerCase().includes(t)).slice(0, 20);
+  }
+
+  usesCardSeries(type: ItemType): boolean {
+    return isCard(type) || type === 'Booster' || type === 'Blister' || type === 'Etb' || type === 'Bundle';
+  }
+
+  languages(): string[] {
+    return [...new Set(this.cardSeries().map(x => x.language))].sort((a, b) => a.localeCompare(b));
+  }
+
+  seriesFor(line: LineForm): string[] {
+    const language = line.controls.language.value;
+    const configured = this.cardSeries().filter(x => x.language === language).map(x => x.series);
+    const current = line.controls.category.value;
+    if (current && !configured.includes(current)) configured.push(current);
+    return configured.sort((a, b) => a.localeCompare(b));
+  }
+
+  onLanguageChange(line: LineForm): void {
+    line.controls.category.setValue('');
+  }
+
+  onTypeChange(line: LineForm): void {
+    if (!this.usesCardSeries(line.controls.type.value)) line.patchValue({ language: '', category: '' });
   }
 
   lineTotal(line: LineForm): number {
@@ -236,6 +275,7 @@ export class PurchaseFormComponent implements OnInit {
         itemId: l.itemId,
         name: l.name.trim(),
         category: l.category.trim() || null,
+        language: l.language.trim() || null,
         type: l.type,
         condition: l.condition,
         quantity: l.quantity,
@@ -251,7 +291,7 @@ export class PurchaseFormComponent implements OnInit {
       next: p => {
         const kind = p.source === 'PersonalCollection' ? 'Transfert' : 'Achat';
         this.notify.success(`${kind} ${p.purchaseNumber} enregistré (${p.itemCount} article(s) en stock).`);
-        this.router.navigate(['/purchases']);
+        this.router.navigate(['/purchases', p.id]);
       },
       error: err => {
         this.notify.error(err);
