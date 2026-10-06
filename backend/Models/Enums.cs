@@ -19,12 +19,12 @@ public enum ItemType
 /// <summary>État de l'article.</summary>
 public enum ItemCondition
 {
-    New,        // Neuf
-    Excellent,
-    VeryGood,   // Très bon
-    Good,       // Bon
-    Fair,       // Moyen
-    Poor        // Mauvais
+    NM,     // Near Mint (neuf, parfait)
+    EXC,    // Excellent
+    GOOD,   // Good (très bon)
+    LP,     // Light Played (légèrement joué)
+    PL,     // Played (joué)
+    PO      // Poor (abîmé)
 }
 
 /// <summary>Plateforme de vente.</summary>

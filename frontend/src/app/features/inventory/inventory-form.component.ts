@@ -48,7 +48,7 @@ export class InventoryFormComponent implements OnInit {
     name: ['', [Validators.required, Validators.maxLength(200)]],
     category: [''],
     type: this.fb.control<ItemType>('RawCard', Validators.required),
-    condition: this.fb.control<ItemCondition>('New', Validators.required),
+    condition: this.fb.control<ItemCondition>('NM', Validators.required),
     purchasePrice: [0, [Validators.required, Validators.min(0)]],
     quantity: [1, [Validators.required, Validators.min(1)]],
     location: [''],

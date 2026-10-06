@@ -182,24 +182,24 @@ INSERT INTO app_settings (setting_key, value, updated_at) VALUES
 INSERT INTO inventory_items
   (id, name, category, type, `condition`, purchase_price, quantity, remaining_quantity, location, purchase_date,
    market_value, previous_market_value, market_value_updated_at, created_at) VALUES
-( 1, 'Booster Étincelles Déferlantes',            'EV08 Étincelles Déferlantes', 'Booster',    'New',       4.50, 20,  0, 'Étagère A',         '2025-10-04', NULL,   NULL,   NULL,                  NOW(6)),
-( 2, 'ETB Étincelles Déferlantes',                'EV08 Étincelles Déferlantes', 'Etb',        'New',      45.00,  3,  1, 'Étagère A',         '2025-10-04', 62.00,  55.00, '2026-09-20 10:00:00', NOW(6)),
-( 3, 'Dracaufeu ex 199/165 SIR',                  'EV3.5 Écarlate et Violet 151','RawCard',    'Excellent',85.00,  1,  0, 'Classeur 1 p.3',    '2025-11-15', NULL,   NULL,   NULL,                  NOW(6)),
-( 4, 'Mew ex 205/165 SIR',                        'EV3.5 Écarlate et Violet 151','RawCard',    'VeryGood', 35.00,  1,  0, 'Classeur 1 p.3',    '2025-11-15', NULL,   NULL,   NULL,                  NOW(6)),
-( 5, 'Display Aventures Ensemble (36 boosters)',  'EV09 Aventures Ensemble',     'Display',    'New',     150.00,  2,  1, 'Étagère B',         '2025-12-02', 185.00, 160.00, '2026-09-25 18:30:00', NOW(6)),
-( 6, 'Pikachu ex 238/191 PSA 10',                 'EV08 Étincelles Déferlantes', 'GradedCard', 'Excellent',120.00, 1,  0, 'Boîte gradées',     '2025-12-02', NULL,   NULL,   NULL,                  NOW(6)),
-( 7, 'Coffret Collection Premium Dracaufeu ex',   'Coffrets',                    'Box',        'New',      39.99,  4,  1, 'Étagère C',         '2026-01-20', 45.00,  NULL,   '2026-08-01 09:00:00', NOW(6)),
-( 8, 'Booster Évolutions Prismatiques',           'EV8.5 Évolutions Prismatiques','Booster',   'New',       7.00, 30,  4, 'Étagère A',         '2026-01-20', 9.50,   9.00,   '2026-09-10 14:00:00', NOW(6)),
-( 9, 'Lugia V 186/195 Alt Art PSA 9',             'EB12 Tempête Argentée',       'GradedCard', 'Excellent',180.00, 1,  0, 'Boîte gradées',     '2026-03-08', NULL,   NULL,   NULL,                  NOW(6)),
-(10, 'Ectoplasma VMAX 271/264',                   'EB08 Poing de Fusion',        'RawCard',    'Good',     25.00,  1,  0, 'Classeur 2 p.7',    '2026-03-08', NULL,   NULL,   NULL,                  NOW(6)),
-(11, 'ETB Évolutions Prismatiques',               'EV8.5 Évolutions Prismatiques','Etb',       'New',      60.00,  4,  1, 'Étagère B',         '2026-05-12', 72.00,  70.00,  '2026-09-12 11:00:00', NOW(6)),
-(12, 'Display Rivalités Destinées (36 boosters)', 'EV10 Rivalités Destinées',    'Display',    'New',     165.00,  1,  1, 'Étagère B',         '2026-08-22', 230.00, 190.00, '2026-09-28 20:00:00', NOW(6)),
-(13, 'Noctali ex 217/131 SIR',                    'EV8.5 Évolutions Prismatiques','RawCard',   'Excellent',140.00, 1,  1, 'Classeur 1 p.12',   '2026-08-22', 128.00, 150.00, '2026-09-28 20:05:00', NOW(6)),
-(14, 'Dracaufeu 4/102 Set de Base (1999)',        'Set de Base',                 'RawCard',    'Good',      0.00,  1,  0, 'Classeur vintage',  '2026-02-01', NULL,   NULL,   NULL,                  NOW(6)),
-(15, 'Florizarre 15/102 Set de Base',             'Set de Base',                 'RawCard',    'Fair',      0.00,  1,  0, 'Classeur vintage',  '2026-02-01', NULL,   NULL,   NULL,                  NOW(6)),
-(16, 'Lot de 100 cartes communes Écarlate et Violet','Lots',                     'Other',      'VeryGood',  0.00,  1,  0, 'Boîte à lots',      '2026-02-01', NULL,   NULL,   NULL,                  NOW(6)),
-(17, 'Bulk communes / peu communes',              NULL,                          'Bulk',       'Excellent', 0.010000, 3000, 2500, 'Boîte à bulk 1', '2026-09-02', NULL, NULL, NULL, NOW(6)),
-(18, 'Bulk reverses',                             NULL,                          'Bulk',       'Excellent', 0.000000,  400,  300, 'Boîte à bulk 2', '2026-09-05', NULL, NULL, NULL, NOW(6));
+( 1, 'Booster Étincelles Déferlantes',            'EV08 Étincelles Déferlantes', 'Booster', 'NM',       4.50, 20,  0, 'Étagère A',         '2025-10-04', NULL,   NULL,   NULL,                  NOW(6)),
+( 2, 'ETB Étincelles Déferlantes',                'EV08 Étincelles Déferlantes', 'Etb', 'NM',      45.00,  3,  1, 'Étagère A',         '2025-10-04', 62.00,  55.00, '2026-09-20 10:00:00', NOW(6)),
+( 3, 'Dracaufeu ex 199/165 SIR',                  'EV3.5 Écarlate et Violet 151','RawCard',    'EXC',85.00,  1,  0, 'Classeur 1 p.3',    '2025-11-15', NULL,   NULL,   NULL,                  NOW(6)),
+( 4, 'Mew ex 205/165 SIR',                        'EV3.5 Écarlate et Violet 151','RawCard',    'GOOD', 35.00,  1,  0, 'Classeur 1 p.3',    '2025-11-15', NULL,   NULL,   NULL,                  NOW(6)),
+( 5, 'Display Aventures Ensemble (36 boosters)',  'EV09 Aventures Ensemble',     'Display',    'NM',     150.00,  2,  1, 'Étagère B',         '2025-12-02', 185.00, 160.00, '2026-09-25 18:30:00', NOW(6)),
+( 6, 'Pikachu ex 238/191 PSA 10',                 'EV08 Étincelles Déferlantes', 'GradedCard', 'EXC', 120.00, 1,  0, 'Boîte gradées',     '2025-12-02', NULL,   NULL,   NULL,                  NOW(6)),
+( 7, 'Coffret Collection Premium Dracaufeu ex',   'Coffrets',                    'Box',        'NM',      39.99,  4,  1, 'Étagère C',         '2026-01-20', 45.00,  NULL,   '2026-08-01 09:00:00', NOW(6)),
+( 8, 'Booster Évolutions Prismatiques',           'EV8.5 Évolutions Prismatiques','Booster',   'NM',       7.00, 30,  4, 'Étagère A',         '2026-01-20', 9.50,   9.00,   '2026-09-10 14:00:00', NOW(6)),
+( 9, 'Lugia V 186/195 Alt Art PSA 9',             'EB12 Tempête Argentée',       'GradedCard', 'EXC',180.00, 1,  0, 'Boîte gradées',     '2026-03-08', NULL,   NULL,   NULL,                  NOW(6)),
+(10, 'Ectoplasma VMAX 271/264',                   'EB08 Poing de Fusion',        'RawCard',    'LP',     25.00,  1,  0, 'Classeur 2 p.7',    '2026-03-08', NULL,   NULL,   NULL,                  NOW(6)),
+(11, 'ETB Évolutions Prismatiques',               'EV8.5 Évolutions Prismatiques','Etb',       'NM',      60.00,  4,  1, 'Étagère B',         '2026-05-12', 72.00,  70.00,  '2026-09-12 11:00:00', NOW(6)),
+(12, 'Display Rivalités Destinées (36 boosters)', 'EV10 Rivalités Destinées',    'Display',    'NM',     165.00,  1,  1, 'Étagère B',         '2026-08-22', 230.00, 190.00, '2026-09-28 20:00:00', NOW(6)),
+(13, 'Noctali ex 217/131 SIR',                    'EV8.5 Évolutions Prismatiques','RawCard',   'EXC',140.00, 1,  1, 'Classeur 1 p.12',   '2026-08-22', 128.00, 150.00, '2026-09-28 20:05:00', NOW(6)),
+(14, 'Dracaufeu 4/102 Set de Base (1999)',        'Set de Base',                 'RawCard',    'LP',      0.00,  1,  0, 'Classeur vintage',  '2026-02-01', NULL,   NULL,   NULL,                  NOW(6)),
+(15, 'Florizarre 15/102 Set de Base',             'Set de Base',                 'RawCard',    'PL',      0.00,  1,  0, 'Classeur vintage',  '2026-02-01', NULL,   NULL,   NULL,                  NOW(6)),
+(16, 'Lot de 100 cartes communes Écarlate et Violet','Lots',                     'Other',      'GOOD',  0.00,  1,  0, 'Boîte à lots',      '2026-02-01', NULL,   NULL,   NULL,                  NOW(6)),
+(17, 'Bulk communes / peu communes',              NULL,                          'Bulk',       'EXC', 0.010000, 3000, 2500, 'Boîte à bulk 1', '2026-09-02', NULL, NULL, NULL, NOW(6)),
+(18, 'Bulk reverses',                             NULL,                          'Bulk',       'EXC', 0.000000,  400,  300, 'Boîte à bulk 2', '2026-09-05', NULL, NULL, NULL, NOW(6));
 
 -- ----------------------------------------------------------------------------
 -- Achats (A…) et transfert depuis la collection personnelle (C…)

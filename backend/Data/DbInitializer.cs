@@ -55,6 +55,15 @@ public static class DbInitializer
         await EnsureColumnAsync(db, "purchases", "platform_fees", "DECIMAL(10,2) NOT NULL DEFAULT 0");
         await EnsureColumnAsync(db, "purchases", "shipping_fees", "DECIMAL(10,2) NOT NULL DEFAULT 0");
 
+        // États des articles : anciennes valeurs (New, Excellent…) converties au format Cardmarket (NM, EXC…).
+        // Sans effet une fois la conversion faite.
+        await db.Database.ExecuteSqlRawAsync("""
+            UPDATE inventory_items SET `condition` = CASE `condition`
+              WHEN 'New' THEN 'NM' WHEN 'Excellent' THEN 'EXC' WHEN 'VeryGood' THEN 'GOOD'
+              WHEN 'Good' THEN 'LP' WHEN 'Fair' THEN 'PL' WHEN 'Poor' THEN 'PO' END
+            WHERE `condition` IN ('New', 'Excellent', 'VeryGood', 'Good', 'Fair', 'Poor');
+            """);
+
         // Prix unitaires à 6 décimales (bulk vendu et acheté à la carte).
         await EnsureDecimalScaleAsync(db, "inventory_items", "purchase_price", "DECIMAL(14,6) NOT NULL");
         await EnsureDecimalScaleAsync(db, "purchase_items", "unit_price", "DECIMAL(14,6) NOT NULL");

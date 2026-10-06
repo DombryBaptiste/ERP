@@ -4,7 +4,7 @@
  */
 
 export type ItemType = 'RawCard' | 'GradedCard' | 'Booster' | 'Blister' | 'Etb' | 'Box' | 'Display' | 'MiniTin' | 'Bundle' | 'Bulk' | 'Other';
-export type ItemCondition = 'New' | 'Excellent' | 'VeryGood' | 'Good' | 'Fair' | 'Poor';
+export type ItemCondition = 'NM' | 'EXC' | 'GOOD' | 'LP' | 'PL' | 'PO';
 export type SalePlatform = 'Cardmarket' | 'Ebay' | 'Vinted' | 'Leboncoin' | 'FacebookMarketplace' | 'InPerson' | 'Other';
 /** Supplier = achat classique ; PersonalCollection = transfert depuis la collection personnelle. */
 export type PurchaseSource = 'Supplier' | 'PersonalCollection';

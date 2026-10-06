@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS inventory_items (
   category           VARCHAR(100)  NULL,
   language           VARCHAR(50)   NULL,
   type               VARCHAR(30)   NOT NULL,  -- RawCard, GradedCard, Booster, Blister, Etb, Box, Display, MiniTin, Bundle, Bulk, Other
-  `condition`        VARCHAR(30)   NOT NULL,  -- New, Excellent, VeryGood, Good, Fair, Poor
+  `condition`        VARCHAR(30)   NOT NULL,  -- NM, EXC, GOOD, LP, PL, PO (comme sur Cardmarket)
   purchase_price     DECIMAL(14,6) NOT NULL,  -- prix d'achat unitaire
   quantity           INT           NOT NULL,  -- quantité achetée
   remaining_quantity INT           NOT NULL,  -- quantité restante en stock

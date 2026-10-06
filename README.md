@@ -279,7 +279,7 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 
 Valeurs des énumérations (JSON) :
 - `type` : `RawCard`, `GradedCard`, `Booster`, `Blister`, `Etb`, `Box` (coffret), `Display`, `Other`
-- `condition` : `New`, `Excellent`, `VeryGood`, `Good`, `Fair`
+- `condition` : `NM`, `EXC`, `GOOD`, `LP`, `PL`, `PO` (comme sur Cardmarket ; les anciennes valeurs `New`, `Excellent`… sont converties automatiquement au démarrage)
 - `platform` : `Cardmarket`, `Ebay`, `Vinted`, `Leboncoin`, `FacebookMarketplace`, `InPerson`, `Other`
 
 ---

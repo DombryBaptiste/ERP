@@ -8,7 +8,7 @@ import { groupProducts, ProductGroup } from '../../core/products';
  */
 
 /** État fixe des lots de bulk : il fait partie de la clé produit, il doit donc rester constant. */
-export const BULK_CONDITION: ItemCondition = 'Excellent';
+export const BULK_CONDITION: ItemCondition = 'EXC';
 
 export const isBulk = (item: InventoryItem): boolean => item.type === 'Bulk';
 

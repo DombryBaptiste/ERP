@@ -152,7 +152,7 @@ export class PurchaseFormComponent implements OnInit {
       language: this.fb.control(line?.language ?? ''),
       // Valeurs par défaut : une collection contient surtout des cartes déjà ouvertes.
       type: this.fb.control<ItemType>(line?.type ?? 'RawCard', Validators.required),
-      condition: this.fb.control<ItemCondition>(line?.condition ?? 'New', Validators.required),
+      condition: this.fb.control<ItemCondition>(line?.condition ?? 'NM', Validators.required),
       // On ne peut pas descendre sous la quantité déjà vendue.
       quantity: this.fb.control(line?.quantity ?? 1, [Validators.required, Validators.min(Math.max(1, sold))]),
       unitPrice: this.fb.control(line?.unitPrice ?? 0, [Validators.required, Validators.min(0)]),
