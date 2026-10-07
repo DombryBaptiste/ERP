@@ -236,6 +236,8 @@ export class BulkSellDialogComponent {
       comment: `Lot de ${quantity} cartes (${product.name})` + (this.mode() === 'weight' ? ` · ${this.grams()} g` : ''),
       customerAddress: null,
       customerSiren: null,
+      amountPaid: 0,
+      trackingNumber: null,
       // Une ligne par lot de bulk utilisé, au même prix par carte.
       items: allocation.map(a => ({ inventoryItemId: a.lot.id, quantity: a.quantity, salePrice: perCard }))
     };

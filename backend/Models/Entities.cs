@@ -94,6 +94,10 @@ public class Sale
     /// <summary>Frais de la vente (commission plateforme, envoi...). Déduits du bénéfice.</summary>
     public decimal Fees { get; set; }
     public string? Comment { get; set; }
+    /// <summary>Montant effectivement reçu du client, avant éventuels remboursements.</summary>
+    public decimal AmountPaid { get; set; }
+    /// <summary>Numéro de suivi fourni par la plateforme ou le transporteur.</summary>
+    public string? TrackingNumber { get; set; }
     /// <summary>Montant total encaissé (somme quantité × prix de vente), avant remboursements.</summary>
     public decimal TotalAmount { get; set; }
     /// <summary>Total remboursé au client (somme des remboursements).</summary>

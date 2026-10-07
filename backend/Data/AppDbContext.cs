@@ -88,6 +88,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(30);
             e.Property(x => x.Fees).HasPrecision(10, 2);
             e.Property(x => x.Comment).HasMaxLength(1000);
+            e.Property(x => x.AmountPaid).HasPrecision(10, 2);
+            e.Property(x => x.TrackingNumber).HasMaxLength(100);
             e.Property(x => x.TotalAmount).HasPrecision(10, 2);
             e.Property(x => x.RefundedAmount).HasPrecision(10, 2);
             e.Property(x => x.Profit).HasPrecision(10, 2);

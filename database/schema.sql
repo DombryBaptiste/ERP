@@ -80,6 +80,8 @@ CREATE TABLE IF NOT EXISTS sales (
   payment_method VARCHAR(30) NOT NULL DEFAULT 'Platform', -- Platform, BankTransfer, PayPal, Card, Cash, Check, Other
   fees         DECIMAL(10,2) NOT NULL,        -- frais (commission, envoi)
   comment      VARCHAR(1000) NULL,
+  amount_paid  DECIMAL(10,2) NOT NULL DEFAULT 0, -- montant reçu du client
+  tracking_number VARCHAR(100) NULL,       -- numéro fourni par la plateforme ou le transporteur
   total_amount DECIMAL(10,2) NOT NULL,
   refunded_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   profit       DECIMAL(10,2) NOT NULL,

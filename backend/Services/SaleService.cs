@@ -237,6 +237,8 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         sale.PaymentMethod = input.PaymentMethod;
         sale.Fees = Math.Round(input.Fees, 2);
         sale.Comment = Clean(input.Comment);
+        sale.AmountPaid = Math.Round(input.AmountPaid, 2);
+        sale.TrackingNumber = Clean(input.TrackingNumber);
         sale.CustomerAddress = Clean(input.CustomerAddress);
         sale.CustomerSiren = Clean(input.CustomerSiren);
     }
@@ -273,6 +275,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         if (input.Items is null || input.Items.Count == 0)
             throw new BusinessException("Une vente doit contenir au moins un article.");
         if (input.Fees < 0) throw new BusinessException("Les frais ne peuvent pas être négatifs.");
+        if (input.AmountPaid < 0) throw new BusinessException("Les frais payés par l’acheteur ne peuvent pas être négatifs.");
         foreach (var line in input.Items)
         {
             if (line.Quantity <= 0) throw new BusinessException("Chaque quantité doit être supérieure à 0.");

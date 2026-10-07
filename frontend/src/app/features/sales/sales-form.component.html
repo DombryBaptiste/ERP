@@ -67,9 +67,24 @@
           <mat-hint>Déduits du bénéfice</mat-hint>
         </mat-form-field>
 
+        <mat-form-field>
+          <mat-label>Frais payé par l’acheteur</mat-label>
+          <input matInput type="number" min="0" step="0.01" formControlName="amountPaid">
+          <span matTextSuffix>€</span>
+          <mat-hint>Ajouté au montant total de la vente</mat-hint>
+          <mat-error>Montant invalide</mat-error>
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Numéro de suivi</mat-label>
+          <input matInput formControlName="trackingNumber" maxlength="100" placeholder="ex. 123456789012">
+          <mat-hint>Facultatif · fourni par la plateforme ou le transporteur</mat-hint>
+          <mat-error>Numéro trop long</mat-error>
+        </mat-form-field>
+
         <mat-form-field class="span-2">
           <mat-label>Commentaire</mat-label>
-          <textarea matInput formControlName="comment" rows="2" placeholder="N° de suivi, remarque…"></textarea>
+          <textarea matInput formControlName="comment" rows="2" placeholder="Remarque…"></textarea>
         </mat-form-field>
       </div>
 
@@ -255,7 +270,11 @@
         </div>
         <div><span>Marge</span><strong>{{ t.margin | number: '1.0-1' }} %</strong></div>
       }
-      <div class="total-main"><span>Montant total</span><strong>{{ t.total | currency }}</strong></div>
+      <div class="total-main"><span>Montant total</span><strong>{{ t.netTotal | currency }}</strong></div>
+      <div class="total-paid">
+        <span>Frais payé par l’acheteur</span><strong>{{ t.amountPaid | currency }}</strong>
+        <small>Prix de vente : {{ t.total | currency }} · Frais : −{{ t.fees | currency }}</small>
+      </div>
     </div>
     <div class="footer-actions">
       <a mat-button routerLink="/sales">Annuler</a>

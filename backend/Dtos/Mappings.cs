@@ -42,6 +42,7 @@ public static class Mappings
         var names = s.Items.ToDictionary(i => i.Id, i => i.InventoryItem.Name);
         return new SaleDto(
             s.Id, s.SaleNumber, s.SaleDate, s.Customer, s.Platform, s.PaymentMethod, s.Fees, s.Comment,
+            s.AmountPaid, s.TrackingNumber,
             s.TotalAmount, s.RefundedAmount, net, s.Profit, Margin(s.Profit, net),
             s.CustomerAddress, s.CustomerSiren, s.InvoiceNumber, s.InvoiceDate,
             s.Items.OrderBy(i => i.Id).Select(i => new SaleLineDto(

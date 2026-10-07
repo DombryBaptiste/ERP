@@ -45,6 +45,8 @@ public static class DbInitializer
         await EnsureColumnAsync(db, "inventory_items", "previous_market_value", "DECIMAL(10,2) NULL");
         await EnsureColumnAsync(db, "inventory_items", "market_value_updated_at", "DATETIME(6) NULL");
         await EnsureColumnAsync(db, "sales", "payment_method", "VARCHAR(30) NOT NULL DEFAULT 'Platform'");
+        await EnsureColumnAsync(db, "sales", "amount_paid", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        await EnsureColumnAsync(db, "sales", "tracking_number", "VARCHAR(100) NULL");
         await EnsureColumnAsync(db, "sales", "refunded_amount", "DECIMAL(10,2) NOT NULL DEFAULT 0");
         await EnsureColumnAsync(db, "sales", "customer_address", "VARCHAR(500) NULL");
         await EnsureColumnAsync(db, "sales", "customer_siren", "VARCHAR(20) NULL");

@@ -93,6 +93,8 @@ export class SalesFormComponent implements OnInit {
     paymentMethod: this.fb.control<PaymentMethod>('Platform', Validators.required),
     fees: [0, [Validators.min(0)]],
     comment: ['', Validators.maxLength(1000)],
+    amountPaid: [0, [Validators.min(0)]],
+    trackingNumber: ['', Validators.maxLength(100)],
     // Facturation (clients professionnels)
     customerAddress: ['', Validators.maxLength(500)],
     customerSiren: ['', Validators.pattern(/^[0-9 ]{9,17}$/)],
@@ -157,6 +159,8 @@ export class SalesFormComponent implements OnInit {
       paymentMethod: sale.paymentMethod,
       fees: sale.fees,
       comment: sale.comment ?? '',
+      amountPaid: sale.amountPaid,
+      trackingNumber: sale.trackingNumber ?? '',
       customerAddress: sale.customerAddress ?? '',
       customerSiren: sale.customerSiren ?? ''
     }, { emitEvent: false });
@@ -382,7 +386,7 @@ export class SalesFormComponent implements OnInit {
     return this.lineTotal(line) - this.lineCost(line);
   }
 
-  totals(): { total: number; cost: number; fees: number; profit: number; margin: number } {
+  totals(): { total: number; netTotal: number; cost: number; fees: number; profit: number; margin: number; amountPaid: number } {
     const allocation = this.allocate();
     let total = 0;
     let cost = 0;
@@ -391,8 +395,18 @@ export class SalesFormComponent implements OnInit {
       cost += (allocation.get(line)?.lots ?? []).reduce((sum, a) => sum + a.quantity * this.lotCost(a.lot), 0);
     }
     const fees = this.form.controls.fees.value || 0;
+    const amountPaid = this.form.controls.amountPaid.value || 0;
+    const netTotal = total - fees + amountPaid;
     const profit = total - cost - fees;
-    return { total, cost, fees, profit, margin: total > 0 ? (profit / total) * 100 : 0 };
+    return {
+      total,
+      netTotal,
+      cost,
+      fees,
+      profit,
+      margin: netTotal > 0 ? (profit / netTotal) * 100 : 0,
+      amountPaid
+    };
   }
 
   save(): void {
@@ -431,6 +445,8 @@ export class SalesFormComponent implements OnInit {
       comment: v.comment.trim() || null,
       customerAddress: v.customerAddress.trim() || null,
       customerSiren: v.customerSiren.replace(/\s/g, '') || null,
+      amountPaid: v.amountPaid || 0,
+      trackingNumber: v.trackingNumber.trim() || null,
       items
     };
 

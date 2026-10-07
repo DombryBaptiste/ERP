@@ -59,7 +59,8 @@ public record SaleLineInput(int InventoryItemId, int Quantity, decimal SalePrice
 
 public record SaleInput(
     DateTime SaleDate, string? Customer, SalePlatform Platform, decimal Fees, string? Comment, List<SaleLineInput> Items,
-    PaymentMethod PaymentMethod = PaymentMethod.Platform, string? CustomerAddress = null, string? CustomerSiren = null);
+    PaymentMethod PaymentMethod = PaymentMethod.Platform, string? CustomerAddress = null, string? CustomerSiren = null,
+    decimal AmountPaid = 0, string? TrackingNumber = null);
 
 public record SaleLineDto(
     int Id, int InventoryItemId, string ItemName, ItemType ItemType, int Quantity,
@@ -71,7 +72,7 @@ public record SaleRefundDto(int Id, DateTime RefundDate, decimal Amount, string?
 
 public record SaleDto(
     int Id, string SaleNumber, DateTime SaleDate, string? Customer, SalePlatform Platform, PaymentMethod PaymentMethod,
-    decimal Fees, string? Comment,
+    decimal Fees, string? Comment, decimal AmountPaid, string? TrackingNumber,
     // Montant initial, total remboursé et montant net (encaissé définitivement).
     decimal TotalAmount, decimal RefundedAmount, decimal NetAmount,
     decimal Profit, decimal Margin,

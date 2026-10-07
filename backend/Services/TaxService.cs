@@ -60,7 +60,13 @@ public class TaxService(AppDbContext db, SettingsStore store)
 
         var sales = await db.Sales.AsNoTracking()
             .Where(s => s.SaleDate >= start && s.SaleDate < end)
-            .Select(s => new { s.SaleDate, s.TotalAmount, s.Profit, s.Platform })
+            .Select(s => new
+            {
+                s.SaleDate,
+                NetAmount = s.TotalAmount - s.Fees + s.AmountPaid,
+                s.Profit,
+                s.Platform
+            })
             .ToListAsync();
 
         // Remboursements : déduits du CA de la période où ils ont lieu (date du remboursement).
@@ -85,9 +91,9 @@ public class TaxService(AppDbContext db, SettingsStore store)
             var inPeriod = sales.Where(s => s.SaleDate >= p.Start && s.SaleDate <= p.End).ToList();
             var refundsInPeriod = refunds.Where(r => r.RefundDate >= p.Start && r.RefundDate <= p.End).ToList();
             var refunded = refundsInPeriod.Sum(r => r.Amount);
-            var revenue = inPeriod.Sum(s => s.TotalAmount) - refunded;
+            var revenue = inPeriod.Sum(s => s.NetAmount) - refunded;
             // L'ACRE réduit uniquement les cotisations sociales, vente par vente selon sa date.
-            var social = inPeriod.Sum(s => s.TotalAmount * SocialRateAt(settings, s.SaleDate) / 100m)
+            var social = inPeriod.Sum(s => s.NetAmount * SocialRateAt(settings, s.SaleDate) / 100m)
                          - refundsInPeriod.Sum(r => r.Amount * SocialRateAt(settings, r.RefundDate) / 100m);
             // Un CA net négatif ne génère pas de cotisations (le solde s'impute sur la période suivante).
             var basis = Math.Max(0, revenue);
@@ -143,8 +149,8 @@ public class TaxService(AppDbContext db, SettingsStore store)
                        + settings.SafetyMarginRate;
 
         var platforms = sales.GroupBy(s => s.Platform)
-            .Select(g => new PlatformTaxReportDto(g.Key, g.Count(), g.Sum(s => s.TotalAmount),
-                g.Count() >= Dac7SalesThreshold || g.Sum(s => s.TotalAmount) >= Dac7RevenueThreshold))
+            .Select(g => new PlatformTaxReportDto(g.Key, g.Count(), g.Sum(s => s.NetAmount),
+                g.Count() >= Dac7SalesThreshold || g.Sum(s => s.NetAmount) >= Dac7RevenueThreshold))
             .OrderByDescending(p => p.Revenue)
             .ToList();
 

@@ -151,6 +151,9 @@ export interface Sale {
   paymentMethod: PaymentMethod;
   fees: number;
   comment: string | null;
+  /** Montant effectivement reçu du client, avant éventuels remboursements. */
+  amountPaid: number;
+  trackingNumber: string | null;
   /** Montant initial de la vente. */
   totalAmount: number;
   refundedAmount: number;
@@ -190,6 +193,8 @@ export interface SaleInput {
   paymentMethod: PaymentMethod;
   customerAddress: string | null;
   customerSiren: string | null;
+  amountPaid: number;
+  trackingNumber: string | null;
 }
 
 // ----- Tableau de bord & statistiques -----
