@@ -3,6 +3,28 @@
   padding-right: 0 !important;
 }
 
+.cardmarket-cell {
+  width: 56px;
+  text-align: center;
+}
+
+.condition-badge {
+  display: inline-block;
+  min-width: 42px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.condition-NM { background: #e4f4e8; color: #226c35; }
+.condition-EXC { background: #edf4dc; color: #526d25; }
+.condition-GOOD { background: #fff2cc; color: #806000; }
+.condition-LP { background: #ffe8c9; color: #8c4b00; }
+.condition-PL { background: #f8ded2; color: #983d1d; }
+.condition-PO { background: #f4dadd; color: #982c35; }
+
 .product-row.is-expanded td {
   background: #f5f6ff;
   border-bottom-color: transparent;

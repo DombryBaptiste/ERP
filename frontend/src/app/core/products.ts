@@ -14,6 +14,8 @@ export interface ProductGroup {
   key: string;
   name: string;
   category: string | null;
+  language: string | null;
+  isListedOnCardmarket: boolean;
   type: ItemType;
   condition: ItemCondition;
   /** Lots du produit, du plus ancien au plus récent (ordre FIFO). */
@@ -73,10 +75,14 @@ function toGroup(key: string, lots: InventoryItem[]): ProductGroup {
     .sort((a, b) => (a.marketValueUpdatedAt ?? '').localeCompare(b.marketValueUpdatedAt ?? ''));
   const gains = lots.filter(l => l.latentGain !== null && l.remainingQuantity > 0);
 
+  const categorizedLot = [...lots].reverse().find(l => l.category) ?? latest;
+
   return {
     key,
     name: latest.name,
-    category: [...lots].reverse().find(l => l.category)?.category ?? null,
+    category: categorizedLot.category,
+    language: categorizedLot.language,
+    isListedOnCardmarket: lots.every(lot => lot.isListedOnCardmarket),
     type: latest.type,
     condition: latest.condition,
     lots,

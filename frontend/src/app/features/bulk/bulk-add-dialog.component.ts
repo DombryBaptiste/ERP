@@ -171,6 +171,7 @@ export class BulkAddDialogComponent {
       comment: [this.comment.trim(), weightNote].filter(Boolean).join(' · ') || null,
       platformFees: 0,
       shippingFees: 0,
+      trackingNumber: null,
       items: [{
         itemId: null,
         name: this.category,

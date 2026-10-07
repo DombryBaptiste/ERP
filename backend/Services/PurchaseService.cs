@@ -47,6 +47,7 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
             Platform = PlatformOf(input),
             PlatformFees = FeesOf(input.PlatformFees, input.Source),
             ShippingFees = FeesOf(input.ShippingFees, input.Source),
+            TrackingNumber = Clean(input.TrackingNumber),
             PaymentMethod = PaymentOf(input),
             Comment = Clean(input.Comment)
         };
@@ -75,6 +76,7 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
         purchase.Platform = PlatformOf(input);
         purchase.PlatformFees = FeesOf(input.PlatformFees, input.Source);
         purchase.ShippingFees = FeesOf(input.ShippingFees, input.Source);
+        purchase.TrackingNumber = Clean(input.TrackingNumber);
         purchase.PaymentMethod = PaymentOf(input);
         purchase.Comment = Clean(input.Comment);
 
@@ -187,6 +189,8 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
             throw new BusinessException("Le fournisseur est obligatoire.");
         if (input.PlatformFees < 0 || input.ShippingFees < 0)
             throw new BusinessException("Les frais ne peuvent pas être négatifs.");
+        if (input.TrackingNumber?.Length > 100)
+            throw new BusinessException("Le numéro de suivi ne peut pas dépasser 100 caractères.");
         if (input.Items is null || input.Items.Count == 0)
             throw new BusinessException("Un achat doit contenir au moins un article.");
         foreach (var line in input.Items)

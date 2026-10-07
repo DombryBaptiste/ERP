@@ -59,6 +59,18 @@ public class InventoryService(AppDbContext db, AttachmentService attachments)
         return (await GetByIdAsync(id))!;
     }
 
+    public async Task SetCardmarketListingAsync(List<int> itemIds, bool isListed)
+    {
+        var uniqueIds = itemIds.Distinct().ToArray();
+        if (uniqueIds.Length == 0) throw new BusinessException("Sélectionnez au moins un article.");
+
+        var items = await db.InventoryItems.Where(i => uniqueIds.Contains(i.Id)).ToListAsync();
+        if (items.Count != uniqueIds.Length) throw BusinessException.NotFound("Un ou plusieurs articles sont introuvables.");
+
+        foreach (var item in items) item.IsListedOnCardmarket = isListed;
+        await db.SaveChangesAsync();
+    }
+
     private static void ApplyMarketValue(InventoryItem item, decimal? value)
     {
         if (value < 0) throw new BusinessException("La valeur de marché ne peut pas être négative.");

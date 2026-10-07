@@ -22,6 +22,7 @@ public class InventoryItem
     /// <summary>Catégorie libre : série / extension (ex. "EV08 Étincelles Déferlantes").</summary>
     public string? Category { get; set; }
     public string? Language { get; set; }
+    public bool IsListedOnCardmarket { get; set; }
     public ItemType Type { get; set; }
     public ItemCondition Condition { get; set; }
     /// <summary>Prix d'achat unitaire.</summary>
@@ -57,6 +58,8 @@ public class Purchase
     public PurchasePlatform? Platform { get; set; }
     public decimal PlatformFees { get; set; }
     public decimal ShippingFees { get; set; }
+    /// <summary>Numéro de suivi fourni par le vendeur ou la plateforme.</summary>
+    public string? TrackingNumber { get; set; }
     /// <summary>Mode de règlement (registre des achats). Vide pour un transfert de collection.</summary>
     public PaymentMethod? PaymentMethod { get; set; }
     public string? Comment { get; set; }

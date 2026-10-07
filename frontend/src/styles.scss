@@ -506,6 +506,12 @@ a.link:hover { text-decoration: underline; }
   background: #fff4e5;
 }
 
+.purchase-line.unsaved-line {
+  border-color: #d32f2f;
+  background: #fff1f1;
+  box-shadow: inset 4px 0 0 #d32f2f;
+}
+
 .f-language { min-width: 72px; max-width: 96px; }
 .f-series { min-width: 0; }
 .f-qty { max-width: 82px; }
@@ -542,6 +548,16 @@ a.link:hover { text-decoration: underline; }
 }
 
 .add-line { margin-top: 12px; }
+
+.purchase-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--app-muted);
+  font-size: 13px;
+}
 
 .opt-name { font-weight: 500; line-height: 1.3; }
 .opt-meta { font-size: 12px; color: var(--app-muted); line-height: 1.3; }

@@ -67,7 +67,7 @@
         @if (!isCollection) {
           <mat-form-field>
             <mat-label>Plateforme d'achat</mat-label>
-            <mat-select formControlName="platform">
+            <mat-select formControlName="platform" (selectionChange)="onPurchasePlatformChange()">
               <mat-option [value]="null">Non précisée</mat-option>
               @for (platform of purchasePlatforms; track platform.value) {
                 <mat-option [value]="platform.value">{{ platform.label }}</mat-option>
@@ -89,14 +89,27 @@
             <mat-label>Frais de plateforme</mat-label>
             <input matInput type="number" min="0" step="0.01" formControlName="platformFees">
             <span matTextSuffix>€</span>
+            @if (form.controls.platform.value === 'Vinted') {
+              <mat-hint>5 % du total des articles + 0,70 € · modifiable</mat-hint>
+            }
             <mat-error>Montant invalide</mat-error>
           </mat-form-field>
 
           <mat-form-field>
-            <mat-label>Frais de port</mat-label>
+            <mat-label>{{ form.controls.platform.value === 'Cardmarket' ? 'Frais de port Cardmarket' : 'Frais de port' }}</mat-label>
             <input matInput type="number" min="0" step="0.01" formControlName="shippingFees">
             <span matTextSuffix>€</span>
+            @if (form.controls.platform.value === 'Cardmarket') {
+              <mat-hint>Montant payé par l’acheteur pour l’envoi</mat-hint>
+            }
             <mat-error>Montant invalide</mat-error>
+          </mat-form-field>
+
+          <mat-form-field>
+            <mat-label>Numéro de suivi</mat-label>
+            <input matInput formControlName="trackingNumber" maxlength="100" placeholder="ex. 123456789012">
+            <mat-hint>Facultatif · à saisir si fourni par le vendeur</mat-hint>
+            <mat-error>Numéro trop long</mat-error>
           </mat-form-field>
         }
 
@@ -114,12 +127,16 @@
       <mat-card-subtitle>{{ items.length }} ligne(s) · {{ totalQuantity() }} unité(s)</mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
+      <button mat-stroked-button type="button" (click)="addLine()" class="add-line">
+        <mat-icon>add</mat-icon> Ajouter un article
+      </button>
       <div #purchaseLines class="lines purchase-lines">
-        @for (line of items.controls; track line; let i = $index) {
+        @for (line of visibleReversedItems; track line; let i = $index) {
           <div class="line purchase-line" [class.card-line]="usesCardSeries(line.controls.type.value)"
+            [class.unsaved-line]="isLineUnsaved(line)"
             [class.missing-series]="usesCardSeries(line.controls.type.value) && !line.controls.category.value"
             [formGroup]="line">
-            <div class="line-index">{{ i + 1 }}</div>
+            <div class="line-index">{{ items.length - linePage() * linePageSize - i }}</div>
 
             <mat-form-field class="f-name">
               <mat-label>Nom</mat-label>
@@ -217,23 +234,33 @@
             <div class="line-total">{{ lineTotal(line) | currency }}</div>
 
             <div class="line-actions">
-              <button mat-icon-button type="button" matTooltip="Dupliquer la ligne" (click)="duplicateLine(i)">
+              <button mat-icon-button type="button" matTooltip="Dupliquer la ligne" (click)="duplicateLine(items.controls.indexOf(line))">
                 <mat-icon>content_copy</mat-icon>
               </button>
               <button mat-icon-button type="button"
                       [matTooltip]="line.controls.soldQuantity.value > 0 ? 'Article déjà vendu' : 'Retirer la ligne'"
                       [disabled]="items.length === 1 || line.controls.soldQuantity.value > 0"
-                      (click)="removeLine(i)">
+                      (click)="removeLine(line)">
                 <mat-icon>delete</mat-icon>
               </button>
             </div>
           </div>
         }
       </div>
+      @if (items.length > linePageSize) {
+        <div class="purchase-pagination" aria-label="Navigation des lignes d'achat">
+          <button mat-icon-button type="button" matTooltip="Page précédente"
+                  [disabled]="linePage() === 0" (click)="previousLinesPage()">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          <span>Page {{ linePage() + 1 }} sur {{ linePageCount }}</span>
+          <button mat-icon-button type="button" matTooltip="Page suivante"
+                  [disabled]="linePage() >= linePageCount - 1" (click)="nextLinesPage()">
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        </div>
+      }
 
-      <button mat-stroked-button type="button" (click)="addLine()" class="add-line">
-        <mat-icon>add</mat-icon> Ajouter un article
-      </button>
     </mat-card-content>
   </mat-card>
 

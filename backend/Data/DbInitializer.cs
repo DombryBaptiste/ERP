@@ -51,9 +51,11 @@ public static class DbInitializer
         await EnsureColumnAsync(db, "sales", "invoice_number", "VARCHAR(20) NULL");
         await EnsureColumnAsync(db, "sales", "invoice_date", "DATE NULL");
         await EnsureColumnAsync(db, "inventory_items", "language", "VARCHAR(50) NULL AFTER category");
+        await EnsureColumnAsync(db, "inventory_items", "is_listed_on_cardmarket", "TINYINT(1) NOT NULL DEFAULT 0");
         await EnsureColumnAsync(db, "purchases", "platform", "VARCHAR(30) NULL AFTER source");
         await EnsureColumnAsync(db, "purchases", "platform_fees", "DECIMAL(10,2) NOT NULL DEFAULT 0");
         await EnsureColumnAsync(db, "purchases", "shipping_fees", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+        await EnsureColumnAsync(db, "purchases", "tracking_number", "VARCHAR(100) NULL AFTER shipping_fees");
 
         // États des articles : anciennes valeurs (New, Excellent…) converties au format Cardmarket (NM, EXC…).
         // Sans effet une fois la conversion faite.

@@ -41,6 +41,13 @@ public class InventoryController(InventoryService service) : ControllerBase
     [HttpPut("{id:int}/market-value")]
     public Task<InventoryItemDto> SetMarketValue(int id, MarketValueInput input) => service.SetMarketValueAsync(id, input.Value);
 
+    [HttpPut("cardmarket-listing")]
+    public async Task<IActionResult> SetCardmarketListing(CardmarketListingInput input)
+    {
+        await service.SetCardmarketListingAsync(input.ItemIds, input.IsListed);
+        return NoContent();
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {

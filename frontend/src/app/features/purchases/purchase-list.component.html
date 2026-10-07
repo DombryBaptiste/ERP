@@ -50,6 +50,7 @@
           @if (p.platformFees || p.shippingFees) {
             <div class="muted small">Plateforme {{ p.platformFees | currency }} · port {{ p.shippingFees | currency }}</div>
           }
+          @if (p.trackingNumber) { <div class="muted small">Suivi {{ p.trackingNumber }}</div> }
           @if (p.comment) { <div class="muted small ellipsis">{{ p.comment }}</div> }
         </td>
       </ng-container>

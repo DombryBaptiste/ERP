@@ -19,6 +19,8 @@ export interface InventoryItem {
   id: number;
   name: string;
   category: string | null;
+  language: string | null;
+  isListedOnCardmarket: boolean;
   type: ItemType;
   condition: ItemCondition;
   purchasePrice: number;
@@ -81,6 +83,7 @@ export interface Purchase {
   comment: string | null;
   platformFees: number;
   shippingFees: number;
+  trackingNumber: string | null;
   totalAmount: number;
   itemCount: number;
   items: PurchaseLine[];
@@ -106,6 +109,7 @@ export interface PurchaseInput {
   comment: string | null;
   platformFees: number;
   shippingFees: number;
+  trackingNumber: string | null;
   items: PurchaseLineInput[];
 }
 

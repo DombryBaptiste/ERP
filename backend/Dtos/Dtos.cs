@@ -16,13 +16,15 @@ public record InventoryItemInput(
     decimal? MarketValue = null);
 
 public record InventoryItemDto(
-    int Id, string Name, string? Category, ItemType Type, ItemCondition Condition,
+    int Id, string Name, string? Category, string? Language, ItemType Type, ItemCondition Condition,
     decimal PurchasePrice, int Quantity, int RemainingQuantity, int SoldQuantity, decimal StockValue,
     string? Location, DateTime PurchaseDate, int? PurchaseId, string? PurchaseNumber, ItemOrigin Origin,
     decimal? MarketValue, decimal? PreviousMarketValue, DateTime? MarketValueUpdatedAt,
     // Plus-value latente sur le stock restant : quantité restante × (valeur de marché − prix d'achat).
     decimal? LatentGain,
-    int DaysInStock, int? PhotoId);
+    int DaysInStock, int? PhotoId, bool IsListedOnCardmarket);
+
+public record CardmarketListingInput(List<int> ItemIds, bool IsListed);
 
 public record MarketValueInput(decimal? Value);
 
@@ -39,7 +41,8 @@ public record PurchaseLineInput(
 public record PurchaseInput(
     DateTime PurchaseDate, string? Supplier, string? Comment, List<PurchaseLineInput> Items,
     PurchaseSource Source = PurchaseSource.Supplier, PaymentMethod? PaymentMethod = null,
-    PurchasePlatform? Platform = null, decimal PlatformFees = 0, decimal ShippingFees = 0);
+    PurchasePlatform? Platform = null, decimal PlatformFees = 0, decimal ShippingFees = 0,
+    string? TrackingNumber = null);
 
 public record PurchaseLineDto(
     int Id, int ItemId, string Name, string? Category, string? Language, ItemType Type, ItemCondition Condition,
@@ -48,7 +51,7 @@ public record PurchaseLineDto(
 public record PurchaseDto(
     int Id, string PurchaseNumber, PurchaseSource Source, DateTime PurchaseDate, string Supplier,
     PurchasePlatform? Platform, PaymentMethod? PaymentMethod, string? Comment,
-    decimal PlatformFees, decimal ShippingFees,
+    decimal PlatformFees, decimal ShippingFees, string? TrackingNumber,
     decimal TotalAmount, int ItemCount, List<PurchaseLineDto> Items);
 
 // ----- Ventes -----

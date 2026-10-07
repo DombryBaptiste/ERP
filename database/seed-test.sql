@@ -42,6 +42,8 @@ CREATE TABLE inventory_items (
   id                      INT           NOT NULL AUTO_INCREMENT,
   name                    VARCHAR(200)  NOT NULL,
   category                VARCHAR(100)  NULL,
+  language                VARCHAR(50)   NULL,
+  is_listed_on_cardmarket TINYINT(1)    NOT NULL DEFAULT 0,
   type                    VARCHAR(30)   NOT NULL,
   `condition`             VARCHAR(30)   NOT NULL,
   purchase_price          DECIMAL(14,6) NOT NULL,

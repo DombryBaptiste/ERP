@@ -38,6 +38,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.Category).HasMaxLength(100);
             e.Property(x => x.Language).HasMaxLength(50);
+            e.Property(x => x.IsListedOnCardmarket).HasDefaultValue(false);
             e.Property(x => x.Type).HasConversion<string>().HasMaxLength(30);
             e.Property(x => x.Condition).HasConversion<string>().HasMaxLength(30);
             // 6 décimales : le bulk se compte à la carte (ex. 15 € pour 700 cartes = 0,021429 € la carte).
@@ -59,6 +60,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Platform).HasConversion<string>().HasMaxLength(30);
             e.Property(x => x.PlatformFees).HasPrecision(10, 2);
             e.Property(x => x.ShippingFees).HasPrecision(10, 2);
+            e.Property(x => x.TrackingNumber).HasMaxLength(100);
             e.Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(30);
             e.Property(x => x.Comment).HasMaxLength(1000);
             e.Property(x => x.TotalAmount).HasPrecision(10, 2);

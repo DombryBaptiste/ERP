@@ -7,13 +7,13 @@ public static class Mappings
 {
     /// <param name="photoId">Identifiant de la première photo de l'article, s'il y en a une.</param>
     public static InventoryItemDto ToDto(this InventoryItem i, int? photoId = null) => new(
-        i.Id, i.Name, i.Category, i.Type, i.Condition,
+        i.Id, i.Name, i.Category, i.Language, i.Type, i.Condition,
         i.PurchasePrice, i.Quantity, i.RemainingQuantity, i.Quantity - i.RemainingQuantity,
         i.RemainingQuantity * i.PurchasePrice, i.Location, i.PurchaseDate,
         i.PurchaseItem?.PurchaseId, i.PurchaseItem?.Purchase?.PurchaseNumber, i.Origin(),
         i.MarketValue, i.PreviousMarketValue, i.MarketValueUpdatedAt,
         i.MarketValue is { } mv ? i.RemainingQuantity * (mv - i.PurchasePrice) : null,
-        Math.Max(0, (DateTime.Today - i.PurchaseDate.Date).Days), photoId);
+        Math.Max(0, (DateTime.Today - i.PurchaseDate.Date).Days), photoId, i.IsListedOnCardmarket);
 
     /// <summary>Origine d'un article (nécessite PurchaseItem.Purchase chargé).</summary>
     public static ItemOrigin Origin(this InventoryItem i) => i.PurchaseItem?.Purchase switch
@@ -25,9 +25,9 @@ public static class Mappings
 
     public static PurchaseDto ToDto(this Purchase p) => new(
         p.Id, p.PurchaseNumber, p.Source, p.PurchaseDate, p.Supplier, p.Platform, p.PaymentMethod, p.Comment,
-        p.PlatformFees, p.ShippingFees, p.TotalAmount,
+        p.PlatformFees, p.ShippingFees, p.TrackingNumber, p.TotalAmount,
         p.Items.Sum(i => i.Quantity),
-        p.Items.OrderByDescending(i => i.Id).Select(i => new PurchaseLineDto(
+        p.Items.OrderBy(i => i.Id).Select(i => new PurchaseLineDto(
             i.Id, i.ItemId, i.Item.Name, i.Item.Category, i.Item.Language, i.Item.Type, i.Item.Condition,
             i.Quantity, i.UnitPrice, i.Quantity * i.UnitPrice, i.Item.Location,
             i.Item.RemainingQuantity, i.Item.Quantity - i.Item.RemainingQuantity)).ToList());

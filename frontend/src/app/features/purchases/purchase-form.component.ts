@@ -37,6 +37,8 @@ type LineForm = FormGroup<{
   soldQuantity: FormControl<number>;
 }>;
 
+type LineValues = ReturnType<LineForm['getRawValue']>;
+
 @Component({
   selector: 'app-purchase-form',
   imports: [
@@ -67,6 +69,11 @@ export class PurchaseFormComponent implements OnInit {
   readonly knownProducts = signal<ProductGroup[]>([]);
   readonly loading = signal(false);
   readonly saving = signal(false);
+  readonly linePage = signal(0);
+  readonly linePageSize = 20;
+  private automaticPlatformFees = false;
+  private settingAutomaticPlatformFees = false;
+  private readonly savedLineValues = new WeakMap<LineForm, LineValues>();
 
   @ViewChild('purchaseLines') private purchaseLines?: ElementRef<HTMLDivElement>;
 
@@ -78,6 +85,7 @@ export class PurchaseFormComponent implements OnInit {
     platform: this.fb.control<PurchasePlatform | null>(null),
     platformFees: this.fb.control(0, Validators.min(0)),
     shippingFees: this.fb.control(0, Validators.min(0)),
+    trackingNumber: ['', [Validators.maxLength(100)]],
     /** Mode de règlement (registre des achats) ; null pour un transfert de collection. */
     paymentMethod: this.fb.control<PaymentMethod | null>('Cash'),
     comment: ['', Validators.maxLength(1000)],
@@ -91,11 +99,27 @@ export class PurchaseFormComponent implements OnInit {
     return this.form.controls.items;
   }
 
+  get visibleReversedItems(): LineForm[] {
+    const start = this.linePage() * this.linePageSize;
+    const firstIndex = this.items.length - start - 1;
+    const count = Math.min(this.linePageSize, firstIndex + 1);
+    return Array.from({ length: count }, (_, offset) => this.items.at(firstIndex - offset));
+  }
+
+  get linePageCount(): number {
+    return Math.max(1, Math.ceil(this.items.length / this.linePageSize));
+  }
+
   get isCollection(): boolean {
     return this.form.controls.source.value === 'PersonalCollection';
   }
 
   constructor() {
+    this.form.controls.platformFees.valueChanges.subscribe(() => {
+      if (!this.settingAutomaticPlatformFees) this.automaticPlatformFees = false;
+    });
+    this.items.valueChanges.subscribe(() => this.updateAutomaticPlatformFees());
+
     // Le fournisseur n'est obligatoire que pour un vrai achat.
     this.form.controls.source.valueChanges.subscribe(source => {
       const supplier = this.form.controls.supplier;
@@ -131,9 +155,13 @@ export class PurchaseFormComponent implements OnInit {
         this.form.patchValue({
           purchaseDate: parseApiDate(p.purchaseDate), supplier: p.supplier,
           platform: p.platform, platformFees: p.platformFees, shippingFees: p.shippingFees,
-          paymentMethod: p.paymentMethod, comment: p.comment ?? ''
+          trackingNumber: p.trackingNumber ?? '', paymentMethod: p.paymentMethod, comment: p.comment ?? ''
         });
-        p.items.forEach(line => this.items.push(this.createLine(line)));
+        p.items.forEach(line => {
+          const formLine = this.createLine(line);
+          this.items.push(formLine);
+          this.savedLineValues.set(formLine, formLine.getRawValue());
+        });
         this.loading.set(false);
       },
       error: err => {
@@ -162,7 +190,8 @@ export class PurchaseFormComponent implements OnInit {
   }
 
   addLine(): void {
-    this.items.insert(0, this.createLine());
+    this.items.push(this.createLine());
+    this.linePage.set(0);
     if (typeof window !== 'undefined') {
       window.requestAnimationFrame(() => this.purchaseLines?.nativeElement.scrollTo({ top: 0, behavior: 'smooth' }));
     }
@@ -174,10 +203,43 @@ export class PurchaseFormComponent implements OnInit {
     const copy = this.createLine();
     copy.patchValue({ ...source, itemId: null, soldQuantity: 0 });
     this.items.insert(index + 1, copy);
+    const displayedIndex = this.items.length - index - 2;
+    this.linePage.set(Math.floor(Math.max(0, displayedIndex) / this.linePageSize));
   }
 
-  removeLine(index: number): void {
-    this.items.removeAt(index);
+  removeLine(line: LineForm): void {
+    if (this.items.length === 1 || line.controls.soldQuantity.value > 0) return;
+
+    const name = line.controls.name.value.trim() || 'cet article';
+    this.notify.confirm({
+      title: 'Supprimer cette ligne ?',
+      message: `« ${name} » sera retiré de l'achat à son prochain enregistrement.`
+    }).subscribe(confirmed => {
+      if (!confirmed) return;
+      const index = this.items.controls.indexOf(line);
+      if (index < 0) return;
+      this.items.removeAt(index);
+      this.linePage.update(page => Math.min(page, this.linePageCount - 1));
+    });
+  }
+
+  previousLinesPage(): void {
+    this.linePage.update(page => Math.max(0, page - 1));
+    this.scrollLinesToTop();
+  }
+
+  nextLinesPage(): void {
+    this.linePage.update(page => Math.min(this.linePageCount - 1, page + 1));
+    this.scrollLinesToTop();
+  }
+
+  private scrollLinesToTop(): void {
+    this.purchaseLines?.nativeElement.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  isLineUnsaved(line: LineForm): boolean {
+    const saved = this.savedLineValues.get(line);
+    return !saved || JSON.stringify(line.getRawValue()) !== JSON.stringify(saved);
   }
 
   /** Produits existants dont le nom correspond à la saisie. */
@@ -192,7 +254,7 @@ export class PurchaseFormComponent implements OnInit {
     line.patchValue({
       name: product.name,
       category: product.category ?? line.controls.category.value,
-      language: this.usesCardSeries(product.type) ? line.controls.language.value : '',
+      language: this.usesCardSeries(product.type) ? product.language ?? line.controls.language.value : '',
       type: product.type,
       condition: product.condition
     });
@@ -212,7 +274,7 @@ export class PurchaseFormComponent implements OnInit {
   }
 
   usesCardSeries(type: ItemType): boolean {
-    return isCard(type) || type === 'Booster' || type === 'Blister' || type === 'Etb' || type === 'Bundle';
+    return isCard(type) || type === 'Booster' || type === 'Blister' || type === 'Etb' || type === 'MiniTin' || type === 'Bundle';
   }
 
   languages(): string[] {
@@ -233,6 +295,25 @@ export class PurchaseFormComponent implements OnInit {
 
   onTypeChange(line: LineForm): void {
     if (!this.usesCardSeries(line.controls.type.value)) line.patchValue({ language: '', category: '' });
+  }
+
+  onPurchasePlatformChange(): void {
+    const wasAutomatic = this.automaticPlatformFees;
+    this.automaticPlatformFees = this.form.controls.platform.value === 'Vinted';
+    if (this.automaticPlatformFees) this.updateAutomaticPlatformFees();
+    else if (wasAutomatic) this.setAutomaticPlatformFees(0);
+  }
+
+  private updateAutomaticPlatformFees(): void {
+    if (!this.automaticPlatformFees) return;
+    const fees = Math.round((this.itemsTotal() * 0.05 + 0.7) * 100) / 100;
+    this.setAutomaticPlatformFees(fees);
+  }
+
+  private setAutomaticPlatformFees(fees: number): void {
+    this.settingAutomaticPlatformFees = true;
+    this.form.controls.platformFees.setValue(fees);
+    this.settingAutomaticPlatformFees = false;
   }
 
   lineTotal(line: LineForm): number {
@@ -269,6 +350,7 @@ export class PurchaseFormComponent implements OnInit {
       platform: v.source === 'PersonalCollection' ? null : v.platform,
       platformFees: v.source === 'PersonalCollection' ? 0 : v.platformFees,
       shippingFees: v.source === 'PersonalCollection' ? 0 : v.shippingFees,
+      trackingNumber: v.trackingNumber.trim() || null,
       paymentMethod: v.source === 'PersonalCollection' ? null : v.paymentMethod,
       comment: v.comment.trim() || null,
       items: v.items.map(l => ({
@@ -292,6 +374,7 @@ export class PurchaseFormComponent implements OnInit {
         const kind = p.source === 'PersonalCollection' ? 'Transfert' : 'Achat';
         this.notify.success(`${kind} ${p.purchaseNumber} enregistré (${p.itemCount} article(s) en stock).`);
         this.saving.set(false);
+        this.items.controls.forEach(line => this.savedLineValues.set(line, line.getRawValue()));
         this.router.navigate(['/purchases', p.id]);
       },
       error: err => {

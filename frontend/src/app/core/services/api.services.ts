@@ -37,6 +37,9 @@ export class InventoryService {
   setMarketValue(id: number, value: number | null): Observable<InventoryItem> {
     return this.http.put<InventoryItem>(`${this.url}/${id}/market-value`, { value });
   }
+  setCardmarketListing(itemIds: number[], isListed: boolean): Observable<void> {
+    return this.http.put<void>(`${this.url}/cardmarket-listing`, { itemIds, isListed });
+  }
   delete(id: number): Observable<void> { return this.http.delete<void>(`${this.url}/${id}`); }
 }
 

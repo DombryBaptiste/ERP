@@ -3,6 +3,7 @@ import { Component, computed, inject, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -42,7 +43,7 @@ interface InventoryFilters {
   imports: [
     FormsModule, RouterLink, CurrencyPipe, DatePipe, LabelPipe,
     MatTableModule, MatSortModule, MatPaginatorModule, MatFormFieldModule, MatInputModule, MatSelectModule,
-    MatButtonToggleModule, MatIconModule, MatButtonModule, MatTooltipModule, MatProgressBarModule
+    MatButtonToggleModule, MatCheckboxModule, MatIconModule, MatButtonModule, MatTooltipModule, MatProgressBarModule
   ],
   templateUrl: './inventory-list.component.html',
   styleUrl: './inventory-list.component.scss'
@@ -58,7 +59,7 @@ export class InventoryListComponent {
   readonly conditions = CONDITIONS;
   readonly origins = ORIGINS;
   readonly columns = [
-    'expand', 'name', 'category', 'type', 'condition', 'averageCost', 'remaining',
+    'expand', 'name', 'category', 'cardmarket', 'type', 'condition', 'averageCost', 'remaining',
     'stockValue', 'marketValue', 'lastPurchaseDate', 'actions'
   ];
   readonly dataSource = new MatTableDataSource<ProductGroup>([]);
@@ -81,6 +82,7 @@ export class InventoryListComponent {
       switch (column) {
         case 'name': return p.name.toLowerCase();
         case 'category': return (p.category ?? '').toLowerCase();
+        case 'cardmarket': return p.isListedOnCardmarket ? 1 : 0;
         case 'marketValue': return p.marketValue ?? -1;
         case 'lastPurchaseDate': return p.lastPurchaseDate;
         default: return (p as unknown as Record<string, string | number>)[column] ?? '';
@@ -202,6 +204,19 @@ export class InventoryListComponent {
 
   editLot(lot: InventoryItem): void {
     this.router.navigate(['/inventory', lot.id]);
+  }
+
+  setCardmarketListing(product: ProductGroup, isListed: boolean): void {
+    this.api.setCardmarketListing(product.lots.map(lot => lot.id), isListed).subscribe({
+      next: () => {
+        const itemIds = new Set(product.lots.map(lot => lot.id));
+        this.allItems.update(items => items.map(item =>
+          itemIds.has(item.id) ? { ...item, isListedOnCardmarket: isListed } : item));
+        this.dataSource.data = this.dataSource.data.map(item =>
+          item.key === product.key ? { ...item, isListedOnCardmarket: isListed } : item);
+      },
+      error: err => this.notify.error(err)
+    });
   }
 
   sell(p: ProductGroup, event: Event): void {
