@@ -24,6 +24,7 @@ import { LabelPipe } from '../../shared/label.pipe';
 import { marketDataForLot, MarketValueDialogComponent, MarketValueDialogData } from '../../shared/market-value-dialog.component';
 
 type StockStatus = 'all' | 'instock' | 'sold';
+type CardmarketFilter = 'all' | 'checked' | 'unchecked';
 
 interface InventoryFilters {
   search: string;
@@ -32,6 +33,7 @@ interface InventoryFilters {
   condition: string;
   origin: string;
   status: StockStatus;
+  cardmarket: CardmarketFilter;
 }
 
 /**
@@ -72,7 +74,9 @@ export class InventoryListComponent {
   readonly categories = computed(() =>
     [...new Set(this.allItems().map(i => i.category).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b)));
 
-  filters: InventoryFilters = { search: '', category: '', type: '', condition: '', origin: '', status: 'instock' };
+  filters: InventoryFilters = {
+    search: '', category: '', type: '', condition: '', origin: '', status: 'instock', cardmarket: 'all'
+  };
 
   @ViewChild(MatSort) set sort(sort: MatSort) { this.dataSource.sort = sort; }
   @ViewChild(MatPaginator) set paginator(paginator: MatPaginator) { this.dataSource.paginator = paginator; }
@@ -114,7 +118,9 @@ export class InventoryListComponent {
   }
 
   resetFilters(): void {
-    this.filters = { search: '', category: '', type: '', condition: '', origin: '', status: 'all' };
+    this.filters = {
+      search: '', category: '', type: '', condition: '', origin: '', status: 'all', cardmarket: 'all'
+    };
     this.applyFilters();
   }
 
@@ -133,7 +139,14 @@ export class InventoryListComponent {
           || (f.status === 'instock' && item.remainingQuantity > 0)
           || (f.status === 'sold' && item.remainingQuantity === 0));
     });
-    this.dataSource.data = groupProducts(lots);
+    const products = groupProducts(lots);
+    const filteredProducts = f.cardmarket === 'all'
+      ? products
+      : products.filter(product =>
+          f.cardmarket === 'checked'
+            ? product.isListedOnCardmarket
+            : !product.isListedOnCardmarket);
+    this.dataSource.data = filteredProducts;
     this.dataSource.paginator?.firstPage();
   }
 

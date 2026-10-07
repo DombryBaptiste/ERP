@@ -68,6 +68,13 @@
     </mat-select>
   </mat-form-field>
 
+  <mat-button-toggle-group [value]="filters.cardmarket" (change)="setFilter('cardmarket', $event.value)"
+                           class="status-toggle" aria-label="État de la liste Cardmarket">
+    <mat-button-toggle value="all">Tous</mat-button-toggle>
+    <mat-button-toggle value="checked">Listé</mat-button-toggle>
+    <mat-button-toggle value="unchecked">Non listé</mat-button-toggle>
+  </mat-button-toggle-group>
+
   <mat-button-toggle-group [value]="filters.status" (change)="setFilter('status', $event.value)" class="status-toggle"
                            aria-label="Statut du stock">
     <mat-button-toggle value="instock">En stock</mat-button-toggle>
