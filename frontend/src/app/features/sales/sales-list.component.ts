@@ -60,9 +60,9 @@ export class SalesListComponent {
         && (!f.platform || sale.platform === f.platform)
         && (!f.customer || (sale.customer ?? '').toLowerCase().includes(f.customer.trim().toLowerCase()));
     };
-    // La colonne « Montant » affiche le montant net (après remboursements) : on trie sur cette valeur.
+    // La colonne « Montant » affiche le montant net des frais et des remboursements.
     this.dataSource.sortingDataAccessor = (sale: Sale, column: string) =>
-      column === 'totalAmount' ? sale.netAmount : ((sale as unknown as Record<string, string | number>)[column] ?? '');
+      column === 'totalAmount' ? this.saleAmount(sale) : ((sale as unknown as Record<string, string | number>)[column] ?? '');
     this.filterForm.valueChanges.subscribe(() => this.applyFilters());
     this.applyFilters();
     this.load();
@@ -102,9 +102,13 @@ export class SalesListComponent {
     return sale.items.map(i => `${i.itemName} ×${i.quantity}`).join(', ');
   }
 
+  saleAmount(sale: Sale): number {
+    return sale.totalAmount - sale.fees + sale.amountPaid - sale.refundedAmount;
+  }
+
   totals(): { amount: number; profit: number; count: number } {
     return this.dataSource.filteredData.reduce(
-      (acc, s) => ({ amount: acc.amount + s.netAmount, profit: acc.profit + s.profit, count: acc.count + 1 }),
+      (acc, s) => ({ amount: acc.amount + this.saleAmount(s), profit: acc.profit + s.profit, count: acc.count + 1 }),
       { amount: 0, profit: 0, count: 0 });
   }
 

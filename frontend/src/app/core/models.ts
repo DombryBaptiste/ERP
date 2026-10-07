@@ -215,10 +215,11 @@ export interface DistributionSlice {
 export interface SaleSummary {
   id: number;
   saleNumber: string;
-  saleDate: string;
   customer: string | null;
+  saleDate: string;
   platform: SalePlatform;
   totalAmount: number;
+  netAmount: number;
   profit: number;
 }
 

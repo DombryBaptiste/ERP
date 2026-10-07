@@ -55,14 +55,15 @@ public static class Mappings
                     ri.SaleItemId, names.GetValueOrDefault(ri.SaleItemId, "?"), ri.Quantity, ri.Restocked)).ToList())).ToList());
     }
 
-    /// <summary>Résumé d'une vente : montants nets des remboursements.</summary>
+    /// <summary>Résumé d'une vente : montant net des frais et des remboursements.</summary>
     public static RecentSaleDto ToSummary(this Sale s) =>
-        new(s.Id, s.SaleNumber, s.SaleDate, s.Customer, s.Platform, s.TotalAmount - s.RefundedAmount, s.Profit);
+        new(s.Id, s.SaleNumber, s.SaleDate, s.Customer, s.Platform,
+            s.TotalAmount, SaleRevenue(s) - s.RefundedAmount, s.Profit);
 
     /// <summary>Marge en pourcentage du chiffre d'affaires.</summary>
     public static decimal Margin(decimal profit, decimal revenue) =>
         revenue > 0 ? Math.Round(profit / revenue * 100, 1) : 0;
-
+    public static decimal SaleRevenue(Sale sale) => sale.TotalAmount - sale.Fees + sale.AmountPaid;
     public static string Label(this PaymentMethod method) => method switch
     {
         PaymentMethod.Platform => "Plateforme",

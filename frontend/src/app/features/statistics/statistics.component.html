@@ -137,7 +137,7 @@
                     <td><span class="ref">{{ sale.saleNumber }}</span></td>
                     <td>{{ sale.saleDate | date: 'dd/MM/yyyy' }}</td>
                     <td>{{ sale.platform | label: 'platform' }}</td>
-                    <td class="num strong">{{ sale.totalAmount | currency }}</td>
+                    <td class="num strong">{{ sale.netAmount | currency }}</td>
                     <td class="num" [class.negative]="sale.profit < 0" [class.positive]="sale.profit >= 0">{{ sale.profit | currency }}</td>
                   </tr>
                 }

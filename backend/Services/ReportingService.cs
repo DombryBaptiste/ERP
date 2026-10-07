@@ -82,7 +82,17 @@ public class ReportingService(AppDbContext db)
 
         var lines = await db.SaleItems.AsNoTracking()
             .Where(si => si.Sale.SaleDate >= start && si.Sale.SaleDate < end)
-            .Select(si => new { si.InventoryItem.Name, si.InventoryItem.Type, si.Quantity, si.SalePrice, si.UnitCost })
+            .Select(si => new
+            {
+                si.InventoryItem.Name,
+                si.InventoryItem.Type,
+                si.Quantity,
+                si.SalePrice,
+                si.UnitCost,
+                si.Sale.TotalAmount,
+                si.Sale.Fees,
+                si.Sale.AmountPaid
+            })
             .ToListAsync();
 
         var annualPurchases = await db.Purchases
@@ -100,21 +110,30 @@ public class ReportingService(AppDbContext db)
         var monthly = Enumerable.Range(1, 12).Select(m =>
         {
             var inMonth = sales.Where(s => s.SaleDate.Month == m).ToList();
-            return new MonthlyPoint(year, m, inMonth.Sum(s => s.TotalAmount - s.RefundedAmount), inMonth.Sum(s => s.Profit), inMonth.Count);
+            return new MonthlyPoint(year, m,
+                inMonth.Sum(s => Mappings.SaleRevenue(s) - s.RefundedAmount),
+                inMonth.Sum(s => s.Profit), inMonth.Count);
         }).ToList();
 
-        // Marge brute par produit (hors frais de vente, qui sont portés par la vente entière).
+        // CA par produit : les frais sont répartis proportionnellement selon le montant de chaque ligne.
         var products = lines
             .GroupBy(l => new { l.Name, l.Type })
             .Select(g =>
             {
-                var revenue = g.Sum(x => x.Quantity * x.SalePrice);
+                var revenue = g.Sum(x =>
+                {
+                    var lineAmount = x.Quantity * x.SalePrice;
+                    var saleAmount = x.TotalAmount;
+                    var fees = saleAmount > 0 ? lineAmount * x.Fees / saleAmount : 0m;
+                    var amountPaid = saleAmount > 0 ? lineAmount * x.AmountPaid / saleAmount : 0m;
+                    return lineAmount - fees + amountPaid;
+                });
                 var profit = g.Sum(x => x.Quantity * (x.SalePrice - x.UnitCost));
                 return new ProductStatDto(g.Key.Name, g.Key.Type, g.Sum(x => x.Quantity), revenue, profit, Mappings.Margin(profit, revenue));
             })
             .ToList();
 
-        var annualRevenue = sales.Sum(s => s.TotalAmount - s.RefundedAmount);
+        var annualRevenue = sales.Sum(s => Mappings.SaleRevenue(s) - s.RefundedAmount);
         var annualProfit = sales.Sum(s => s.Profit);
         // Nombre de mois écoulés pour la moyenne (12 pour une année passée).
         var monthsElapsed = year < today.Year ? 12 : year == today.Year ? today.Month : 1;
@@ -133,7 +152,7 @@ public class ReportingService(AppDbContext db)
             AverageMonthlyProfit: Math.Round(annualProfit / monthsElapsed, 2),
             StockValue: stockValue,
             Monthly: monthly,
-            TopSales: sales.OrderByDescending(s => s.TotalAmount - s.RefundedAmount).Take(10).Select(s => s.ToSummary()).ToList(),
+            TopSales: sales.OrderByDescending(s => Mappings.SaleRevenue(s) - s.RefundedAmount).Take(10).Select(s => s.ToSummary()).ToList(),
             TopProductsByRevenue: products.OrderByDescending(p => p.Revenue).Take(10).ToList(),
             TopProductsByProfit: products.OrderByDescending(p => p.Profit).Take(10).ToList());
     }

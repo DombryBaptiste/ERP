@@ -99,10 +99,7 @@
       <ng-container matColumnDef="totalAmount">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Montant</th>
         <td mat-cell *matCellDef="let s" class="num">
-          <span class="strong">{{ s.netAmount | currency }}</span>
-          @if (s.amountPaid > 0) {
-            <div class="small">payé {{ s.amountPaid | currency }}</div>
-          }
+          <span class="strong">{{ saleAmount(s) | currency }}</span>
           @if (s.refundedAmount > 0) {
             <div class="small negative">remb. −{{ s.refundedAmount | currency }}</div>
           }

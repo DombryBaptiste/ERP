@@ -92,7 +92,7 @@ public record MonthlyPoint(int Year, int Month, decimal Revenue, decimal Profit,
 public record DistributionSlice(string Label, int Quantity, decimal Value);
 
 public record RecentSaleDto(int Id, string SaleNumber, DateTime SaleDate, string? Customer,
-    SalePlatform Platform, decimal TotalAmount, decimal Profit);
+    SalePlatform Platform, decimal TotalAmount, decimal NetAmount, decimal Profit);
 
 public record DashboardDto(
     int StockItemCount, int StockReferenceCount, decimal StockValue,
