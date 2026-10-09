@@ -229,13 +229,18 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         sale.Profit = Math.Round(sale.TotalAmount - sale.RefundedAmount - cost - sale.Fees, 2);
     }
 
+    private static decimal CardmarketFees(SaleInput input)
+    {
+        return Math.Round(input.Items.Sum(line => line.Quantity * Math.Min(line.SalePrice * 0.05m, 100m)), 2);
+    }
+
     private static void ApplyHeader(Sale sale, SaleInput input)
     {
         sale.SaleDate = input.SaleDate.Date;
         sale.Customer = Clean(input.Customer);
         sale.Platform = input.Platform;
         sale.PaymentMethod = input.PaymentMethod;
-        sale.Fees = Math.Round(input.Fees, 2);
+        sale.Fees = input.Platform == SalePlatform.Cardmarket ? CardmarketFees(input) : Math.Round(input.Fees, 2);
         sale.Comment = Clean(input.Comment);
         sale.AmountPaid = Math.Round(input.AmountPaid, 2);
         sale.TrackingNumber = Clean(input.TrackingNumber);
@@ -274,7 +279,8 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
     {
         if (input.Items is null || input.Items.Count == 0)
             throw new BusinessException("Une vente doit contenir au moins un article.");
-        if (input.Fees < 0) throw new BusinessException("Les frais ne peuvent pas être négatifs.");
+        if (input.Platform != SalePlatform.Cardmarket && input.Fees < 0)
+            throw new BusinessException("Les frais ne peuvent pas être négatifs.");
         if (input.AmountPaid < 0) throw new BusinessException("Les frais payés par l’acheteur ne peuvent pas être négatifs.");
         foreach (var line in input.Items)
         {

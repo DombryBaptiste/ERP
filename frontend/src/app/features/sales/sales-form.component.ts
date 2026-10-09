@@ -14,7 +14,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, Observable, of } from 'rxjs';
-import { defaultPaymentFor, PAYMENT_METHODS, PLATFORMS } from '../../core/labels';
+import { cardmarketSaleFeeForItem, cardmarketSaleFees, defaultPaymentFor, PAYMENT_METHODS, PLATFORMS } from '../../core/labels';
 import { InventoryItem, PaymentMethod, Sale, SaleInput, SaleLineInput, SalePlatform, SaleRefund } from '../../core/models';
 import { groupProducts, ProductGroup, productKey } from '../../core/products';
 import { InventoryService, SaleService } from '../../core/services/api.services';
@@ -103,6 +103,8 @@ export class SalesFormComponent implements OnInit {
 
   /** Les articles sont figés dès qu'un remboursement existe. */
   readonly locked = computed(() => (this.sale()?.refunds.length ?? 0) > 0);
+  private automaticFees = false;
+  private settingAutomaticFees = false;
 
   get items() {
     return this.form.controls.items;
@@ -113,6 +115,13 @@ export class SalesFormComponent implements OnInit {
     this.form.controls.platform.valueChanges.subscribe(platform => {
       const payment = this.form.controls.paymentMethod;
       if (payment.pristine) payment.setValue(defaultPaymentFor(platform));
+      const wasAutomatic = this.automaticFees;
+      this.automaticFees = platform === 'Cardmarket';
+      if (this.automaticFees) this.updateAutomaticFees();
+      else if (wasAutomatic) this.setAutomaticFees(0);
+    });
+    this.items.valueChanges.subscribe(() => {
+      if (this.automaticFees) this.updateAutomaticFees();
     });
   }
 
@@ -132,6 +141,8 @@ export class SalesFormComponent implements OnInit {
           const product = lot ? this.productsByKey().get(productKey(lot)) : undefined;
           if (product) this.selectProduct(line, product);
           this.items.push(line);
+          this.automaticFees = this.form.controls.platform.value === 'Cardmarket';
+          if (this.automaticFees) this.updateAutomaticFees();
         }
         this.loading.set(false);
       },
@@ -164,6 +175,8 @@ export class SalesFormComponent implements OnInit {
       customerAddress: sale.customerAddress ?? '',
       customerSiren: sale.customerSiren ?? ''
     }, { emitEvent: false });
+    this.automaticFees = sale.platform === 'Cardmarket';
+    if (this.automaticFees) this.updateAutomaticFees();
 
     // Les lignes enregistrées par lot sont regroupées par produit (et par prix de vente).
     this.items.clear();
@@ -372,6 +385,21 @@ export class SalesFormComponent implements OnInit {
 
   // ----- Calculs automatiques -----
 
+  private updateAutomaticFees(): void {
+    if (!this.automaticFees || this.form.controls.platform.value !== 'Cardmarket') return;
+    const fees = this.items.controls.reduce((sum, line) => {
+      const value = line.getRawValue();
+      return sum + (value.quantity || 0) * cardmarketSaleFeeForItem(value.salePrice || 0);
+    }, 0);
+    this.setAutomaticFees(fees);
+  }
+
+  private setAutomaticFees(fees: number): void {
+    this.settingAutomaticFees = true;
+    this.form.controls.fees.setValue(Math.round(fees * 100) / 100, { emitEvent: false });
+    this.settingAutomaticFees = false;
+  }
+
   lineTotal(line: SaleLineForm): number {
     const v = line.getRawValue();
     return (v.quantity || 0) * (v.salePrice || 0);
@@ -436,12 +464,15 @@ export class SalesFormComponent implements OnInit {
     }
 
     const v = this.form.getRawValue();
+    const fees = v.platform === 'Cardmarket'
+      ? cardmarketSaleFees(items)
+      : (v.fees || 0);
     const payload: SaleInput = {
       saleDate: toIsoDate(v.saleDate),
       customer: v.customer.trim() || null,
       platform: v.platform,
       paymentMethod: v.paymentMethod,
-      fees: v.fees || 0,
+      fees,
       comment: v.comment.trim() || null,
       customerAddress: v.customerAddress.trim() || null,
       customerSiren: v.customerSiren.replace(/\s/g, '') || null,

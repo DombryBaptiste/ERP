@@ -129,6 +129,13 @@
         </td>
       </ng-container>
 
+      <ng-container matColumnDef="language">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Langue</th>
+        <td mat-cell *matCellDef="let p" class="language-cell" [attr.aria-label]="p.language || 'Langue inconnue'">
+          {{ languageFlag(p.language) }}
+        </td>
+      </ng-container>
+
       <ng-container matColumnDef="category">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Catégorie</th>
         <td mat-cell *matCellDef="let p">{{ p.category || '—' }}</td>

@@ -106,5 +106,15 @@ export function cardmarketSearchUrl(name: string): string {
   return `https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=${encodeURIComponent(name)}`;
 }
 
+/** Commission Cardmarket : 5 % de la valeur de l'article, plafonnée à 100 € par article. */
+export function cardmarketSaleFeeForItem(value: number): number {
+  const safe = Number.isFinite(value) ? Math.max(0, value) : 0;
+  return Math.min(safe * 0.05, 100);
+}
+
+export function cardmarketSaleFees(items: Array<{ quantity: number; salePrice: number }>): number {
+  return items.reduce((sum, item) => sum + (item.quantity || 0) * cardmarketSaleFeeForItem(item.salePrice), 0);
+}
+
 /** Vrai pour les cartes (brutes ou gradées), faux pour les produits scellés. */
 export const isCard = (type: ItemType): boolean => type === 'RawCard' || type === 'GradedCard' || type === 'Bulk';

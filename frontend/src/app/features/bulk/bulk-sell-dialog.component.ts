@@ -9,7 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { defaultPaymentFor, PAYMENT_METHODS, PLATFORMS } from '../../core/labels';
+import { cardmarketSaleFeeForItem, defaultPaymentFor, PAYMENT_METHODS, PLATFORMS } from '../../core/labels';
 import { BulkSettings, PaymentMethod, Sale, SaleInput, SalePlatform } from '../../core/models';
 import { allocateFifo, ProductGroup } from '../../core/products';
 import { SaleService } from '../../core/services/api.services';
@@ -49,20 +49,20 @@ export interface BulkSellDialogData {
       </mat-form-field>
 
       <div class="count-row">
-        <mat-button-toggle-group [ngModel]="mode()" (ngModelChange)="mode.set($event)">
+        <mat-button-toggle-group [ngModel]="mode()" (ngModelChange)="mode.set($event); updateAutomaticFees()">
           <mat-button-toggle value="count">Nombre de cartes</mat-button-toggle>
           <mat-button-toggle value="weight"><mat-icon>scale</mat-icon> Au poids</mat-button-toggle>
         </mat-button-toggle-group>
         @if (mode() === 'count') {
           <mat-form-field>
             <mat-label>Cartes</mat-label>
-            <input matInput type="number" min="1" step="1" [ngModel]="count()" (ngModelChange)="count.set(+$event)">
+            <input matInput type="number" min="1" step="1" [ngModel]="count()" (ngModelChange)="count.set(+$event); updateAutomaticFees()">
             <mat-hint>{{ product()?.remaining ?? 0 | number }} en stock</mat-hint>
           </mat-form-field>
         } @else {
           <mat-form-field>
             <mat-label>Poids</mat-label>
-            <input matInput type="number" min="0" step="10" [ngModel]="grams()" (ngModelChange)="grams.set(+$event)">
+            <input matInput type="number" min="0" step="10" [ngModel]="grams()" (ngModelChange)="grams.set(+$event); updateAutomaticFees()">
             <span matTextSuffix>g</span>
             <mat-hint>≈ {{ cards() | number }} cartes</mat-hint>
           </mat-form-field>
@@ -71,7 +71,7 @@ export interface BulkSellDialogData {
 
       <div class="quick-lots">
         @for (n of [50, 100, 200, 500, 1000]; track n) {
-          <button mat-stroked-button type="button" (click)="mode.set('count'); count.set(n)">{{ n }}</button>
+          <button mat-stroked-button type="button" (click)="mode.set('count'); count.set(n); updateAutomaticFees()">{{ n }}</button>
         }
       </div>
 
@@ -93,7 +93,7 @@ export interface BulkSellDialogData {
       <div class="two-cols">
         <mat-form-field>
           <mat-label>Plateforme</mat-label>
-          <mat-select [(ngModel)]="platform" (ngModelChange)="paymentMethod = defaultPayment($event)">
+          <mat-select [(ngModel)]="platform" (ngModelChange)="paymentMethod = defaultPayment($event); updateAutomaticFees()">
             @for (p of platforms; track p.value) {
               <mat-option [value]="p.value">{{ p.label }}</mat-option>
             }
@@ -210,12 +210,20 @@ export class BulkSellDialogComponent {
 
   setPrice(value: number): void {
     this.manualPrice.set(isNaN(value) ? 0 : value);
+    this.updateAutomaticFees();
+  }
+
+  updateAutomaticFees(): void {
+    if (this.platform !== 'Cardmarket') return;
+    const fees = this.cards() * cardmarketSaleFeeForItem(this.pricePerCard());
+    this.fees.set(Math.round(fees * 100) / 100);
   }
 
   /** Nouvelle catégorie : on revient au prix conseillé de cette catégorie. */
   changeCategory(name: string): void {
     this.category.set(name);
     this.manualPrice.set(null);
+    this.updateAutomaticFees();
   }
 
   save(): void {
@@ -227,12 +235,15 @@ export class BulkSellDialogComponent {
       return;
     }
     const perCard = this.pricePerCard();
+    const fees = this.platform === 'Cardmarket'
+      ? this.cards() * cardmarketSaleFeeForItem(perCard)
+      : (this.fees() || 0);
     const input: SaleInput = {
       saleDate: toIsoDate(this.date),
       customer: this.customer.trim() || null,
       platform: this.platform,
       paymentMethod: this.paymentMethod,
-      fees: this.fees() || 0,
+      fees,
       comment: `Lot de ${quantity} cartes (${product.name})` + (this.mode() === 'weight' ? ` · ${this.grams()} g` : ''),
       customerAddress: null,
       customerSiren: null,

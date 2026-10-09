@@ -36,6 +36,11 @@ interface InventoryFilters {
   cardmarket: CardmarketFilter;
 }
 
+const INVENTORY_FILTERS_STORAGE_KEY = 'pokestock.inventory.filters';
+const DEFAULT_FILTERS: InventoryFilters = {
+  search: '', category: '', type: '', condition: '', origin: '', status: 'instock', cardmarket: 'all'
+};
+
 /**
  * Inventaire regroupé par produit : un même produit acheté plusieurs fois (à des prix différents)
  * n'apparaît qu'une fois, avec son coût moyen ; le détail des lots se déplie sous la ligne.
@@ -61,7 +66,7 @@ export class InventoryListComponent {
   readonly conditions = CONDITIONS;
   readonly origins = ORIGINS;
   readonly columns = [
-    'expand', 'name', 'category', 'cardmarket', 'type', 'condition', 'averageCost', 'remaining',
+    'expand', 'name', 'language', 'category', 'cardmarket', 'type', 'condition', 'averageCost', 'remaining',
     'stockValue', 'marketValue', 'lastPurchaseDate', 'actions'
   ];
   readonly dataSource = new MatTableDataSource<ProductGroup>([]);
@@ -74,9 +79,7 @@ export class InventoryListComponent {
   readonly categories = computed(() =>
     [...new Set(this.allItems().map(i => i.category).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b)));
 
-  filters: InventoryFilters = {
-    search: '', category: '', type: '', condition: '', origin: '', status: 'instock', cardmarket: 'all'
-  };
+  filters: InventoryFilters = this.restoreFilters();
 
   @ViewChild(MatSort) set sort(sort: MatSort) { this.dataSource.sort = sort; }
   @ViewChild(MatPaginator) set paginator(paginator: MatPaginator) { this.dataSource.paginator = paginator; }
@@ -114,14 +117,46 @@ export class InventoryListComponent {
     const next = { ...this.filters };
     next[key] = value;
     this.filters = next;
+    this.persistFilters();
     this.applyFilters();
   }
 
   resetFilters(): void {
-    this.filters = {
-      search: '', category: '', type: '', condition: '', origin: '', status: 'all', cardmarket: 'all'
-    };
+    this.filters = { ...DEFAULT_FILTERS };
+    this.persistFilters();
     this.applyFilters();
+  }
+
+  private persistFilters(): void {
+    sessionStorage.setItem(INVENTORY_FILTERS_STORAGE_KEY, JSON.stringify(this.filters));
+  }
+
+  private restoreFilters(): InventoryFilters {
+    try {
+      const stored = sessionStorage.getItem(INVENTORY_FILTERS_STORAGE_KEY);
+      if (!stored) return { ...DEFAULT_FILTERS };
+
+      const parsed = JSON.parse(stored) as Partial<InventoryFilters>;
+      return {
+        search: typeof parsed.search === 'string' ? parsed.search : DEFAULT_FILTERS.search,
+        category: typeof parsed.category === 'string' ? parsed.category : DEFAULT_FILTERS.category,
+        type: typeof parsed.type === 'string' ? parsed.type : DEFAULT_FILTERS.type,
+        condition: typeof parsed.condition === 'string' ? parsed.condition : DEFAULT_FILTERS.condition,
+        origin: typeof parsed.origin === 'string' ? parsed.origin : DEFAULT_FILTERS.origin,
+        status: this.isStockStatus(parsed.status) ? parsed.status : DEFAULT_FILTERS.status,
+        cardmarket: this.isCardmarketFilter(parsed.cardmarket) ? parsed.cardmarket : DEFAULT_FILTERS.cardmarket
+      };
+    } catch {
+      return { ...DEFAULT_FILTERS };
+    }
+  }
+
+  private isStockStatus(value: unknown): value is StockStatus {
+    return value === 'all' || value === 'instock' || value === 'sold';
+  }
+
+  private isCardmarketFilter(value: unknown): value is CardmarketFilter {
+    return value === 'all' || value === 'checked' || value === 'unchecked';
   }
 
   /** Filtre les lots (recherche instantanée côté client), puis les regroupe par produit. */
@@ -180,6 +215,14 @@ export class InventoryListComponent {
       marketValue: acc.marketValue + p.lots.reduce((s, l) => s + l.remainingQuantity * (l.marketValue ?? l.purchasePrice), 0),
       gain: acc.gain + (p.latentGain ?? 0)
     }), { products: 0, quantity: 0, value: 0, marketValue: 0, gain: 0 });
+  }
+
+  languageFlag(language: string | null): string {
+    const value = language?.trim().toLowerCase();
+    if (['fr', 'french', 'france', 'français'].includes(value ?? '')) return '🇫🇷';
+    if (['jap', 'japanese', 'japon', 'japonaise'].includes(value ?? '')) return '🇯🇵';
+    if (['kr', 'korean', 'corée', 'coree', 'coréen'].includes(value ?? '')) return '🇰🇷';
+    return '—';
   }
 
   photoUrl(id: number): string {
