@@ -93,6 +93,7 @@ export interface PurchaseLineInput {
   itemId: number | null;
   name: string;
   category: string | null;
+  language?: string | null;
   type: ItemType;
   condition: ItemCondition;
   quantity: number;

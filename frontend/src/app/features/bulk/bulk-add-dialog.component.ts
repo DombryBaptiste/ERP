@@ -14,6 +14,7 @@ import { BulkSettings, PaymentMethod, Purchase, PurchaseInput, PurchaseSource } 
 import { PurchaseService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 import { toIsoDate } from '../../core/utils';
+import { map, switchMap } from 'rxjs';
 import { BULK_CONDITION, cardsFromGrams, unitPrice } from './bulk';
 
 export interface BulkAddDialogData {
@@ -38,6 +39,9 @@ export interface BulkAddDialogData {
         <mat-button-toggle value="Supplier"><mat-icon>shopping_cart</mat-icon> Acheté</mat-button-toggle>
         <mat-button-toggle value="PersonalCollection"><mat-icon>collections_bookmark</mat-icon> De ma collection</mat-button-toggle>
       </mat-button-toggle-group>
+      @if (source === 'PersonalCollection') {
+        <p class="collection-hint">Les ajouts de bulk depuis votre collection seront regroupés dans le même transfert.</p>
+      }
 
       <mat-form-field class="full">
         <mat-label>Catégorie</mat-label>
@@ -121,6 +125,7 @@ export interface BulkAddDialogData {
   styles: `
     .bulk-dialog { display: flex; flex-direction: column; gap: 10px; min-width: min(560px, 80vw); }
     .full { width: 100%; }
+    .collection-hint { margin: -4px 0 0; color: #666; font-size: 13px; }
     .count-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
     .count-row mat-form-field { flex: 1; min-width: 160px; }
     mat-button-toggle mat-icon { margin-right: 4px; vertical-align: -6px; }
@@ -176,6 +181,7 @@ export class BulkAddDialogComponent {
         itemId: null,
         name: this.category,
         category: null,
+        language: null,
         type: 'Bulk',
         condition: BULK_CONDITION,
         quantity,
@@ -184,7 +190,18 @@ export class BulkAddDialogComponent {
       }]
     };
     this.saving.set(true);
-    this.api.create(input).subscribe({
+    const request = this.source === 'PersonalCollection'
+      ? this.api.getAll().pipe(
+        map(purchases => purchases
+          .filter(purchase =>
+            purchase.source === 'PersonalCollection' && purchase.items.some(item => item.type === 'Bulk'))
+          .sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate) || b.id - a.id)[0]),
+        switchMap(existing => existing
+          ? this.api.update(existing.id, this.appendToPurchase(existing, input))
+          : this.api.create(input))
+      )
+      : this.api.create(input);
+    request.subscribe({
       next: purchase => {
         this.notify.success(`${quantity} cartes ajoutées au bulk (${purchase.purchaseNumber}).`);
         this.ref.close(purchase);
@@ -194,5 +211,33 @@ export class BulkAddDialogComponent {
         this.saving.set(false);
       }
     });
+  }
+
+  private appendToPurchase(purchase: Purchase, addition: PurchaseInput): PurchaseInput {
+    return {
+      ...addition,
+      purchaseDate: purchase.purchaseDate,
+      supplier: purchase.supplier,
+      comment: [purchase.comment, addition.comment].filter(Boolean).join(' · ') || null,
+      platform: purchase.platform,
+      paymentMethod: purchase.paymentMethod,
+      platformFees: purchase.platformFees,
+      shippingFees: purchase.shippingFees,
+      trackingNumber: purchase.trackingNumber,
+      items: [
+        ...purchase.items.map(item => ({
+          itemId: item.itemId,
+          name: item.name,
+          category: item.category,
+          language: item.language,
+          type: item.type,
+          condition: item.condition,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          location: item.location
+        })),
+        ...addition.items
+      ]
+    };
   }
 }
