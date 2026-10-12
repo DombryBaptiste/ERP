@@ -47,7 +47,7 @@ public class ExportService(AppDbContext db, PreferencesService preferences)
             s.Customer ?? "Client particulier",
             $"Vente ({s.Platform.Label()}) : {Describe(s.Items.Select(i => (i.InventoryItem.Name, i.Quantity)))}",
             s.PaymentMethod.Label(),
-            s.TotalAmount));
+            s.TotalAmount + s.AmountPaid));
 
         var refundLines = refunds.Select(r => new BookLine(
             r.RefundDate,

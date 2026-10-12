@@ -25,7 +25,7 @@ public class ReportingService(AppDbContext db)
         var sales = await db.Sales.AsNoTracking()
             .Where(s => s.SaleDate >= periodStart)
             // CA net des remboursements (rattachés à la date de la vente pour les statistiques).
-            .Select(s => new { s.SaleDate, TotalAmount = s.TotalAmount - s.RefundedAmount, s.Profit })
+            .Select(s => new { s.SaleDate, TotalAmount = s.TotalAmount + s.AmountPaid - s.RefundedAmount, s.Profit })
             .ToListAsync();
 
         // Les transferts depuis la collection personnelle ne sont pas des dépenses : exclus des achats.
@@ -139,11 +139,12 @@ public class ReportingService(AppDbContext db)
             {
                 var revenue = g.Sum(x =>
                 {
+                    // CA de la ligne + sa part du port payé par l'acheteur (au prorata du montant).
+                    // La commission n'est pas retirée : c'est une charge, pas une baisse du CA.
                     var lineAmount = x.Quantity * x.SalePrice;
                     var saleAmount = x.TotalAmount;
-                    var fees = saleAmount > 0 ? lineAmount * x.Fees / saleAmount : 0m;
                     var amountPaid = saleAmount > 0 ? lineAmount * x.AmountPaid / saleAmount : 0m;
-                    return lineAmount - fees + amountPaid;
+                    return lineAmount + amountPaid;
                 });
                 var profit = g.Sum(x => x.Quantity * (x.SalePrice - x.UnitCost));
                 return new ProductStatDto(g.Key.Name, g.Key.Type, g.Sum(x => x.Quantity), revenue, profit, Mappings.Margin(profit, revenue));

@@ -343,10 +343,10 @@
         </div>
         <div><span>Marge</span><strong>{{ t.margin | number: '1.0-1' }} %</strong></div>
       }
-      <div class="total-main"><span>Montant total</span><strong>{{ t.netTotal | currency }}</strong></div>
+      <div class="total-main"><span>CA (à déclarer)</span><strong>{{ t.revenue | currency }}</strong></div>
       <div class="total-paid">
         <span>Frais payé par l’acheteur</span><strong>{{ t.amountPaid | currency }}</strong>
-        <small>Prix de vente : {{ t.total | currency }} · Frais : −{{ t.fees | currency }}</small>
+        <small>Prix de vente : {{ t.total | currency }} · Frais : −{{ t.fees | currency }} · Reçu après commission : {{ t.netTotal | currency }}</small>
       </div>
     </div>
     <div class="footer-actions">

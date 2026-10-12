@@ -103,7 +103,8 @@ export class SalesListComponent {
   }
 
   saleAmount(sale: Sale): number {
-    return sale.totalAmount - sale.fees + sale.amountPaid - sale.refundedAmount;
+    // CA de la vente : payé par l'acheteur (articles + port), avant commission, moins les remboursements.
+    return sale.totalAmount + sale.amountPaid - sale.refundedAmount;
   }
 
   totals(): { amount: number; profit: number; count: number } {

@@ -136,8 +136,9 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         if (input.RefundDate.Date < sale.SaleDate)
             throw new BusinessException("La date du remboursement ne peut pas précéder la date de la vente.");
         var amount = Math.Round(input.Amount, 2);
-        if (sale.RefundedAmount + amount > sale.TotalAmount)
-            throw new BusinessException($"Remboursement trop élevé : il reste au maximum {sale.TotalAmount - sale.RefundedAmount:0.00} € à rembourser.");
+        // On peut rembourser jusqu'au montant payé par l'acheteur (articles + port).
+        if (sale.RefundedAmount + amount > sale.TotalAmount + sale.AmountPaid)
+            throw new BusinessException($"Remboursement trop élevé : il reste au maximum {sale.TotalAmount + sale.AmountPaid - sale.RefundedAmount:0.00} € à rembourser.");
 
         var lines = (input.Items ?? new List<RefundLineInput>()).Where(l => l.Quantity > 0).ToList();
         if (amount == 0 && lines.Count == 0)

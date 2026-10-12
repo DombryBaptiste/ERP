@@ -576,7 +576,7 @@ export class SalesFormComponent implements OnInit {
   }
 
   totals(): {
-    total: number; netTotal: number; cost: number; fees: number; profit: number; margin: number; amountPaid: number;
+    total: number; revenue: number; netTotal: number; cost: number; fees: number; profit: number; margin: number; amountPaid: number;
     shippingCost: number; tracked: boolean; portMargin: number;
   } {
     const allocation = this.allocate();
@@ -588,6 +588,9 @@ export class SalesFormComponent implements OnInit {
     }
     const fees = this.form.controls.fees.value || 0;
     const amountPaid = this.form.controls.amountPaid.value || 0;
+    // CA (à déclarer) : payé par l'acheteur, articles + port, avant commission de la plateforme.
+    const revenue = total + amountPaid;
+    // Reçu réellement après la commission de la plateforme.
     const netTotal = total - fees + amountPaid;
     // Envoi suivi (fournitures indiquées) : port payé par l'acheteur − coût réel de l'envoi entre dans le bénéfice.
     // Sinon, le port payé est considéré comme couvrant exactement l'envoi (même règle que le serveur).
@@ -597,11 +600,12 @@ export class SalesFormComponent implements OnInit {
     const profit = total - cost - fees + portMargin;
     return {
       total,
+      revenue,
       netTotal,
       cost,
       fees,
       profit,
-      margin: netTotal > 0 ? (profit / netTotal) * 100 : 0,
+      margin: revenue > 0 ? (profit / revenue) * 100 : 0,
       amountPaid,
       shippingCost,
       tracked,
