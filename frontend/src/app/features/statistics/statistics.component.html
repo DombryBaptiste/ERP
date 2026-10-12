@@ -38,6 +38,11 @@
     }
     <app-kpi-card icon="shopping_cart" label="Achats de l'année" color="#ef6c00" [value]="s.annualPurchases | currency" />
     <app-kpi-card icon="savings" label="Valeur du stock actuel" color="#00897b" [value]="s.stockValue | currency" />
+    <app-kpi-card icon="local_shipping" label="Coût réel des envois" color="#c62828" [value]="s.annualShippingCost | currency"
+                  [sub]="s.shippedSalesCount + ' envoi(s) · ' + ((s.shippedSalesCount ? s.annualShippingCost / s.shippedSalesCount : 0) | currency) + ' en moyenne'" />
+    <app-kpi-card icon="balance" label="Marge sur le port" color="#3949ab"
+                  [value]="(s.annualShippingPaid - s.annualShippingCost) | currency" [negative]="s.annualShippingPaid - s.annualShippingCost < 0"
+                  [sub]="'fournitures achetées : ' + (s.annualShippingSpent | currency)" />
   </div>
 
   <div class="chart-grid">

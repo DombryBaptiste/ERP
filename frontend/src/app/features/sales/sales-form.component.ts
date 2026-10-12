@@ -14,10 +14,17 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, Observable, of } from 'rxjs';
-import { cardmarketSaleFeeForItem, cardmarketSaleFees, defaultPaymentFor, PAYMENT_METHODS, PLATFORMS } from '../../core/labels';
-import { InventoryItem, PaymentMethod, Sale, SaleInput, SaleLineInput, SalePlatform, SaleRefund } from '../../core/models';
+import {
+  CARRIERS, cardmarketSaleFeeForItem, cardmarketSaleFees, defaultPaymentFor, PAYMENT_METHODS, PLATFORMS, SHIPPING_KIND_ICONS
+} from '../../core/labels';
+import {
+  InventoryItem, PaymentMethod, Sale, SaleInput, SaleLineInput, SalePlatform, SaleRefund, ShippingCarrier, ShippingSupply,
+  ShippingUsageInput
+} from '../../core/models';
 import { groupProducts, ProductGroup, productKey } from '../../core/products';
-import { InventoryService, SaleService } from '../../core/services/api.services';
+import { groupSupplies, SupplyAllocation, SupplyGroup, supplyKey } from '../../core/shipping';
+import { InventoryService, SaleService, ShippingService } from '../../core/services/api.services';
+import { ShippingSupplyDialogComponent, ShippingSupplyDialogData } from '../shipping/shipping-supply-dialog.component';
 import { NotifyService } from '../../core/services/notify.service';
 import { parseApiDate, toIsoDate } from '../../core/utils';
 import { AttachmentsComponent } from '../../shared/attachments.component';
@@ -44,6 +51,19 @@ interface LotAllocation {
 interface LineAllocation {
   lots: LotAllocation[];
   /** Quantité demandée qui ne peut pas être servie (stock insuffisant). */
+  missing: number;
+}
+
+/** Fourniture d'envoi utilisée pour la vente (ex. 2 timbres, 1 enveloppe bulle). */
+type ShippingLineForm = FormGroup<{
+  key: FormControl<string | null>;
+  /** Achat précis à utiliser (ex. bordereau acheté pour cette vente) ; null = FIFO sur toute la fourniture. */
+  supplyId: FormControl<number | null>;
+  quantity: FormControl<number>;
+}>;
+
+interface ShippingLineAllocation {
+  lots: SupplyAllocation[];
   missing: number;
 }
 
@@ -86,6 +106,18 @@ export class SalesFormComponent implements OnInit {
   /** Lignes d'origine (par lot), renvoyées telles quelles quand la vente est figée par un remboursement. */
   private originalLines: SaleLineInput[] = [];
 
+  // ----- Expédition -----
+  private readonly shippingApi = inject(ShippingService);
+  readonly carriers = CARRIERS;
+  readonly kindIcons = SHIPPING_KIND_ICONS;
+  readonly supplies = signal<ShippingSupply[]>([]);
+  /** Fournitures regroupées (même nom et même nature), achats du plus ancien au plus récent. */
+  readonly supplyGroups = computed(() => groupSupplies(this.supplies()));
+  readonly supplyGroupsByKey = computed(() => new Map(this.supplyGroups().map(g => [g.key, g])));
+  /** En modification : fournitures déjà consommées par la vente d'origine (par achat) et leur coût figé. */
+  private readonly originalSupplyQuantities = new Map<number, number>();
+  private readonly originalSupplyCosts = new Map<number, number>();
+
   readonly form = this.fb.group({
     saleDate: this.fb.control<Date>(new Date(), Validators.required),
     customer: ['', Validators.maxLength(150)],
@@ -98,7 +130,10 @@ export class SalesFormComponent implements OnInit {
     // Facturation (clients professionnels)
     customerAddress: ['', Validators.maxLength(500)],
     customerSiren: ['', Validators.pattern(/^[0-9 ]{9,17}$/)],
-    items: this.fb.array<SaleLineForm>([])
+    items: this.fb.array<SaleLineForm>([]),
+    // Expédition : transporteur et fournitures utilisées.
+    carrier: this.fb.control<ShippingCarrier | null>(null),
+    shipping: this.fb.array<ShippingLineForm>([])
   });
 
   /** Les articles sont figés dès qu'un remboursement existe. */
@@ -108,6 +143,10 @@ export class SalesFormComponent implements OnInit {
 
   get items() {
     return this.form.controls.items;
+  }
+
+  get shipping() {
+    return this.form.controls.shipping;
   }
 
   constructor() {
@@ -129,9 +168,10 @@ export class SalesFormComponent implements OnInit {
     const id = this.id();
     const sale$: Observable<Sale | null> = id ? this.api.get(+id) : of(null);
 
-    forkJoin({ inventory: this.inventoryApi.getAll(), sale: sale$ }).subscribe({
-      next: ({ inventory, sale }) => {
+    forkJoin({ inventory: this.inventoryApi.getAll(), sale: sale$, supplies: this.shippingApi.supplies() }).subscribe({
+      next: ({ inventory, sale, supplies }) => {
         this.inventory.set(inventory);
+        this.supplies.set(supplies);
         if (sale) {
           this.loadSale(sale);
         } else {
@@ -173,8 +213,22 @@ export class SalesFormComponent implements OnInit {
       amountPaid: sale.amountPaid,
       trackingNumber: sale.trackingNumber ?? '',
       customerAddress: sale.customerAddress ?? '',
-      customerSiren: sale.customerSiren ?? ''
+      customerSiren: sale.customerSiren ?? '',
+      carrier: sale.carrier
     }, { emitEvent: false });
+
+    // Fournitures d'envoi déjà utilisées : regroupées par fourniture (même nom et même nature).
+    this.originalSupplyQuantities.clear();
+    this.originalSupplyCosts.clear();
+    this.shipping.clear();
+    const usedByGroup = new Map<string, number>();
+    for (const u of sale.shipping) {
+      this.originalSupplyQuantities.set(u.supplyId, (this.originalSupplyQuantities.get(u.supplyId) ?? 0) + u.quantity);
+      this.originalSupplyCosts.set(u.supplyId, u.unitCost);
+      const key = supplyKey(u);
+      usedByGroup.set(key, (usedByGroup.get(key) ?? 0) + u.quantity);
+    }
+    usedByGroup.forEach((quantity, key) => this.shipping.push(this.createShippingLine(key, quantity)));
     this.automaticFees = sale.platform === 'Cardmarket';
     if (this.automaticFees) this.updateAutomaticFees();
 
@@ -383,6 +437,113 @@ export class SalesFormComponent implements OnInit {
       .join(' + ');
   }
 
+  // ----- Expédition -----
+
+  private createShippingLine(key: string | null = null, quantity = 1, supplyId: number | null = null): ShippingLineForm {
+    return this.fb.group({
+      key: this.fb.control<string | null>(key, Validators.required),
+      supplyId: this.fb.control<number | null>(supplyId),
+      quantity: this.fb.control(quantity, [Validators.required, Validators.min(1)])
+    });
+  }
+
+  addShippingLine(key: string | null = null, supplyId: number | null = null): void {
+    this.shipping.push(this.createShippingLine(key, 1, supplyId));
+    this.shipping.markAsDirty();
+  }
+
+  removeShippingLine(index: number): void {
+    this.shipping.removeAt(index);
+    this.shipping.markAsDirty();
+  }
+
+  /** Unités disponibles d'un achat de fournitures (stock + ce que la vente modifiée utilisait déjà). */
+  supplyStock(lot: ShippingSupply): number {
+    return lot.remainingQuantity + (this.originalSupplyQuantities.get(lot.id) ?? 0);
+  }
+
+  groupStock(group: SupplyGroup): number {
+    return group.lots.reduce((sum, lot) => sum + this.supplyStock(lot), 0);
+  }
+
+  supplyCost(lot: ShippingSupply): number {
+    return this.originalSupplyCosts.get(lot.id) ?? lot.unitCost;
+  }
+
+  /** Fournitures proposées : celles qui ont du stock (ou déjà utilisées par cette vente). */
+  availableSupplyGroups(): SupplyGroup[] {
+    return this.supplyGroups().filter(g => this.groupStock(g) > 0);
+  }
+
+  supplyGroupFor(line: ShippingLineForm): SupplyGroup | undefined {
+    const key = line.controls.key.value;
+    return key ? this.supplyGroupsByKey().get(key) : undefined;
+  }
+
+  /** Répartition FIFO des fournitures sur leurs achats (les plus anciens d'abord). */
+  private allocateShipping(): Map<ShippingLineForm, ShippingLineAllocation> {
+    const left = new Map<number, number>();
+    const result = new Map<ShippingLineForm, ShippingLineAllocation>();
+    for (const line of this.shipping.controls) {
+      let wanted = line.controls.quantity.value || 0;
+      const lots: SupplyAllocation[] = [];
+      // Achat précis (bordereau acheté pour cette vente) ou, sinon, les achats les plus anciens d'abord.
+      const pinned = line.controls.supplyId.value;
+      const groupLots = this.supplyGroupFor(line)?.lots ?? [];
+      const candidates = pinned ? groupLots.filter(l => l.id === pinned) : groupLots;
+      for (const lot of candidates) {
+        if (wanted <= 0) break;
+        const available = left.get(lot.id) ?? this.supplyStock(lot);
+        const take = Math.min(available, wanted);
+        if (take > 0) {
+          lots.push({ lot, quantity: take });
+          left.set(lot.id, available - take);
+          wanted -= take;
+        }
+      }
+      result.set(line, { lots, missing: Math.max(0, wanted) });
+    }
+    return result;
+  }
+
+  shippingAllocationFor(line: ShippingLineForm): ShippingLineAllocation {
+    return this.allocateShipping().get(line) ?? { lots: [], missing: 0 };
+  }
+
+  shippingLineCost(line: ShippingLineForm): number {
+    return this.shippingAllocationFor(line).lots.reduce((sum, a) => sum + a.quantity * this.supplyCost(a.lot), 0);
+  }
+
+  /** Coût réel de l'envoi (toutes les fournitures utilisées). */
+  shippingCost(): number {
+    let cost = 0;
+    this.allocateShipping().forEach(a => cost += a.lots.reduce((sum, l) => sum + l.quantity * this.supplyCost(l.lot), 0));
+    return cost;
+  }
+
+  /**
+   * Bordereau acheté pour cette vente : crée l'achat (quantité 1) puis l'ajoute directement à l'envoi.
+   */
+  newLabelForSale(): void {
+    const carrier = this.form.controls.carrier.value;
+    const data: ShippingSupplyDialogData = {
+      preset: {
+        kind: 'Label', carrier, quantity: 1, paymentMethod: 'Card',
+        name: carrier === 'MondialRelay' ? 'Bordereau Mondial Relay' : carrier === 'Colissimo' ? 'Bordereau Colissimo' : 'Bordereau',
+        comment: this.sale() ? `Pour la vente ${this.sale()!.saleNumber}` : null
+      },
+      knownNames: this.supplyGroups().map(g => ({ name: g.name, kind: g.kind, carrier: g.carrier }))
+    };
+    this.dialog.open(ShippingSupplyDialogComponent, { data, width: '640px' }).afterClosed()
+      .subscribe((supply?: ShippingSupply) => {
+        if (!supply) return;
+        this.shippingApi.supplies().subscribe(list => {
+          this.supplies.set(list);
+          this.addShippingLine(supplyKey(supply), supply.id);
+        });
+      });
+  }
+
   // ----- Calculs automatiques -----
 
   private updateAutomaticFees(): void {
@@ -414,7 +575,10 @@ export class SalesFormComponent implements OnInit {
     return this.lineTotal(line) - this.lineCost(line);
   }
 
-  totals(): { total: number; netTotal: number; cost: number; fees: number; profit: number; margin: number; amountPaid: number } {
+  totals(): {
+    total: number; netTotal: number; cost: number; fees: number; profit: number; margin: number; amountPaid: number;
+    shippingCost: number; tracked: boolean; portMargin: number;
+  } {
     const allocation = this.allocate();
     let total = 0;
     let cost = 0;
@@ -425,7 +589,12 @@ export class SalesFormComponent implements OnInit {
     const fees = this.form.controls.fees.value || 0;
     const amountPaid = this.form.controls.amountPaid.value || 0;
     const netTotal = total - fees + amountPaid;
-    const profit = total - cost - fees;
+    // Envoi suivi (fournitures indiquées) : port payé par l'acheteur − coût réel de l'envoi entre dans le bénéfice.
+    // Sinon, le port payé est considéré comme couvrant exactement l'envoi (même règle que le serveur).
+    const shippingCost = this.shippingCost();
+    const tracked = this.shipping.length > 0;
+    const portMargin = tracked ? amountPaid - shippingCost : 0;
+    const profit = total - cost - fees + portMargin;
     return {
       total,
       netTotal,
@@ -433,11 +602,19 @@ export class SalesFormComponent implements OnInit {
       fees,
       profit,
       margin: netTotal > 0 ? (profit / netTotal) * 100 : 0,
-      amountPaid
+      amountPaid,
+      shippingCost,
+      tracked,
+      portMargin
     };
   }
 
   save(): void {
+    if (this.shipping.invalid) {
+      this.shipping.markAllAsTouched();
+      this.notify.error(null, 'Expédition : choisissez la fourniture utilisée pour chaque ligne (ou retirez la ligne).');
+      return;
+    }
     if (this.form.invalid || this.items.length === 0) {
       this.form.markAllAsTouched();
       this.notify.error(null, 'Sélectionnez un article dans la liste pour chaque ligne et complétez les champs.');
@@ -463,6 +640,16 @@ export class SalesFormComponent implements OnInit {
       })));
     }
 
+    // Fournitures d'envoi : une ligne par achat utilisé (FIFO).
+    const shippingAllocation = this.allocateShipping();
+    const shortSupply = this.shipping.controls.find(l => (shippingAllocation.get(l)?.missing ?? 0) > 0);
+    if (shortSupply) {
+      this.notify.error(null, `Stock insuffisant pour « ${this.supplyGroupFor(shortSupply)?.name ?? 'la fourniture'} ».`);
+      return;
+    }
+    const shipping: ShippingUsageInput[] = this.shipping.controls.flatMap(line =>
+      (shippingAllocation.get(line)?.lots ?? []).map(a => ({ supplyId: a.lot.id, quantity: a.quantity })));
+
     const v = this.form.getRawValue();
     const fees = v.platform === 'Cardmarket'
       ? cardmarketSaleFees(items)
@@ -478,6 +665,8 @@ export class SalesFormComponent implements OnInit {
       customerSiren: v.customerSiren.replace(/\s/g, '') || null,
       amountPaid: v.amountPaid || 0,
       trackingNumber: v.trackingNumber.trim() || null,
+      carrier: v.carrier,
+      shipping,
       items
     };
 

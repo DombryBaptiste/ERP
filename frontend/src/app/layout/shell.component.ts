@@ -38,6 +38,7 @@ export class ShellComponent {
     { path: '/inventory', icon: 'inventory_2', label: 'Inventaire' },
     { path: '/bulk', icon: 'layers', label: 'Bulk' },
     { path: '/sales', icon: 'point_of_sale', label: 'Ventes' },
+    { path: '/shipping', icon: 'local_shipping', label: 'Envois' },
     { path: '/alerts', icon: 'notifications_active', label: 'Alertes' },
     { path: '/statistics', icon: 'insights', label: 'Statistiques' },
     { path: '/tax', icon: 'account_balance', label: 'Fiscalité' },

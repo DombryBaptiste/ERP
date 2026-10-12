@@ -175,6 +175,23 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - Les remboursements apparaissent en négatif dans le livre des recettes. Les transferts de collection figurent
   à part dans le registre des achats.
 
+### Frais d'envoi (onglet Envois)
+- **Achats de fournitures** : timbres, bordereaux, enveloppes, protections, cartons… numérotés `E2026001`,
+  avec quantité, prix total (→ coût unitaire), transporteur, fournisseur, mode de règlement et justificatif.
+  Des désignations courantes sont proposées (« Timbre Lettre verte 20 g », « Bordereau Mondial Relay »…).
+- **Stock** par fourniture (achats de même nom regroupés), avec alerte quand il en reste peu (seuil dans Paramètres)
+  et bouton « Racheter ».
+- **Dans chaque vente**, section **Expédition** : transporteur et fournitures utilisées (ex. 2 timbres + 1 enveloppe).
+  Le stock baisse automatiquement (FIFO) et le **coût réel de l'envoi** est calculé.
+  « Bordereau pour cette vente » crée l'achat du bordereau et l'utilise d'un coup.
+- **Bénéfice** : si des fournitures sont indiquées, bénéfice = … + port payé par l'acheteur − coût réel de l'envoi.
+  Sans fourniture indiquée, le port payé est considéré comme couvrant exactement l'envoi (comme avant).
+- Synthèse annuelle : fournitures achetées, coût réel des envois, port payé par les acheteurs, **marge sur le port**,
+  coût moyen par envoi, détail par mois et par transporteur.
+- Intégration : tableau de bord (envois du mois), statistiques (coût et marge sur le port), alertes (fournitures
+  presque épuisées), liste des ventes (transporteur et coût d'envoi), registre des achats (section « Fournitures d'envoi »).
+- Les fournitures d'envoi n'entrent pas dans le CA déclaré à l'URSSAF ; elles pèsent sur le bénéfice réel.
+
 ### Bulk (cartes en vrac)
 Onglet **Bulk** : les communes, peu communes, reverses, etc. se gèrent **au nombre de cartes**, sans fiche par carte.
 - **Catégories** réglables (communes / peu communes, reverses, holos, V / ex / GX, dresseurs, énergies…), chacune avec
@@ -275,6 +292,9 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 | GET | `/api/exports/receipts?year=&format=xlsx\|pdf` | Livre des recettes |
 | GET | `/api/exports/purchases?year=&format=xlsx\|pdf` | Registre des achats |
 | GET / PUT | `/api/settings` | Préférences (entreprise, seuils d'alerte) |
+| GET | `/api/shipping/summary?year=2026` | Synthèse des frais d'envoi (stock, coût réel, port payé, transporteurs) |
+| GET / POST | `/api/shipping/supplies` | Achats de fournitures d'envoi (`?year=&kind=`) / création |
+| GET / PUT / DELETE | `/api/shipping/supplies/:id` | Détail / modification / suppression |
 | GET | `/api/health` | État de l'API |
 
 Valeurs des énumérations (JSON) :

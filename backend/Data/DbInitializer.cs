@@ -119,6 +119,44 @@ public static class DbInitializer
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
         await EnsureColumnAsync(db, "attachments", "sort_order", "INT NOT NULL DEFAULT 0 AFTER size");
+
+        // Frais d'envoi : fournitures (timbres, bordereaux...) et leur consommation par les ventes.
+        await EnsureColumnAsync(db, "sales", "carrier", "VARCHAR(30) NULL AFTER tracking_number");
+        await EnsureColumnAsync(db, "sales", "shipping_cost", "DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER carrier");
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS shipping_supplies (
+              id                 INT           NOT NULL AUTO_INCREMENT,
+              supply_number      VARCHAR(20)   NOT NULL,
+              purchase_date      DATE          NOT NULL,
+              kind               VARCHAR(30)   NOT NULL,
+              carrier            VARCHAR(30)   NULL,
+              name               VARCHAR(200)  NOT NULL,
+              quantity           INT           NOT NULL,
+              remaining_quantity INT           NOT NULL,
+              total_amount       DECIMAL(10,2) NOT NULL,
+              unit_cost          DECIMAL(14,6) NOT NULL,
+              supplier           VARCHAR(150)  NULL,
+              payment_method     VARCHAR(30)   NULL,
+              comment            VARCHAR(1000) NULL,
+              created_at         DATETIME(6)   NOT NULL,
+              PRIMARY KEY (id),
+              UNIQUE KEY IX_shipping_supplies_supply_number (supply_number)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """);
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS shipping_usages (
+              id        INT           NOT NULL AUTO_INCREMENT,
+              sale_id   INT           NOT NULL,
+              supply_id INT           NOT NULL,
+              quantity  INT           NOT NULL,
+              unit_cost DECIMAL(14,6) NOT NULL,
+              PRIMARY KEY (id),
+              KEY IX_shipping_usages_sale_id (sale_id),
+              KEY IX_shipping_usages_supply_id (supply_id),
+              CONSTRAINT FK_shipping_usages_sales_sale_id FOREIGN KEY (sale_id) REFERENCES sales (id) ON DELETE CASCADE,
+              CONSTRAINT FK_shipping_usages_shipping_supplies_supply_id FOREIGN KEY (supply_id) REFERENCES shipping_supplies (id) ON DELETE RESTRICT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """);
     }
 
     /// <summary>Élargit une colonne décimale à 6 décimales si elle en a moins (les valeurs sont conservées).</summary>

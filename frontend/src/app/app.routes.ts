@@ -56,6 +56,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/tax/tax.component').then(m => m.TaxComponent)
       },
       {
+        path: 'shipping', title: 'Frais d\'envoi — PokéStock',
+        loadComponent: () => import('./features/shipping/shipping.component').then(m => m.ShippingComponent)
+      },
+      {
         path: 'bulk', title: 'Bulk — PokéStock',
         loadComponent: () => import('./features/bulk/bulk.component').then(m => m.BulkComponent)
       },

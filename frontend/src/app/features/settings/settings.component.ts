@@ -50,7 +50,8 @@ export class SettingsComponent implements OnInit {
     dormantWarningDays: [90, [Validators.required, Validators.min(1)]],
     dormantCriticalDays: [180, [Validators.required, Validators.min(1)]],
     marketGainThreshold: [30, [Validators.required, Validators.min(0)]],
-    marketRiseThreshold: [15, [Validators.required, Validators.min(0)]]
+    marketRiseThreshold: [15, [Validators.required, Validators.min(0)]],
+    lowShippingStock: [5, [Validators.required, Validators.min(0)]]
   });
 
   ngOnInit(): void {

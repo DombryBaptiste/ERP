@@ -94,6 +94,21 @@ public class ExportService(AppDbContext db, PreferencesService preferences)
             : new ExportFile(Excel(title, [("Livre des recettes", lines)], "Client"), XlsxType, name + ".xlsx");
     }
 
+    /// <summary>Achats de fournitures d'envoi de l'année (section à part du registre des achats).</summary>
+    public async Task<List<BookLine>> ShippingSuppliesAsync(int year)
+    {
+        var (start, end) = Range(year);
+        var supplies = await db.ShippingSupplies.AsNoTracking()
+            .Where(s => s.PurchaseDate >= start && s.PurchaseDate < end)
+            .OrderBy(s => s.PurchaseDate).ThenBy(s => s.SupplyNumber)
+            .ToListAsync();
+        return supplies.Select(s => new BookLine(
+            s.PurchaseDate, s.SupplyNumber, s.Supplier ?? "—",
+            $"{s.Kind.Label()} : {s.Name}" + (s.Quantity > 1 ? $" ×{s.Quantity}" : "") + (s.Carrier is { } c ? $" ({c.Label()})" : ""),
+            s.PaymentMethod?.Label() ?? "Non renseigné",
+            s.TotalAmount)).ToList();
+    }
+
     public async Task<ExportFile> PurchasesFileAsync(int year, string format)
     {
         var (purchases, transfers) = await PurchasesAsync(year);
@@ -101,6 +116,8 @@ public class ExportService(AppDbContext db, PreferencesService preferences)
         var name = $"registre-des-achats-{year}";
         var sections = new List<(string, List<BookLine>)> { ("Achats", purchases) };
         if (transfers.Count > 0) sections.Add(("Transferts depuis la collection personnelle (hors achats)", transfers));
+        var supplies = await ShippingSuppliesAsync(year);
+        if (supplies.Count > 0) sections.Add(("Fournitures d'envoi (timbres, bordereaux, emballages)", supplies));
         return IsPdf(format)
             ? new ExportFile(await PdfAsync(title, sections), "application/pdf", name + ".pdf")
             : new ExportFile(Excel(title, sections, "Fournisseur"), XlsxType, name + ".xlsx");

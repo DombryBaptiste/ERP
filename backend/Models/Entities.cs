@@ -98,11 +98,18 @@ public class Sale
     public decimal AmountPaid { get; set; }
     /// <summary>Numéro de suivi fourni par la plateforme ou le transporteur.</summary>
     public string? TrackingNumber { get; set; }
+    /// <summary>Transporteur utilisé pour l'envoi.</summary>
+    public ShippingCarrier? Carrier { get; set; }
+    /// <summary>Coût réel de l'envoi : fournitures consommées (timbres, bordereau, enveloppe...).</summary>
+    public decimal ShippingCost { get; set; }
     /// <summary>Montant total encaissé (somme quantité × prix de vente), avant remboursements.</summary>
     public decimal TotalAmount { get; set; }
     /// <summary>Total remboursé au client (somme des remboursements).</summary>
     public decimal RefundedAmount { get; set; }
-    /// <summary>Bénéfice = total - remboursements - coût des articles non remis en stock - frais.</summary>
+    /// <summary>
+    /// Bénéfice = total + port payé par l'acheteur − remboursements − coût des articles non remis en stock
+    /// − frais − coût réel de l'envoi.
+    /// </summary>
     public decimal Profit { get; set; }
 
     // --- Facturation (clients professionnels) ---
@@ -116,6 +123,48 @@ public class Sale
 
     public List<SaleItem> Items { get; set; } = [];
     public List<SaleRefund> Refunds { get; set; } = [];
+    public List<ShippingUsage> ShippingUsages { get; set; } = [];
+}
+
+/// <summary>
+/// Achat de fournitures d'envoi (table shipping_supplies) : carnet de timbres, bordereaux prépayés,
+/// enveloppes, toploaders... Numéroté E{année}{séquence}. Chaque achat est un lot avec un coût unitaire ;
+/// les envois des ventes le consomment (FIFO), ce qui donne le coût réel de chaque envoi.
+/// </summary>
+public class ShippingSupply
+{
+    public int Id { get; set; }
+    public string SupplyNumber { get; set; } = string.Empty;
+    public DateTime PurchaseDate { get; set; }
+    public ShippingSupplyKind Kind { get; set; }
+    public ShippingCarrier? Carrier { get; set; }
+    /// <summary>Désignation, ex. « Timbre Lettre verte 20 g » ou « Enveloppe bulle 18×23 ».</summary>
+    public string Name { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public int RemainingQuantity { get; set; }
+    /// <summary>Prix payé pour tout le lot.</summary>
+    public decimal TotalAmount { get; set; }
+    /// <summary>Coût d'une unité (TotalAmount / Quantity).</summary>
+    public decimal UnitCost { get; set; }
+    public string? Supplier { get; set; }
+    public PaymentMethod? PaymentMethod { get; set; }
+    public string? Comment { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public List<ShippingUsage> Usages { get; set; } = [];
+}
+
+/// <summary>Fourniture consommée par l'envoi d'une vente (table shipping_usages).</summary>
+public class ShippingUsage
+{
+    public int Id { get; set; }
+    public int SaleId { get; set; }
+    public Sale Sale { get; set; } = null!;
+    public int SupplyId { get; set; }
+    public ShippingSupply Supply { get; set; } = null!;
+    public int Quantity { get; set; }
+    /// <summary>Coût unitaire figé au moment de l'envoi.</summary>
+    public decimal UnitCost { get; set; }
 }
 
 /// <summary>Ligne de vente (table sale_items).</summary>
