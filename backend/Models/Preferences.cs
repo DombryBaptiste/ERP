@@ -31,6 +31,8 @@ public class AlertSettings
     public decimal MarketGainThreshold { get; set; } = 30m;
     /// <summary>Alerte quand l'estimation augmente de ce pourcentage depuis la précédente.</summary>
     public decimal MarketRiseThreshold { get; set; } = 15m;
+    /// <summary>Alerte quand il reste ce nombre d'unités (ou moins) d'une fourniture d'envoi (timbres, enveloppes...).</summary>
+    public int LowShippingStock { get; set; } = 5;
 }
 
 /// <summary>Préférences de l'application.</summary>

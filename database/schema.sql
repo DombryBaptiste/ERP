@@ -82,6 +82,8 @@ CREATE TABLE IF NOT EXISTS sales (
   comment      VARCHAR(1000) NULL,
   amount_paid  DECIMAL(10,2) NOT NULL DEFAULT 0, -- montant reçu du client
   tracking_number VARCHAR(100) NULL,       -- numéro fourni par la plateforme ou le transporteur
+  carrier      VARCHAR(30)   NULL,          -- LaPoste, Colissimo, MondialRelay, RelaisColis, Chronopost, VintedGo, Ups, HandDelivery, Other
+  shipping_cost DECIMAL(10,2) NOT NULL DEFAULT 0, -- coût réel de l'envoi (fournitures consommées)
   total_amount DECIMAL(10,2) NOT NULL,
   refunded_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   profit       DECIMAL(10,2) NOT NULL,
@@ -150,4 +152,36 @@ CREATE TABLE IF NOT EXISTS attachments (
   uploaded_at  DATETIME(6)  NOT NULL,
   PRIMARY KEY (id),
   KEY IX_attachments_owner_type_owner_id (owner_type, owner_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Frais d'envoi : achats de fournitures (E2026001…), consommées en FIFO par les envois des ventes
+CREATE TABLE IF NOT EXISTS shipping_supplies (
+  id                 INT           NOT NULL AUTO_INCREMENT,
+  supply_number      VARCHAR(20)   NOT NULL,     -- ex. E2026001
+  purchase_date      DATE          NOT NULL,
+  kind               VARCHAR(30)   NOT NULL,     -- Stamp, Label, Envelope, Protection, Box, Other
+  carrier            VARCHAR(30)   NULL,
+  name               VARCHAR(200)  NOT NULL,     -- ex. Timbre Lettre verte 20 g
+  quantity           INT           NOT NULL,
+  remaining_quantity INT           NOT NULL,
+  total_amount       DECIMAL(10,2) NOT NULL,
+  unit_cost          DECIMAL(14,6) NOT NULL,
+  supplier           VARCHAR(150)  NULL,
+  payment_method     VARCHAR(30)   NULL,
+  comment            VARCHAR(1000) NULL,
+  created_at         DATETIME(6)   NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY IX_shipping_supplies_supply_number (supply_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS shipping_usages (
+  id        INT           NOT NULL AUTO_INCREMENT,
+  sale_id   INT           NOT NULL,
+  supply_id INT           NOT NULL,
+  quantity  INT           NOT NULL,
+  unit_cost DECIMAL(14,6) NOT NULL,              -- coût unitaire figé au moment de l'envoi
+  PRIMARY KEY (id),
+  KEY IX_shipping_usages_sale_id (sale_id),
+  KEY IX_shipping_usages_supply_id (supply_id),
+  CONSTRAINT FK_shipping_usages_sales_sale_id FOREIGN KEY (sale_id) REFERENCES sales (id) ON DELETE CASCADE,
+  CONSTRAINT FK_shipping_usages_shipping_supplies_supply_id FOREIGN KEY (supply_id) REFERENCES shipping_supplies (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

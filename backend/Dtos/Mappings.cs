@@ -38,11 +38,15 @@ public static class Mappings
 
     public static SaleDto ToDto(this Sale s)
     {
-        var net = s.TotalAmount - s.RefundedAmount;
+        var net = SaleRevenue(s) - s.RefundedAmount;
         var names = s.Items.ToDictionary(i => i.Id, i => i.InventoryItem.Name);
         return new SaleDto(
             s.Id, s.SaleNumber, s.SaleDate, s.Customer, s.Platform, s.PaymentMethod, s.Fees, s.Comment,
             s.AmountPaid, s.TrackingNumber,
+            s.Carrier, s.ShippingCost,
+            s.ShippingUsages.OrderBy(u => u.Id).Select(u => new ShippingUsageDto(
+                u.Id, u.SupplyId, u.Supply?.SupplyNumber ?? "", u.Supply?.Name ?? "?", u.Supply?.Kind ?? ShippingSupplyKind.Other,
+                u.Quantity, u.UnitCost, Math.Round(u.Quantity * u.UnitCost, 2))).ToList(),
             s.TotalAmount, s.RefundedAmount, net, s.Profit, Margin(s.Profit, net),
             s.CustomerAddress, s.CustomerSiren, s.InvoiceNumber, s.InvoiceDate,
             s.Items.OrderBy(i => i.Id).Select(i => new SaleLineDto(
@@ -63,7 +67,12 @@ public static class Mappings
     /// <summary>Marge en pourcentage du chiffre d'affaires.</summary>
     public static decimal Margin(decimal profit, decimal revenue) =>
         revenue > 0 ? Math.Round(profit / revenue * 100, 1) : 0;
-    public static decimal SaleRevenue(Sale sale) => sale.TotalAmount - sale.Fees + sale.AmountPaid;
+    /// <summary>
+    /// Chiffre d'affaires d'une vente (avant remboursements) : prix des articles + port payé par l'acheteur.
+    /// C'est le montant payé par l'acheteur, AVANT la commission de la plateforme : la commission est une charge
+    /// (déduite du bénéfice), elle ne réduit pas le CA déclaré à l'URSSAF.
+    /// </summary>
+    public static decimal SaleRevenue(Sale sale) => sale.TotalAmount + sale.AmountPaid;
     public static string Label(this PaymentMethod method) => method switch
     {
         PaymentMethod.Platform => "Plateforme",
@@ -82,5 +91,32 @@ public static class Mappings
         SalePlatform.InPerson => "Main propre",
         SalePlatform.Other => "Autre",
         _ => platform.ToString()
+    };
+
+    public static ShippingSupplyDto ToDto(this ShippingSupply s) => new(
+        s.Id, s.SupplyNumber, s.PurchaseDate, s.Kind, s.Carrier, s.Name,
+        s.Quantity, s.RemainingQuantity, s.Quantity - s.RemainingQuantity, s.TotalAmount, s.UnitCost,
+        Math.Round(s.RemainingQuantity * s.UnitCost, 2), s.Supplier, s.PaymentMethod, s.Comment);
+
+    public static string Label(this ShippingSupplyKind kind) => kind switch
+    {
+        ShippingSupplyKind.Stamp => "Timbre",
+        ShippingSupplyKind.Label => "Bordereau",
+        ShippingSupplyKind.Envelope => "Enveloppe",
+        ShippingSupplyKind.Protection => "Protection",
+        ShippingSupplyKind.Box => "Carton",
+        _ => "Autre"
+    };
+
+    public static string Label(this ShippingCarrier carrier) => carrier switch
+    {
+        ShippingCarrier.LaPoste => "La Poste",
+        ShippingCarrier.MondialRelay => "Mondial Relay",
+        ShippingCarrier.RelaisColis => "Relais Colis",
+        ShippingCarrier.VintedGo => "Vinted Go",
+        ShippingCarrier.Ups => "UPS",
+        ShippingCarrier.HandDelivery => "Main propre",
+        ShippingCarrier.Other => "Autre",
+        _ => carrier.ToString()
     };
 }

@@ -3,7 +3,8 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, BulkSettings, Dashboard, InventoryItem, InventoryItemInput,
-  Purchase, PurchaseInput, RefundInput, Sale, SaleInput, Statistics, TaxSettings, TaxSummary
+  Purchase, PurchaseInput, RefundInput, Sale, SaleInput, ShippingSummary, ShippingSupply, ShippingSupplyInput, Statistics,
+  TaxSettings, TaxSummary
 } from '../models';
 
 /** Accès aux endpoints REST /api/purchases */
@@ -61,6 +62,27 @@ export class SaleService {
   /** Attribue un numéro de facture (une seule fois). */
   issueInvoice(id: number): Observable<Sale> { return this.http.post<Sale>(`${this.url}/${id}/invoice`, {}); }
   invoiceUrl(id: number, download = false): string { return `${this.url}/${id}/invoice${download ? '?download=true' : ''}`; }
+}
+
+/** Frais d'envoi : fournitures (timbres, bordereaux, emballages) et synthèse (/api/shipping) */
+@Injectable({ providedIn: 'root' })
+export class ShippingService {
+  private readonly http = inject(HttpClient);
+  private readonly url = '/api/shipping';
+
+  summary(year?: number): Observable<ShippingSummary> {
+    const params = year ? new HttpParams().set('year', year) : undefined;
+    return this.http.get<ShippingSummary>(`${this.url}/summary`, { params });
+  }
+  supplies(year?: number): Observable<ShippingSupply[]> {
+    const params = year ? new HttpParams().set('year', year) : undefined;
+    return this.http.get<ShippingSupply[]>(`${this.url}/supplies`, { params });
+  }
+  create(input: ShippingSupplyInput): Observable<ShippingSupply> { return this.http.post<ShippingSupply>(`${this.url}/supplies`, input); }
+  update(id: number, input: ShippingSupplyInput): Observable<ShippingSupply> {
+    return this.http.put<ShippingSupply>(`${this.url}/supplies/${id}`, input);
+  }
+  delete(id: number): Observable<void> { return this.http.delete<void>(`${this.url}/supplies/${id}`); }
 }
 
 /** Réglages du bulk (/api/bulk/settings) */

@@ -95,3 +95,37 @@ public class BulkSettingsController(BulkSettingsService service) : ControllerBas
     [HttpPut]
     public Task<BulkSettings> Save(BulkSettings settings) => service.SaveAsync(settings);
 }
+
+/// <summary>Frais d'envoi : achats de fournitures (timbres, bordereaux, emballages) et synthèse.</summary>
+[ApiController]
+[Route("api/shipping")]
+public class ShippingController(ShippingService service) : ControllerBase
+{
+    [HttpGet("summary")]
+    public Task<ShippingSummaryDto> Summary([FromQuery] int? year) => service.GetSummaryAsync(year);
+
+    [HttpGet("supplies")]
+    public Task<List<ShippingSupplyDto>> GetAll([FromQuery] int? year, [FromQuery] ShippingSupplyKind? kind) =>
+        service.GetAllAsync(year, kind);
+
+    [HttpGet("supplies/{id:int}")]
+    public async Task<ActionResult<ShippingSupplyDto>> Get(int id)
+    {
+        var supply = await service.GetByIdAsync(id);
+        if (supply is null) return NotFound(new { message = "Fourniture introuvable." });
+        return supply;
+    }
+
+    [HttpPost("supplies")]
+    public Task<ShippingSupplyDto> Create(ShippingSupplyInput input) => service.CreateAsync(input);
+
+    [HttpPut("supplies/{id:int}")]
+    public Task<ShippingSupplyDto> Update(int id, ShippingSupplyInput input) => service.UpdateAsync(id, input);
+
+    [HttpDelete("supplies/{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await service.DeleteAsync(id);
+        return NoContent();
+    }
+}

@@ -16,6 +16,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         db.Sales
             .Include(s => s.Items).ThenInclude(i => i.InventoryItem)
             .Include(s => s.Refunds).ThenInclude(r => r.Items)
+            .Include(s => s.ShippingUsages).ThenInclude(u => u.Supply)
             .AsSplitQuery();
 
     public async Task<List<SaleDto>> GetAllAsync(DateTime? from, DateTime? to, SalePlatform? platform, string? customer)
@@ -50,6 +51,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         };
         ApplyHeader(sale, input);
         await ApplyLinesAsync(sale, input.Items, new Dictionary<int, decimal>());
+        await ApplyShippingAsync(sale, input.Shipping, new Dictionary<int, decimal>());
         Recalculate(sale);
 
         db.Sales.Add(sale);
@@ -74,6 +76,8 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
             if (!same)
                 throw BusinessException.Conflict("Cette vente a des remboursements : supprimez-les avant de modifier les articles.");
             ApplyHeader(sale, input);
+            // L'envoi reste modifiable (il ne dépend pas des retours).
+            await ApplyShippingAsync(sale, input.Shipping, ReleaseShipping(sale));
             Recalculate(sale);
             await db.SaveChangesAsync();
             return (await GetByIdAsync(id))!;
@@ -92,6 +96,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         // 2. ...puis on applique la nouvelle version (avec contrôle du stock).
         ApplyHeader(sale, input);
         await ApplyLinesAsync(sale, input.Items, previousCosts);
+        await ApplyShippingAsync(sale, input.Shipping, ReleaseShipping(sale));
         Recalculate(sale);
 
         await db.SaveChangesAsync();
@@ -108,6 +113,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
 
         foreach (var line in sale.Items)
             line.InventoryItem.RemainingQuantity += line.Quantity - RestockedQuantity(sale, line.Id);
+        ReleaseShipping(sale);
         db.Sales.Remove(sale);
         await db.SaveChangesAsync();
         await attachments.DeleteForOwnerAsync(AttachmentOwner.Sale, id);
@@ -130,8 +136,9 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         if (input.RefundDate.Date < sale.SaleDate)
             throw new BusinessException("La date du remboursement ne peut pas précéder la date de la vente.");
         var amount = Math.Round(input.Amount, 2);
-        if (sale.RefundedAmount + amount > sale.TotalAmount)
-            throw new BusinessException($"Remboursement trop élevé : il reste au maximum {sale.TotalAmount - sale.RefundedAmount:0.00} € à rembourser.");
+        // On peut rembourser jusqu'au montant payé par l'acheteur (articles + port).
+        if (sale.RefundedAmount + amount > sale.TotalAmount + sale.AmountPaid)
+            throw new BusinessException($"Remboursement trop élevé : il reste au maximum {sale.TotalAmount + sale.AmountPaid - sale.RefundedAmount:0.00} € à rembourser.");
 
         var lines = (input.Items ?? new List<RefundLineInput>()).Where(l => l.Quantity > 0).ToList();
         if (amount == 0 && lines.Count == 0)
@@ -226,7 +233,11 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         sale.TotalAmount = Math.Round(sale.Items.Sum(i => i.Quantity * i.SalePrice), 2);
         sale.RefundedAmount = Math.Round(sale.Refunds.Sum(r => r.Amount), 2);
         var cost = sale.Items.Sum(i => (i.Quantity - RestockedQuantity(sale, i.Id)) * i.UnitCost);
-        sale.Profit = Math.Round(sale.TotalAmount - sale.RefundedAmount - cost - sale.Fees, 2);
+        sale.ShippingCost = Math.Round(sale.ShippingUsages.Sum(u => u.Quantity * u.UnitCost), 2);
+        // Envoi suivi (fournitures indiquées) : le port payé par l'acheteur et le coût réel de l'envoi entrent dans le bénéfice.
+        // Sinon, le port payé est considéré comme couvrant exactement l'envoi (comportement précédent).
+        var shippingMargin = sale.ShippingUsages.Count > 0 ? sale.AmountPaid - sale.ShippingCost : 0m;
+        sale.Profit = Math.Round(sale.TotalAmount - sale.RefundedAmount - cost - sale.Fees + shippingMargin, 2);
     }
 
     private static decimal CardmarketFees(SaleInput input)
@@ -244,6 +255,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         sale.Comment = Clean(input.Comment);
         sale.AmountPaid = Math.Round(input.AmountPaid, 2);
         sale.TrackingNumber = Clean(input.TrackingNumber);
+        sale.Carrier = input.Carrier;
         sale.CustomerAddress = Clean(input.CustomerAddress);
         sale.CustomerSiren = Clean(input.CustomerSiren);
     }
@@ -275,6 +287,48 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         }
     }
 
+    /// <summary>
+    /// Remet en stock les fournitures d'envoi utilisées par la vente et les retire de la vente.
+    /// Renvoie leur coût unitaire historique, pour le conserver si elles sont réutilisées.
+    /// </summary>
+    private Dictionary<int, decimal> ReleaseShipping(Sale sale)
+    {
+        var previousCosts = sale.ShippingUsages
+            .GroupBy(u => u.SupplyId)
+            .ToDictionary(g => g.Key, g => g.First().UnitCost);
+        foreach (var usage in sale.ShippingUsages) usage.Supply.RemainingQuantity += usage.Quantity;
+        db.ShippingUsages.RemoveRange(sale.ShippingUsages);
+        sale.ShippingUsages.Clear();
+        return previousCosts;
+    }
+
+    /// <summary>Consomme les fournitures d'envoi (timbres, bordereau, enveloppe...) indiquées pour la vente.</summary>
+    private async Task ApplyShippingAsync(Sale sale, List<ShippingUsageInput>? lines, IReadOnlyDictionary<int, decimal> previousCosts)
+    {
+        var usages = (lines ?? new List<ShippingUsageInput>()).Where(l => l.Quantity > 0).ToList();
+        if (usages.Count == 0) return;
+
+        var ids = usages.Select(l => l.SupplyId).Distinct().ToList();
+        // Les fournitures déjà suivies par EF (modification) gardent leur stock remis à jour en mémoire.
+        var supplies = await db.ShippingSupplies.Where(s => ids.Contains(s.Id)).ToDictionaryAsync(s => s.Id);
+        foreach (var line in usages)
+        {
+            if (!supplies.TryGetValue(line.SupplyId, out var supply))
+                throw BusinessException.NotFound($"Fourniture d'envoi #{line.SupplyId} introuvable.");
+            if (supply.RemainingQuantity < line.Quantity)
+                throw BusinessException.Conflict($"Stock insuffisant pour « {supply.Name} » : {supply.RemainingQuantity} disponible(s).");
+
+            supply.RemainingQuantity -= line.Quantity;
+            sale.ShippingUsages.Add(new ShippingUsage
+            {
+                Supply = supply,
+                SupplyId = supply.Id,
+                Quantity = line.Quantity,
+                UnitCost = previousCosts.TryGetValue(supply.Id, out var cost) ? cost : supply.UnitCost
+            });
+        }
+    }
+
     private static void Validate(SaleInput input)
     {
         if (input.Items is null || input.Items.Count == 0)
@@ -282,6 +336,8 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         if (input.Platform != SalePlatform.Cardmarket && input.Fees < 0)
             throw new BusinessException("Les frais ne peuvent pas être négatifs.");
         if (input.AmountPaid < 0) throw new BusinessException("Les frais payés par l’acheteur ne peuvent pas être négatifs.");
+        if (input.Shipping?.Any(s => s.Quantity < 0 || s.Quantity > 1000) == true)
+            throw new BusinessException("Quantité de fourniture d'envoi invalide.");
         foreach (var line in input.Items)
         {
             if (line.Quantity <= 0) throw new BusinessException("Chaque quantité doit être supérieure à 0.");

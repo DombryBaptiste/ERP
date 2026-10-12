@@ -63,7 +63,8 @@ public class TaxService(AppDbContext db, SettingsStore store)
             .Select(s => new
             {
                 s.SaleDate,
-                NetAmount = s.TotalAmount - s.Fees + s.AmountPaid,
+                // CA = montant payé par l'acheteur (articles + port), avant commission de la plateforme.
+                NetAmount = s.TotalAmount + s.AmountPaid,
                 s.Profit,
                 s.Platform
             })

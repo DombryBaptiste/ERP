@@ -25,7 +25,7 @@ public class ReportingService(AppDbContext db)
         var sales = await db.Sales.AsNoTracking()
             .Where(s => s.SaleDate >= periodStart)
             // CA net des remboursements (rattachés à la date de la vente pour les statistiques).
-            .Select(s => new { s.SaleDate, TotalAmount = s.TotalAmount - s.RefundedAmount, s.Profit })
+            .Select(s => new { s.SaleDate, TotalAmount = s.TotalAmount + s.AmountPaid - s.RefundedAmount, s.Profit })
             .ToListAsync();
 
         // Les transferts depuis la collection personnelle ne sont pas des dépenses : exclus des achats.
@@ -33,6 +33,14 @@ public class ReportingService(AppDbContext db)
         var totalPurchases = await realPurchases.SumAsync(p => (decimal?)p.TotalAmount) ?? 0m;
         var monthPurchases = await realPurchases.Where(p => p.PurchaseDate >= monthStart)
             .SumAsync(p => (decimal?)p.TotalAmount) ?? 0m;
+
+        // Frais d'envoi du mois : fournitures achetées, coût réel des envois et port payé par les acheteurs.
+        var monthShippingSpent = await db.ShippingSupplies.Where(s => s.PurchaseDate >= monthStart)
+            .SumAsync(s => (decimal?)s.TotalAmount) ?? 0m;
+        var monthShipments = await db.Sales.AsNoTracking()
+            .Where(s => s.SaleDate >= monthStart && (s.ShippingCost > 0 || (s.Carrier != null && s.Carrier != ShippingCarrier.HandDelivery)))
+            .Select(s => new { s.ShippingCost, s.AmountPaid })
+            .ToListAsync();
 
         var months = Enumerable.Range(0, 12).Select(i => periodStart.AddMonths(i)).Select(m =>
         {
@@ -66,7 +74,10 @@ public class ReportingService(AppDbContext db)
             TotalPurchases: totalPurchases,
             Last12Months: months,
             StockDistribution: distribution,
-            RecentSales: recentSales.Select(s => s.ToSummary()).ToList());
+            RecentSales: recentSales.Select(s => s.ToSummary()).ToList(),
+            MonthShippingSpent: monthShippingSpent,
+            MonthShippingCost: monthShipments.Sum(s => s.ShippingCost),
+            MonthShippingPaid: monthShipments.Sum(s => s.AmountPaid));
     }
 
     public async Task<StatisticsDto> GetStatisticsAsync(int? requestedYear)
@@ -102,6 +113,12 @@ public class ReportingService(AppDbContext db)
         var stockValue = await db.InventoryItems.Where(i => i.RemainingQuantity > 0)
             .SumAsync(i => (decimal?)(i.RemainingQuantity * i.PurchasePrice)) ?? 0m;
 
+        // Frais d'envoi de l'année.
+        var annualShippingSpent = await db.ShippingSupplies
+            .Where(s => s.PurchaseDate >= start && s.PurchaseDate < end)
+            .SumAsync(s => (decimal?)s.TotalAmount) ?? 0m;
+        var shipped = sales.Where(s => s.ShippingCost > 0 || (s.Carrier.HasValue && s.Carrier != ShippingCarrier.HandDelivery)).ToList();
+
         var saleYears = await db.Sales.Select(s => s.SaleDate.Year).Distinct().ToListAsync();
         var purchaseYears = await db.Purchases.Select(p => p.PurchaseDate.Year).Distinct().ToListAsync();
         var years = saleYears.Concat(purchaseYears).Append(today.Year).Append(year)
@@ -122,11 +139,12 @@ public class ReportingService(AppDbContext db)
             {
                 var revenue = g.Sum(x =>
                 {
+                    // CA de la ligne + sa part du port payé par l'acheteur (au prorata du montant).
+                    // La commission n'est pas retirée : c'est une charge, pas une baisse du CA.
                     var lineAmount = x.Quantity * x.SalePrice;
                     var saleAmount = x.TotalAmount;
-                    var fees = saleAmount > 0 ? lineAmount * x.Fees / saleAmount : 0m;
                     var amountPaid = saleAmount > 0 ? lineAmount * x.AmountPaid / saleAmount : 0m;
-                    return lineAmount - fees + amountPaid;
+                    return lineAmount + amountPaid;
                 });
                 var profit = g.Sum(x => x.Quantity * (x.SalePrice - x.UnitCost));
                 return new ProductStatDto(g.Key.Name, g.Key.Type, g.Sum(x => x.Quantity), revenue, profit, Mappings.Margin(profit, revenue));
@@ -154,6 +172,10 @@ public class ReportingService(AppDbContext db)
             Monthly: monthly,
             TopSales: sales.OrderByDescending(s => Mappings.SaleRevenue(s) - s.RefundedAmount).Take(10).Select(s => s.ToSummary()).ToList(),
             TopProductsByRevenue: products.OrderByDescending(p => p.Revenue).Take(10).ToList(),
-            TopProductsByProfit: products.OrderByDescending(p => p.Profit).Take(10).ToList());
+            TopProductsByProfit: products.OrderByDescending(p => p.Profit).Take(10).ToList(),
+            AnnualShippingSpent: annualShippingSpent,
+            AnnualShippingCost: shipped.Sum(s => s.ShippingCost),
+            AnnualShippingPaid: shipped.Sum(s => s.AmountPaid),
+            ShippedSalesCount: shipped.Count);
     }
 }

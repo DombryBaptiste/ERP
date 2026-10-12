@@ -206,6 +206,76 @@
     </mat-card-content>
   </mat-card>
 
+  <!-- Expédition : transporteur et fournitures utilisées (stock des frais d'envoi) -->
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title><mat-icon class="title-icon">local_shipping</mat-icon> Expédition</mat-card-title>
+      <mat-card-subtitle>Indiquez ce que l'envoi a consommé : le coût réel est calculé et le stock de fournitures diminue</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="shipping-head">
+        <mat-form-field>
+          <mat-label>Transporteur</mat-label>
+          <mat-select formControlName="carrier">
+            <mat-option [value]="null">—</mat-option>
+            @for (c of carriers; track c.value) {
+              <mat-option [value]="c.value">{{ c.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <div class="shipping-actions">
+          <button mat-stroked-button type="button" (click)="addShippingLine()" [disabled]="availableSupplyGroups().length === 0"
+                  [matTooltip]="availableSupplyGroups().length === 0 ? 'Aucune fourniture en stock : enregistrez vos achats dans « Envois »' : ''">
+            <mat-icon>add</mat-icon> Fourniture utilisée
+          </button>
+          <button mat-stroked-button type="button" (click)="newLabelForSale()">
+            <mat-icon>receipt</mat-icon> Bordereau pour cette vente
+          </button>
+        </div>
+      </div>
+
+      @if (shipping.length) {
+        <div class="shipping-lines">
+          @for (line of shipping.controls; track line; let i = $index) {
+            @let group = supplyGroupFor(line);
+            @let alloc = shippingAllocationFor(line);
+            <div class="shipping-line" [formGroup]="line">
+              <mat-form-field class="f-supply">
+                <mat-label>Fourniture</mat-label>
+                <mat-select formControlName="key" (selectionChange)="line.controls.supplyId.setValue(null)">
+                  @for (g of availableSupplyGroups(); track g.key) {
+                    <mat-option [value]="g.key">
+                      <mat-icon>{{ kindIcons[g.kind] }}</mat-icon> {{ g.name }} — {{ groupStock(g) }} en stock
+                    </mat-option>
+                  }
+                </mat-select>
+                @if (alloc.missing > 0) {
+                  <mat-hint class="hint-error">Stock insuffisant ({{ group ? groupStock(group) : 0 }} disponible(s))</mat-hint>
+                }
+              </mat-form-field>
+              <mat-form-field class="f-qty">
+                <mat-label>Quantité</mat-label>
+                <input matInput type="number" min="1" formControlName="quantity">
+              </mat-form-field>
+              <div class="line-total">{{ shippingLineCost(line) | currency }}</div>
+              <button mat-icon-button type="button" matTooltip="Retirer" (click)="removeShippingLine(i)"><mat-icon>delete</mat-icon></button>
+            </div>
+          }
+        </div>
+        <div class="shipping-summary" [class.negative-box]="t.portMargin < 0">
+          <div><span>Coût réel de l'envoi</span><strong>{{ t.shippingCost | currency }}</strong></div>
+          <div><span>Port payé par l'acheteur</span><strong>{{ t.amountPaid | currency }}</strong></div>
+          <div><span>Marge sur le port</span>
+            <strong [class.positive]="t.portMargin >= 0" [class.negative]="t.portMargin < 0">{{ t.portMargin | currency }}</strong></div>
+        </div>
+      } @else {
+        <p class="muted small">
+          Aucune fourniture indiquée : le port payé par l'acheteur est considéré comme couvrant exactement l'envoi.
+        </p>
+      }
+    </mat-card-content>
+  </mat-card>
+
   @if (sale(); as s) {
     @if (s.refunds.length) {
       <mat-card class="card">
@@ -259,6 +329,9 @@
     <div class="totals">
       <div><span>Coût d'achat</span><strong>{{ t.cost | currency }}</strong></div>
       <div><span>Frais</span><strong>{{ t.fees | currency }}</strong></div>
+      @if (t.tracked) {
+        <div><span>Envoi (net)</span><strong [class.negative]="t.portMargin < 0">{{ t.portMargin >= 0 ? '+' : '' }}{{ t.portMargin | currency }}</strong></div>
+      }
       @if (sale()?.refundedAmount; as refunded) {
         <div class="negative"><span>Remboursé</span><strong>−{{ refunded | currency }}</strong></div>
         <div [class.negative]="(sale()?.profit ?? 0) < 0" [class.positive]="(sale()?.profit ?? 0) >= 0">
@@ -270,10 +343,10 @@
         </div>
         <div><span>Marge</span><strong>{{ t.margin | number: '1.0-1' }} %</strong></div>
       }
-      <div class="total-main"><span>Montant total</span><strong>{{ t.netTotal | currency }}</strong></div>
+      <div class="total-main"><span>CA (à déclarer)</span><strong>{{ t.revenue | currency }}</strong></div>
       <div class="total-paid">
         <span>Frais payé par l’acheteur</span><strong>{{ t.amountPaid | currency }}</strong>
-        <small>Prix de vente : {{ t.total | currency }} · Frais : −{{ t.fees | currency }}</small>
+        <small>Prix de vente : {{ t.total | currency }} · Frais : −{{ t.fees | currency }} · Reçu après commission : {{ t.netTotal | currency }}</small>
       </div>
     </div>
     <div class="footer-actions">

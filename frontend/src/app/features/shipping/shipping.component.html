@@ -1,0 +1,164 @@
+<div class="page-header">
+  <div>
+    <h1>Frais d'envoi</h1>
+    <p class="subtitle">Timbres, bordereaux, enveloppes et protections : ce que vous achetez, ce qu'il reste, et ce que vos envois coûtent vraiment.</p>
+  </div>
+  <div class="page-actions">
+    <mat-form-field class="year-select">
+      <mat-label>Année</mat-label>
+      <mat-select [value]="year()" (selectionChange)="changeYear($event.value)">
+        @for (y of summary()?.availableYears ?? [currentYear]; track y) {
+          <mat-option [value]="y">{{ y }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <button mat-flat-button (click)="openAdd()"><mat-icon>add_shopping_cart</mat-icon> Acheter des fournitures</button>
+  </div>
+</div>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (summary(); as s) {
+  <div class="kpi-grid">
+    <app-kpi-card icon="shopping_bag" label="Fournitures achetées" color="#8e24aa"
+                  [value]="s.spentThisYear | currency" [sub]="'dont ' + (s.spentThisMonth | currency) + ' ce mois-ci'" />
+    <app-kpi-card icon="local_shipping" label="Coût réel des envois" color="#c62828"
+                  [value]="s.usedThisYear | currency" [sub]="s.shippedSalesThisYear + ' envoi(s) · ' + (s.averageCostPerShipment | currency) + ' en moyenne'" />
+    <app-kpi-card icon="payments" label="Port payé par les acheteurs" color="#2e7d32" [value]="s.paidByBuyersThisYear | currency" />
+    <app-kpi-card icon="balance" label="Marge sur le port" color="#3949ab" [value]="portMargin() | currency"
+                  [negative]="portMargin() < 0" [sub]="portMargin() < 0 ? 'vos envois vous coûtent plus que le port facturé' : 'port facturé − coût réel'" />
+    <app-kpi-card icon="inventory_2" label="Stock de fournitures" color="#00897b" [value]="s.stockValue | currency" sub="au prix d'achat" />
+  </div>
+
+  <h2 class="section-title">Stock</h2>
+  @if (s.stock.length === 0) {
+    <div class="info-banner">
+      <mat-icon>local_post_office</mat-icon>
+      <span>Aucune fourniture pour l'instant. Enregistrez votre prochain carnet de timbres ou vos enveloppes avec « Acheter des fournitures ».</span>
+    </div>
+  } @else {
+    <div class="stock-grid">
+      @for (st of s.stock; track st.name + st.kind) {
+        <div class="stock-card" [class.low]="st.low" [class.empty]="st.remaining === 0">
+          <div class="stock-head">
+            <mat-icon>{{ kindIcons[st.kind] }}</mat-icon>
+            <div>
+              <strong>{{ st.name }}</strong>
+              <div class="muted small">{{ st.kind | label: 'shippingKind' }}{{ st.carrier ? ' · ' + (st.carrier | label: 'carrier') : '' }}</div>
+            </div>
+          </div>
+          <div class="stock-count">{{ st.remaining | number }} <span>restant(s)</span></div>
+          <div class="muted small">
+            {{ st.averageUnitCost | currency: 'EUR' : 'symbol' : '1.2-4' }} l'unité · {{ st.usedThisYear }} utilisé(s) en {{ s.year }}
+          </div>
+          @if (st.low) {
+            <div class="low-badge"><mat-icon>warning</mat-icon> Bientôt épuisé (seuil : {{ s.lowStockThreshold }})</div>
+          }
+          <button mat-stroked-button (click)="openAdd(st)"><mat-icon>add</mat-icon> Racheter</button>
+        </div>
+      }
+    </div>
+  }
+
+  <div class="chart-grid">
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Par mois</mat-card-title>
+        <mat-card-subtitle>Achats de fournitures, coût réel des envois et port payé par les acheteurs</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content><app-chart [config]="chart()" [height]="280" /></mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Par transporteur</mat-card-title>
+        <mat-card-subtitle>Envois des ventes de {{ s.year }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (s.carriers.length === 0) {
+          <p class="empty">Aucun envoi enregistré. Indiquez le transporteur et les fournitures utilisées dans vos ventes.</p>
+        } @else {
+          <table class="simple-table">
+            <thead><tr><th>Transporteur</th><th class="num">Envois</th><th class="num">Coût moyen</th><th class="num">Port payé</th><th class="num">Marge</th></tr></thead>
+            <tbody>
+              @for (c of s.carriers; track c.carrier) {
+                <tr>
+                  <td class="strong">{{ c.carrier ? (c.carrier | label: 'carrier') : 'Non précisé' }}</td>
+                  <td class="num">{{ c.shipments }}</td>
+                  <td class="num">{{ c.cost / c.shipments | currency }}</td>
+                  <td class="num">{{ c.paidByBuyers | currency }}</td>
+                  <td class="num" [class.positive]="c.paidByBuyers - c.cost >= 0" [class.negative]="c.paidByBuyers - c.cost < 0">
+                    {{ c.paidByBuyers - c.cost | currency }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title>Achats de fournitures {{ s.year }}</mat-card-title>
+      <mat-card-subtitle>Ils figurent aussi dans le <a routerLink="/books">registre des achats</a> (section « Fournitures d'envoi »).</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="kind-filter">
+        <button mat-button [class.active]="kindFilter() === ''" (click)="kindFilter.set('')">Tout</button>
+        @for (k of ['Stamp', 'Label', 'Envelope', 'Protection', 'Box', 'Other']; track k) {
+          <button mat-button [class.active]="kindFilter() === k" (click)="kindFilter.set($any(k))">{{ k | label: 'shippingKind' }}</button>
+        }
+      </div>
+      @if (filteredSupplies().length === 0) {
+        <p class="empty">Aucun achat de fournitures sur la période.</p>
+      } @else {
+        <div class="table-wrap">
+          <table class="simple-table supplies-table">
+            <thead>
+              <tr>
+                <th>N°</th><th>Date</th><th>Désignation</th><th>Type</th><th class="num">Restant</th>
+                <th class="num">Coût unitaire</th><th class="num">Total</th><th>Où</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (sp of filteredSupplies(); track sp.id) {
+                <tr class="clickable" (click)="edit(sp)">
+                  <td><span class="ref">{{ sp.supplyNumber }}</span></td>
+                  <td>{{ sp.purchaseDate | date: 'dd/MM/yyyy' }}</td>
+                  <td class="strong">{{ sp.name }}
+                    @if (sp.carrier) { <span class="muted small">· {{ sp.carrier | label: 'carrier' }}</span> }
+                  </td>
+                  <td><span class="chip"><mat-icon class="inline-icon">{{ kindIcons[sp.kind] }}</mat-icon>{{ sp.kind | label: 'shippingKind' }}</span></td>
+                  <td class="num">{{ sp.remainingQuantity }} <span class="muted">/ {{ sp.quantity }}</span></td>
+                  <td class="num">{{ sp.unitCost | currency: 'EUR' : 'symbol' : '1.2-4' }}</td>
+                  <td class="num strong">{{ sp.totalAmount | currency }}</td>
+                  <td>{{ sp.supplier || '—' }}</td>
+                  <td class="actions-cell">
+                    <button mat-icon-button matTooltip="Supprimer" (click)="remove(sp, $event)"><mat-icon>delete</mat-icon></button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card">
+    <mat-card-header><mat-card-title><mat-icon class="title-icon">lightbulb</mat-icon> Comment ça marche</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <ul class="tips">
+        <li><strong>Achetez</strong> : un carnet de 12 timbres à 15,48 € devient une fourniture « Timbre Lettre verte 20 g » à 1,29 € l'unité.</li>
+        <li><strong>Utilisez</strong> : dans une vente, section « Expédition », indiquez le transporteur et ce que vous avez utilisé (ex. 2 timbres + 1 enveloppe bulle). Le stock baisse tout seul.</li>
+        <li>Le <strong>bénéfice de la vente</strong> tient alors compte du coût réel de l'envoi et du port payé par l'acheteur.</li>
+        <li>Un <strong>bordereau</strong> acheté pour une vente précise ? Bouton « Bordereau pour cette vente » dans la vente : il est créé et utilisé d'un coup.</li>
+        <li>Les fournitures d'envoi n'entrent pas dans le CA déclaré à l'URSSAF (en micro-entreprise, les cotisations portent sur les ventes), mais elles pèsent sur votre bénéfice réel.</li>
+      </ul>
+    </mat-card-content>
+  </mat-card>
+}
