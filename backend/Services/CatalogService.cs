@@ -17,6 +17,16 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
 {
     public const string ApiBaseUrl = "https://api.tcgdex.net/v2/";
 
+    /// <summary>Langues gérées : code TCGdex -> identifiant de la langue sur Cardmarket (filtre des offres).</summary>
+    public static readonly IReadOnlyDictionary<string, int> Languages = new Dictionary<string, int>
+    {
+        ["fr"] = 2,      // français
+        ["ja"] = 7,      // japonais
+        ["ko"] = 10,     // coréen
+        ["zh-tw"] = 11,  // chinois traditionnel
+        ["zh-cn"] = 6    // chinois simplifié
+    };
+
     /// <summary>
     /// Raretés ignorées à l'import « cartes rares » : communes, peu communes, rares, holos
     /// et ex / V / VMAX / VSTAR classiques (les versions Full Art, alternatives et gold sont gardées).
@@ -25,20 +35,21 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
     {
         "Commune", "Peu Commune", "Rare", "Rare Holo", "Holo Rare", "Sans Rareté",
         "Double rare", "Holo Rare V", "Holo Rare VMAX", "Holo Rare VSTAR",
-        // Libellés anglais, pour les séries sans fiche française.
-        "Common", "Uncommon", "None", "Rare Holo V", "Rare Holo VMAX", "Rare Holo VSTAR"
+        // Libellés anglais (séries asiatiques, séries sans fiche française).
+        "Common", "Uncommon", "Rare Holo V", "Rare Holo VMAX", "Rare Holo VSTAR"
     };
 
     private const int MaxParallelRequests = 8;
 
     // ---------------------------------------------------------------- Séries
 
-    /// <summary>Séries disponibles chez TCGdex (hors jeu mobile TCG Pocket), de la plus récente à la plus ancienne.</summary>
-    public async Task<List<AvailableSetDto>> GetAvailableSetsAsync(CancellationToken ct)
+    /// <summary>Séries disponibles chez TCGdex dans une langue (hors jeu mobile TCG Pocket), de la plus récente à la plus ancienne.</summary>
+    public async Task<List<AvailableSetDto>> GetAvailableSetsAsync(string language, CancellationToken ct)
     {
-        if (!cache.TryGetValue("catalog:available-sets", out List<(string Id, string Name, string Serie)>? sets) || sets is null)
+        var lang = CheckLanguage(language);
+        if (!cache.TryGetValue($"catalog:available-sets:{lang}", out List<(string Id, string Name, string Serie)>? sets) || sets is null)
         {
-            var series = await GetJsonAsync("fr/series", ct) ?? throw new BusinessException("TCGdex ne répond pas.");
+            var series = await GetJsonAsync($"{lang}/series", ct) ?? throw new BusinessException("TCGdex ne répond pas.");
             var serieIds = series.EnumerateArray()
                 .Select(s => (Id: Str(s, "id")!, Name: Str(s, "name") ?? ""))
                 .Where(s => s.Id != "tcgp")
@@ -48,17 +59,17 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
             await Parallel.ForEachAsync(Enumerable.Range(0, serieIds.Count),
                 new ParallelOptions { MaxDegreeOfParallelism = MaxParallelRequests, CancellationToken = ct }, async (i, token) =>
                 {
-                    var serie = await GetJsonAsync($"fr/series/{Uri.EscapeDataString(serieIds[i].Id)}", token);
+                    var serie = await GetJsonAsync($"{lang}/series/{Uri.EscapeDataString(serieIds[i].Id)}", token);
                     details[i] = serie is { } s && s.TryGetProperty("sets", out var list)
                         ? list.EnumerateArray().Select(x => (Str(x, "id")!, Str(x, "name") ?? "", serieIds[i].Name)).ToArray()
                         : [];
                 });
             // TCGdex liste du plus ancien au plus récent : on inverse.
             sets = details.Reverse().SelectMany(d => d.Reverse()).ToList();
-            cache.Set("catalog:available-sets", sets, TimeSpan.FromHours(12));
+            cache.Set($"catalog:available-sets:{lang}", sets, TimeSpan.FromHours(12));
         }
 
-        var imported = await db.CatalogCards.GroupBy(c => c.SetId)
+        var imported = await db.CatalogCards.Where(c => c.Language == lang).GroupBy(c => c.SetId)
             .Select(g => new { SetId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.SetId, x => x.Count, ct);
         return sets.Select(s => new AvailableSetDto(s.Id, s.Name, s.Serie, imported.GetValueOrDefault(s.Id))).ToList();
@@ -68,8 +79,8 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
     public async Task<List<CatalogSetDto>> GetImportedSetsAsync(CancellationToken ct)
     {
         var sets = await db.CatalogCards
-            .GroupBy(c => new { c.SetId, c.SetCode, c.SetName, c.SerieName, c.ReleaseDate })
-            .Select(g => new CatalogSetDto(g.Key.SetId, g.Key.SetCode, g.Key.SetName, g.Key.SerieName, g.Key.ReleaseDate,
+            .GroupBy(c => new { c.Language, c.SetId, c.SetCode, c.SetName, c.SerieName, c.ReleaseDate })
+            .Select(g => new CatalogSetDto(g.Key.Language, g.Key.SetId, g.Key.SetCode, g.Key.SetName, g.Key.SerieName, g.Key.ReleaseDate,
                 g.Count(), g.Count(c => c.Quote != null)))
             .ToListAsync(ct);
         return sets.OrderByDescending(s => s.ReleaseDate).ThenBy(s => s.SetName).ToList();
@@ -79,16 +90,18 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
     /// Importe (ou met à jour) les cartes d'une série. Les cotes déjà saisies sont conservées.
     /// Avec <paramref name="rareOnly"/>, les raretés de <see cref="CommonRarities"/> sont ignorées.
     /// </summary>
-    public async Task<CatalogImportResultDto> ImportSetAsync(string setId, bool rareOnly, CancellationToken ct)
+    public async Task<CatalogImportResultDto> ImportSetAsync(string setId, string language, bool rareOnly, CancellationToken ct)
     {
-        var fr = await GetJsonAsync($"fr/sets/{Uri.EscapeDataString(setId)}", ct);
-        var en = await GetJsonAsync($"en/sets/{Uri.EscapeDataString(setId)}", ct);
-        var set = fr ?? en ?? throw BusinessException.NotFound($"Série « {setId} » introuvable chez TCGdex.");
-        var lang = fr is not null ? "fr" : "en";
+        var wanted = CheckLanguage(language);
+        var local = await GetJsonAsync($"{wanted}/sets/{Uri.EscapeDataString(setId)}", ct);
+        // Fiche anglaise : code officiel (PFL...) des séries internationales, et repli si la fiche française manque.
+        var en = wanted == "fr" ? await GetJsonAsync($"en/sets/{Uri.EscapeDataString(setId)}", ct) : null;
+        var set = local ?? en ?? throw BusinessException.NotFound($"Série « {setId} » introuvable chez TCGdex.");
+        var lang = local is not null ? wanted : "en";
 
         var setName = Str(set, "name") ?? setId;
         var serieName = set.TryGetProperty("serie", out var serie) ? Str(serie, "name") : null;
-        var code = Abbreviation(en) ?? Abbreviation(fr);
+        var code = Abbreviation(en) ?? Abbreviation(local);
         var releaseDate = DateTime.TryParse(Str(set, "releaseDate") ?? (en is { } e ? Str(e, "releaseDate") : null),
             CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d.Date : (DateTime?)null;
 
@@ -101,7 +114,8 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
                 details[i] = await GetJsonAsync($"{lang}/cards/{Uri.EscapeDataString(Str(cards[i], "id") ?? "")}", token);
             });
 
-        var existing = await db.CatalogCards.Where(c => c.SetId == setId).ToDictionaryAsync(c => c.TcgdexId, ct);
+        var existing = await db.CatalogCards.Where(c => c.Language == wanted && c.SetId == setId)
+            .ToDictionaryAsync(c => c.TcgdexId, ct);
         int added = 0, updated = 0;
         for (var i = 0; i < cards.Count; i++)
         {
@@ -111,12 +125,13 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
             if (tcgdexId is null) continue;
 
             var rarity = detail is { } dt ? Str(dt, "rarity") : null;
+            if (rarity == "None") rarity = null;  // rareté inconnue (fréquent en japonais) : la carte est gardée
             if (rareOnly && rarity is not null && CommonRarities.Contains(rarity)) continue;
 
             var number = Str(brief, "localId") ?? "";
             if (!existing.TryGetValue(tcgdexId, out var card))
             {
-                card = new CatalogCard { TcgdexId = tcgdexId, SetId = setId };
+                card = new CatalogCard { Language = wanted, TcgdexId = tcgdexId, SetId = setId };
                 db.CatalogCards.Add(card);
                 added++;
             }
@@ -144,9 +159,11 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
     /// <summary>
     /// Recherche dans le catalogue : par série, par nom, ou par code + numéro (« PFL 95 », « PFL095 »).
     /// </summary>
-    public async Task<List<CatalogCardDto>> SearchAsync(string? setId, string? search, bool quotedOnly, int take, CancellationToken ct)
+    public async Task<List<CatalogCardDto>> SearchAsync(string? language, string? setId, string? search, bool quotedOnly, int take,
+        CancellationToken ct)
     {
         var query = db.CatalogCards.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(language)) { var lang = CheckLanguage(language); query = query.Where(c => c.Language == lang); }
         if (!string.IsNullOrWhiteSpace(setId)) query = query.Where(c => c.SetId == setId);
         if (quotedOnly) query = query.Where(c => c.Quote != null);
 
@@ -156,10 +173,11 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
             var s = search.Trim();
             var m = Regex.Match(s, @"^([A-Za-z][A-Za-z0-9:.]*?)[\s\-]*([A-Za-z]{0,2}\d+)$");
             var code = m.Success ? m.Groups[1].Value.ToUpperInvariant() : null;
-            if (code is not null && await db.CatalogCards.AnyAsync(c => c.SetCode == code || c.SetId == code.ToLower(), ct))
+            // Comparaisons insensibles à la casse (collation MySQL) : « me02 » = « ME02 », « sv8a » = « SV8a ».
+            if (code is not null && await db.CatalogCards.AnyAsync(c => c.SetCode == code || c.SetId == code, ct))
             {
                 // Code de série + numéro : la comparaison du numéro (095 = 95) se fait ensuite en mémoire.
-                query = query.Where(c => c.SetCode == code || c.SetId == code.ToLower());
+                query = query.Where(c => c.SetCode == code || c.SetId == code);
                 wantedNumber = m.Groups[2].Value;
             }
             else
@@ -213,10 +231,18 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
             .ToDictionaryAsync(x => x.Id, x => x.Count, ct);
 
         return cards.Select(c => new CatalogCardDto(
-            c.Id, c.TcgdexId, c.SetId, c.SetCode, c.SetName, c.SerieName, c.Number, c.Name, c.Rarity, c.ImageUrl,
+            c.Id, c.Language, c.TcgdexId, c.SetId, c.SetCode, c.SetName, c.SerieName, c.Number, c.Name, c.Rarity, c.ImageUrl,
             c.CardmarketId is null ? null
-                : $"https://www.cardmarket.com/fr/Pokemon/Products?idProduct={c.CardmarketId}&language=2&minCondition=2",
+                : $"https://www.cardmarket.com/fr/Pokemon/Products?idProduct={c.CardmarketId}" +
+                  $"&language={Languages.GetValueOrDefault(c.Language, 2)}&minCondition=2",
             c.Quote, c.QuoteUpdatedAt, stock.GetValueOrDefault(c.Id))).ToList();
+    }
+
+    private static string CheckLanguage(string? language)
+    {
+        var lang = (language ?? "fr").Trim().ToLowerInvariant();
+        return Languages.ContainsKey(lang) ? lang
+            : throw new BusinessException($"Langue inconnue : {language} (attendu : {string.Join(", ", Languages.Keys)}).");
     }
 
     /// <summary>« 95 », « 095 » et « TG05 » / « TG5 » sont équivalents.</summary>

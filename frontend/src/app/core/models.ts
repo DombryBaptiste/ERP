@@ -546,8 +546,12 @@ export interface ShippingSummary {
 }
 
 // ----- Catalogue des cartes (cotes, estimation) -----
+/** Langue d'une carte du catalogue (code TCGdex). */
+export type CardLanguage = 'fr' | 'ja' | 'ko' | 'zh-tw' | 'zh-cn';
+
 export interface CatalogCard {
   id: number;
+  language: CardLanguage;
   tcgdexId: string;
   setId: string;
   /** Code officiel de la série (PFL, MEW…). */
@@ -560,7 +564,7 @@ export interface CatalogCard {
   rarity: string | null;
   /** Adresse de l'image sans extension : ajouter /low.webp ou /high.webp. */
   imageUrl: string | null;
-  /** Page Cardmarket filtrée sur les offres en français, NM ou mieux. */
+  /** Page Cardmarket filtrée sur les offres dans la langue de la carte, NM ou mieux. */
   cardmarketUrl: string | null;
   /** Cote saisie à la main (prix FR NM). */
   quote: number | null;
@@ -570,6 +574,7 @@ export interface CatalogCard {
 }
 
 export interface CatalogSet {
+  language: CardLanguage;
   setId: string;
   setCode: string | null;
   setName: string;

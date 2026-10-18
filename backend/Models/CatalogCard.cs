@@ -7,7 +7,9 @@ namespace PokeStock.Api.Models;
 public class CatalogCard
 {
     public int Id { get; set; }
-    /// <summary>Identifiant TCGdex de la carte (ex. "me02-095"), unique.</summary>
+    /// <summary>Langue de la carte : code TCGdex (fr, ja, ko, zh-tw, zh-cn).</summary>
+    public string Language { get; set; } = "fr";
+    /// <summary>Identifiant TCGdex de la carte (ex. "me02-095"), unique pour une langue.</summary>
     public string TcgdexId { get; set; } = string.Empty;
     /// <summary>Identifiant TCGdex de la série (ex. "me02").</summary>
     public string SetId { get; set; } = string.Empty;

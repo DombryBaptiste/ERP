@@ -191,6 +191,7 @@ CREATE TABLE IF NOT EXISTS shipping_usages (
 -- Catalogue des cartes importé depuis TCGdex : cote saisie à la main, estimation de collections.
 CREATE TABLE IF NOT EXISTS card_catalog (
   id               INT           NOT NULL AUTO_INCREMENT,
+  language         VARCHAR(10)   NOT NULL DEFAULT 'fr',  -- fr, ja, ko, zh-tw, zh-cn
   tcgdex_id        VARCHAR(50)   NOT NULL,  -- ex. me02-095
   set_id           VARCHAR(30)   NOT NULL,  -- ex. me02
   set_code         VARCHAR(20)   NULL,      -- ex. PFL
@@ -208,7 +209,7 @@ CREATE TABLE IF NOT EXISTS card_catalog (
   created_at       DATETIME(6)   NOT NULL,
   updated_at       DATETIME(6)   NOT NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY IX_card_catalog_tcgdex_id (tcgdex_id),
-  KEY IX_card_catalog_set_id (set_id),
+  UNIQUE KEY IX_card_catalog_language_tcgdex_id (language, tcgdex_id),
+  KEY IX_card_catalog_language_set_id (language, set_id),
   KEY IX_card_catalog_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

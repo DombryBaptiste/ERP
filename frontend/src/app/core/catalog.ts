@@ -1,4 +1,32 @@
-import { CatalogCard, ItemCondition } from './models';
+import { CardLanguage, CatalogCard, CatalogSet, ItemCondition } from './models';
+
+/** Langues du catalogue : libellé (aussi utilisé comme langue de l'article acheté) et abréviation. */
+export const CARD_LANGUAGES: { value: CardLanguage; label: string; short: string }[] = [
+  { value: 'fr', label: 'Français', short: 'FR' },
+  { value: 'ja', label: 'Japonais', short: 'JP' },
+  { value: 'ko', label: 'Coréen', short: 'KR' },
+  { value: 'zh-tw', label: 'Chinois traditionnel', short: 'TW' },
+  { value: 'zh-cn', label: 'Chinois simplifié', short: 'CN' }
+];
+
+export function languageLabel(language: CardLanguage): string {
+  return CARD_LANGUAGES.find(l => l.value === language)?.label ?? language;
+}
+
+export function languageShort(language: CardLanguage): string {
+  return CARD_LANGUAGES.find(l => l.value === language)?.short ?? language.toUpperCase();
+}
+
+/** Clé unique d'une série : les identifiants se répètent d'une langue à l'autre (SV8a en japonais et en chinois). */
+export function setKey(set: Pick<CatalogSet, 'language' | 'setId'>): string {
+  return `${set.language}|${set.setId}`;
+}
+
+export function parseSetKey(key: string): { language?: CardLanguage; setId?: string } {
+  if (!key) return {};
+  const [language, setId] = key.split('|');
+  return { language: language as CardLanguage, setId };
+}
 
 /** Remise appliquée à la valeur pour obtenir le prix d'achat (0,20 = −20 %). */
 export const BUYBACK_DISCOUNT = 0.2;

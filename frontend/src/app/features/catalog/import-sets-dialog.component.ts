@@ -7,9 +7,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
+import { CARD_LANGUAGES } from '../../core/catalog';
 import { concatMap, from } from 'rxjs';
 import { normalizeText } from '../../core/products';
-import { AvailableSet } from '../../core/models';
+import { AvailableSet, CardLanguage } from '../../core/models';
 import { CatalogService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 
@@ -26,7 +28,7 @@ interface SerieGroup {
 @Component({
   selector: 'app-import-sets-dialog',
   imports: [FormsModule, MatDialogModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule,
-    MatIconModule, MatProgressBarModule],
+    MatIconModule, MatProgressBarModule, MatSelectModule],
   template: `
     <h2 mat-dialog-title>Importer des séries</h2>
     <mat-dialog-content>
@@ -48,6 +50,18 @@ interface SerieGroup {
           Les fiches (nom, image, n° Cardmarket) viennent de TCGdex. Une série déjà importée est mise à jour :
           vos cotes sont conservées.
         </p>
+        <mat-form-field class="language">
+          <mat-label>Langue des cartes</mat-label>
+          <mat-select [value]="language()" (selectionChange)="changeLanguage($event.value)">
+            @for (l of languages; track l.value) { <mat-option [value]="l.value">{{ l.label }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        @if (language() !== 'fr') {
+          <p class="muted small">
+            Les fiches asiatiques de TCGdex sont parfois incomplètes : certaines cartes n'ont pas d'image ou pas de rareté
+            (elles sont alors gardées).
+          </p>
+        }
         <mat-checkbox [(ngModel)]="rareOnly">
           Seulement les cartes rares (sans communes, peu communes, rares, holos, ni ex / V / VMAX / VSTAR classiques)
         </mat-checkbox>
@@ -89,6 +103,7 @@ interface SerieGroup {
   `,
   styles: `
     .search { width: 100%; margin-top: 8px; }
+    .language { width: 260px; }
     .group { margin-bottom: 12px; }
     .group-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--app-border); }
     .sets { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
@@ -100,6 +115,8 @@ export class ImportSetsDialogComponent {
   private readonly notify = inject(NotifyService);
   private readonly ref = inject(MatDialogRef<ImportSetsDialogComponent, boolean>);
 
+  readonly languages = CARD_LANGUAGES;
+  readonly language = signal<CardLanguage>('fr');
   readonly loading = signal(true);
   readonly running = signal(false);
   readonly done = signal(false);
@@ -125,7 +142,19 @@ export class ImportSetsDialogComponent {
 
   constructor() {
     this.ref.disableClose = true;
-    this.api.availableSets().subscribe({
+    this.loadAvailable();
+  }
+
+  changeLanguage(language: CardLanguage): void {
+    this.language.set(language);
+    this.selected.set(new Set());
+    this.loadAvailable();
+  }
+
+  private loadAvailable(): void {
+    this.loading.set(true);
+    this.available.set([]);
+    this.api.availableSets(this.language()).subscribe({
       next: sets => { this.available.set(sets); this.loading.set(false); },
       error: err => { this.loading.set(false); this.notify.error(err, 'Impossible de charger les séries TCGdex.'); }
     });
@@ -159,7 +188,8 @@ export class ImportSetsDialogComponent {
     this.running.set(true);
     this.progress.set({ done: 0, total: ids.length, current: names.get(ids[0]) ?? '' });
 
-    from(ids).pipe(concatMap(id => this.api.importSet(id, this.rareOnly))).subscribe({
+    const language = this.language();
+    from(ids).pipe(concatMap(id => this.api.importSet(id, language, this.rareOnly))).subscribe({
       next: r => {
         this.imported++;
         this.log.update(l => [...l, `${r.setName} : ${r.total} carte(s) (${r.added} nouvelle(s), ${r.updated} mise(s) à jour)`]);

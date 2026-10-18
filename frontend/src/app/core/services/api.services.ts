@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkSettings, CatalogCard, CatalogImportResult,
-  CatalogSet, Dashboard, InventoryItem, InventoryItemInput,
+  CardLanguage, CatalogSet, Dashboard, InventoryItem, InventoryItemInput,
   Purchase, PurchaseInput, RefundInput, Sale, SaleInput, ShippingSummary, ShippingSupply, ShippingSupplyInput, Statistics,
   TaxSettings, TaxSummary
 } from '../models';
@@ -173,15 +173,18 @@ export class CatalogService {
   private readonly url = '/api/catalog';
 
   sets(): Observable<CatalogSet[]> { return this.http.get<CatalogSet[]>(`${this.url}/sets`); }
-  availableSets(): Observable<AvailableSet[]> { return this.http.get<AvailableSet[]>(`${this.url}/available-sets`); }
+  availableSets(language: CardLanguage): Observable<AvailableSet[]> {
+    return this.http.get<AvailableSet[]>(`${this.url}/available-sets`, { params: { language } });
+  }
 
-  importSet(setId: string, rareOnly: boolean): Observable<CatalogImportResult> {
-    const params = new HttpParams().set('rareOnly', rareOnly);
+  importSet(setId: string, language: CardLanguage, rareOnly: boolean): Observable<CatalogImportResult> {
+    const params = new HttpParams().set('language', language).set('rareOnly', rareOnly);
     return this.http.post<CatalogImportResult>(`${this.url}/sets/${encodeURIComponent(setId)}/import`, {}, { params });
   }
 
-  cards(filter: { setId?: string; search?: string; quotedOnly?: boolean; take?: number }): Observable<CatalogCard[]> {
+  cards(filter: { language?: CardLanguage; setId?: string; search?: string; quotedOnly?: boolean; take?: number }): Observable<CatalogCard[]> {
     let params = new HttpParams();
+    if (filter.language) params = params.set('language', filter.language);
     if (filter.setId) params = params.set('setId', filter.setId);
     if (filter.search) params = params.set('search', filter.search);
     if (filter.quotedOnly) params = params.set('quotedOnly', true);

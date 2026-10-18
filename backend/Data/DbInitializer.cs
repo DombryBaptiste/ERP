@@ -162,6 +162,7 @@ public static class DbInitializer
         await db.Database.ExecuteSqlRawAsync("""
             CREATE TABLE IF NOT EXISTS card_catalog (
               id               INT           NOT NULL AUTO_INCREMENT,
+              language         VARCHAR(10)   NOT NULL DEFAULT 'fr',
               tcgdex_id        VARCHAR(50)   NOT NULL,
               set_id           VARCHAR(30)   NOT NULL,
               set_code         VARCHAR(20)   NULL,
@@ -179,11 +180,18 @@ public static class DbInitializer
               created_at       DATETIME(6)   NOT NULL,
               updated_at       DATETIME(6)   NOT NULL,
               PRIMARY KEY (id),
-              UNIQUE KEY IX_card_catalog_tcgdex_id (tcgdex_id),
-              KEY IX_card_catalog_set_id (set_id),
+              UNIQUE KEY IX_card_catalog_language_tcgdex_id (language, tcgdex_id),
+              KEY IX_card_catalog_language_set_id (language, set_id),
               KEY IX_card_catalog_name (name)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
+        // Première version du catalogue (sans langue) : ajout de la colonne et index par langue.
+        await EnsureColumnAsync(db, "card_catalog", "language", "VARCHAR(10) NOT NULL DEFAULT 'fr' AFTER id");
+        if (await IndexExistsAsync(db, "card_catalog", "IX_card_catalog_tcgdex_id"))
+            await db.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE card_catalog DROP INDEX IX_card_catalog_tcgdex_id, DROP INDEX IX_card_catalog_set_id, " +
+                "ADD UNIQUE KEY IX_card_catalog_language_tcgdex_id (language, tcgdex_id), " +
+                "ADD KEY IX_card_catalog_language_set_id (language, set_id)");
         await EnsureColumnAsync(db, "inventory_items", "catalog_card_id", "INT NULL AFTER market_value_updated_at");
     }
 
@@ -198,6 +206,12 @@ public static class DbInitializer
         var sql = $"ALTER TABLE `{table}` MODIFY COLUMN `{column}` {definition}";
         await db.Database.ExecuteSqlRawAsync(sql);
     }
+
+    private static async Task<bool> IndexExistsAsync(AppDbContext db, string table, string index) =>
+        await db.Database.SqlQueryRaw<long>(
+                "SELECT COUNT(*) AS Value FROM information_schema.STATISTICS " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = {0} AND INDEX_NAME = {1}", table, index)
+            .SingleAsync() > 0;
 
     /// <summary>Ajoute une colonne à une table existante si elle n'existe pas encore.</summary>
     private static async Task EnsureColumnAsync(AppDbContext db, string table, string column, string definition)
