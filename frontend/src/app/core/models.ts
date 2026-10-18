@@ -432,9 +432,24 @@ export interface CompanyInfo {
   invoiceFooter: string | null;
 }
 
+/** Calcul du prix de rachat : valeur = cote × part selon l'état ; rachat = valeur − remise, arrondi au pas inférieur. */
+export interface BuybackSettings {
+  /** Remise en % (20 = valeur − 20 %). */
+  discountPercent: number;
+  /** Arrondi au multiple inférieur, en euros (0 = au centime). */
+  roundingStep: number;
+  nmPercent: number;
+  excPercent: number;
+  goodPercent: number;
+  lpPercent: number;
+  plPercent: number;
+  poPercent: number;
+}
+
 export interface AppPreferences {
   company: CompanyInfo;
   alerts: AlertSettings;
+  buyback?: BuybackSettings;
   cardSeries: CardSeriesEntry[];
 }
 

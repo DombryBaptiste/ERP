@@ -11,9 +11,10 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subject, debounceTime } from 'rxjs';
-import { buybackPrice, CARD_LANGUAGES, cardCode, cardThumbnail, languageShort, parseSetKey, setKey } from '../../core/catalog';
+import { CARD_LANGUAGES, cardCode, cardThumbnail, languageShort, parseSetKey, setKey } from '../../core/catalog';
 import { CardLanguage, CatalogCard, CatalogSet } from '../../core/models';
 import { CatalogService } from '../../core/services/api.services';
+import { BuybackService } from '../../core/services/buyback.service';
 import { NotifyService } from '../../core/services/notify.service';
 import { ImportSetsDialogComponent } from './import-sets-dialog.component';
 
@@ -44,7 +45,9 @@ export class QuotesComponent {
 
   readonly code = cardCode;
   readonly thumbnail = cardThumbnail;
-  readonly buyback = buybackPrice;
+  private readonly buybackService = inject(BuybackService);
+  /** Prix de rachat d'une carte NM à sa cote. */
+  readonly buyback = (quote: number | null) => this.buybackService.price(quote);
   readonly key = setKey;
   readonly short = languageShort;
   readonly languages = CARD_LANGUAGES;

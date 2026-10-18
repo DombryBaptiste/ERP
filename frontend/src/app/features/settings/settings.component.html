@@ -115,6 +115,48 @@
 
     <mat-card class="card">
       <mat-card-header>
+        <mat-card-title><mat-icon class="title-icon">price_check</mat-icon> Prix de rachat</mat-card-title>
+        <mat-card-subtitle>Estimation, Cotes et achats depuis le catalogue</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="buyback" class="form-stack">
+          <div class="two-cols">
+            <mat-form-field>
+              <mat-label>Remise sur la valeur</mat-label>
+              <input matInput type="number" min="0" max="100" step="1" formControlName="discountPercent">
+              <span matTextSuffix>%</span>
+              <mat-hint>20 % : une carte qui vaut 10 € est rachetée 8 €</mat-hint>
+              <mat-error>Entre 0 et 100 %</mat-error>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Arrondi inférieur</mat-label>
+              <input matInput type="number" min="0" step="0.1" formControlName="roundingStep">
+              <span matTextSuffix>€</span>
+              <mat-hint>0,50 : 6,70 → 6,50 ; 0 = au centime</mat-hint>
+              <mat-error>Entre 0 et 100 €</mat-error>
+            </mat-form-field>
+          </div>
+          <p class="muted small">Part de la cote (NM) retenue selon l'état de la carte :</p>
+          <div class="condition-grid">
+            <mat-form-field><mat-label>NM</mat-label><input matInput type="number" min="0" formControlName="nmPercent"><span matTextSuffix>%</span></mat-form-field>
+            <mat-form-field><mat-label>EXC</mat-label><input matInput type="number" min="0" formControlName="excPercent"><span matTextSuffix>%</span></mat-form-field>
+            <mat-form-field><mat-label>GOOD</mat-label><input matInput type="number" min="0" formControlName="goodPercent"><span matTextSuffix>%</span></mat-form-field>
+            <mat-form-field><mat-label>LP</mat-label><input matInput type="number" min="0" formControlName="lpPercent"><span matTextSuffix>%</span></mat-form-field>
+            <mat-form-field><mat-label>PL</mat-label><input matInput type="number" min="0" formControlName="plPercent"><span matTextSuffix>%</span></mat-form-field>
+            <mat-form-field><mat-label>PO</mat-label><input matInput type="number" min="0" formControlName="poPercent"><span matTextSuffix>%</span></mat-form-field>
+          </div>
+          <div class="buyback-example">
+            @if (buybackExample(); as example) {
+              <span>Exemple : carte NM cotée 10,00 € → rachat <strong>{{ example.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) }} €</strong></span>
+            }
+            <button mat-button type="button" (click)="resetBuyback()">Valeurs par défaut</button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
         <mat-card-title><mat-icon class="title-icon">style</mat-icon> Séries de cartes</mat-card-title>
         <mat-card-subtitle>Options proposées dans les achats, classées par langue</mat-card-subtitle>
       </mat-card-header>

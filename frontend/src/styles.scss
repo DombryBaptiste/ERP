@@ -278,6 +278,21 @@ a.link:hover { text-decoration: underline; }
 .hint-warn { color: #e65100 !important; }
 .hint-ok .unlink { color: inherit; }
 
+/* Paramètres : prix de rachat */
+.condition-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 12px;
+}
+
+.buyback-example {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 /* Suggestions du catalogue (formulaire d'achat) */
 .catalog-option {
   display: flex;

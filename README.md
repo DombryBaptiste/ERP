@@ -180,8 +180,8 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - Saisissez la **cote FR (NM)** de chaque carte : **Entrée** enregistre et passe à la carte suivante. Le lien
   « Offres » ouvre Cardmarket filtré sur la langue de la carte, NM ou mieux.
 - Onglet **Estimation** : cherchez une carte (nom ou code, ex. `PFL 95`) et cliquez pour l'ajouter. Pour chaque carte :
-  état, quantité, cote (modifiable), **valeur** (cote × part selon l'état : NM 100 %, EXC 85 %, GOOD 70 %, LP 60 %,
-  PL 50 %, PO 30 %) et **prix d'achat** proposé (valeur − 20 %, arrondi au 0,50 € inférieur). La sélection reste
+  état, quantité, cote (modifiable), **valeur** (cote × part selon l'état) et **prix d'achat** proposé
+  (par défaut valeur − 20 %, arrondi au 0,50 € inférieur ; réglable dans les Paramètres). La sélection reste
   enregistrée dans le navigateur jusqu'à **Réinitialiser**.
 - **Dans un achat**, pour une carte (brute ou gradée), le champ Nom cherche aussi dans le catalogue (nom ou code,
   ex. `PFL 95`) : choisir une carte remplit le nom, la langue, la série, propose le prix d'achat (si le prix est à 0)
@@ -189,7 +189,9 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - **Créer l'achat** ouvre un nouvel achat pré-rempli avec ces cartes (langue de la carte, prix d'achat proposé).
   Chaque article reste **lié à sa carte du catalogue** : il reprend la cote comme valeur de marché, et toute nouvelle
   cote met à jour la valeur de marché des exemplaires encore en stock (donc les alertes de hausse).
-- La remise (20 %) et les parts par état se règlent dans `frontend/src/app/core/catalog.ts`.
+- **Paramètres → Prix de rachat** : remise (20 % par défaut), arrondi inférieur (0,50 € ; 0 = au centime) et part de la
+  cote retenue selon l'état (NM 100 %, EXC 85 %, GOOD 70 %, LP 60 %, PL 50 %, PO 30 %). Les pages Cotes, Estimation
+  et les achats depuis le catalogue utilisent ces réglages.
 
 ### Photos et justificatifs
 - Photos des cartes (vignette dans l'inventaire), tickets et factures d'achat, captures d'annonces, preuves d'origine

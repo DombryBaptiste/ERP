@@ -12,11 +12,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
 import {
-  buybackPrice, CARD_LANGUAGES, cardCode, cardThumbnail, CONDITION_FACTORS, languageLabel, languageShort, parseSetKey, setKey
+  CARD_LANGUAGES, cardCode, cardThumbnail, languageLabel, languageShort, parseSetKey, setKey
 } from '../../core/catalog';
 import { CONDITIONS } from '../../core/labels';
 import { CardLanguage, CatalogCard, CatalogSet, ItemCondition, PurchaseLineInput } from '../../core/models';
 import { CatalogService } from '../../core/services/api.services';
+import { BuybackService } from '../../core/services/buyback.service';
 import { NotifyService } from '../../core/services/notify.service';
 
 /** Une carte de la collection à estimer. */
@@ -33,7 +34,7 @@ const STORAGE_KEY = 'pokestock.estimation';
 
 /**
  * Estimation d'une collection : on cherche les cartes dans le catalogue, on les ajoute en un clic,
- * et on obtient la valeur et le prix d'achat proposé (−20 %, arrondi au 0,50 € inférieur).
+ * et on obtient la valeur et le prix d'achat proposé (règle réglable dans les Paramètres).
  * La sélection peut ensuite devenir un achat.
  */
 @Component({
@@ -50,6 +51,7 @@ export class EstimationComponent {
   private readonly api = inject(CatalogService);
   private readonly notify = inject(NotifyService);
   private readonly router = inject(Router);
+  readonly buyback = inject(BuybackService);
 
   readonly code = cardCode;
   readonly thumbnail = cardThumbnail;
@@ -166,11 +168,11 @@ export class EstimationComponent {
 
   /** Valeur unitaire : cote × part retenue selon l'état. */
   value(line: EstimationLine): number | null {
-    return line.quote === null ? null : Math.round(line.quote * CONDITION_FACTORS[line.condition] * 100) / 100;
+    return this.buyback.value(line.quote, line.condition);
   }
 
   unitBuyback(line: EstimationLine): number | null {
-    return buybackPrice(this.value(line));
+    return this.buyback.price(this.value(line));
   }
 
   /** Ouvre un nouvel achat pré-rempli avec les cartes sélectionnées, au prix d'achat proposé. */

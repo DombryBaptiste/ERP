@@ -14,7 +14,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, debounceTime, distinctUntilChanged, of, Subject, switchMap } from 'rxjs';
-import { buybackPrice, cardCode, cardThumbnail, CONDITION_FACTORS, languageLabel, languageShort } from '../../core/catalog';
+import { cardCode, cardThumbnail, languageLabel, languageShort } from '../../core/catalog';
+import { BuybackService } from '../../core/services/buyback.service';
 import { CONDITIONS, ITEM_TYPES, PAYMENT_METHODS, PURCHASE_PLATFORMS } from '../../core/labels';
 import { isCard } from '../../core/labels';
 import { AppPreferences, CardSeriesEntry, CatalogCard, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchaseLineInput, PurchasePlatform, PurchaseSource } from '../../core/models';
@@ -61,6 +62,7 @@ export class PurchaseFormComponent implements OnInit {
   private readonly inventoryApi = inject(InventoryService);
   private readonly toolsApi = inject(ToolsService);
   private readonly catalogApi = inject(CatalogService);
+  private readonly buyback = inject(BuybackService);
   private readonly notify = inject(NotifyService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -322,7 +324,7 @@ export class PurchaseFormComponent implements OnInit {
       catalogCardId: card.id
     });
     if (!line.controls.unitPrice.value && card.quote !== null && !this.isCollection) {
-      line.controls.unitPrice.setValue(buybackPrice(card.quote * CONDITION_FACTORS[line.controls.condition.value]) ?? 0);
+      line.controls.unitPrice.setValue(this.buyback.price(this.buyback.value(card.quote, line.controls.condition.value)) ?? 0);
     }
     this.linkedCards.update(cards => new Map(cards).set(card.id, card));
     this.catalogResults.set([]);
