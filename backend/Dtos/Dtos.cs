@@ -32,7 +32,8 @@ public record MarketValueInput(decimal? Value);
 /// <summary>Ligne d'achat envoyée par le client. ItemId est renseigné pour une ligne existante (modification).</summary>
 public record PurchaseLineInput(
     int? ItemId, string Name, string? Category, string? Language, ItemType Type, ItemCondition Condition,
-    int Quantity, decimal UnitPrice, string? Location);
+    int Quantity, decimal UnitPrice, string? Location,
+    int? CatalogCardId = null);  // carte du catalogue (ligne créée depuis l'estimation)
 
 /// <summary>
 /// Entrée en stock. Pour un transfert depuis la collection personnelle (Source = PersonalCollection),
@@ -46,7 +47,8 @@ public record PurchaseInput(
 
 public record PurchaseLineDto(
     int Id, int ItemId, string Name, string? Category, string? Language, ItemType Type, ItemCondition Condition,
-    int Quantity, decimal UnitPrice, decimal LineTotal, string? Location, int RemainingQuantity, int SoldQuantity);
+    int Quantity, decimal UnitPrice, decimal LineTotal, string? Location, int RemainingQuantity, int SoldQuantity,
+    int? CatalogCardId);
 
 public record PurchaseDto(
     int Id, string PurchaseNumber, PurchaseSource Source, DateTime PurchaseDate, string Supplier,

@@ -63,6 +63,8 @@ sales            (id, sale_number, sale_date, customer, platform, fees, comment,
                   total_amount, profit, created_at)
 sale_items       (id, sale_id → sales, inventory_item_id → inventory_items,
                   quantity, sale_price, unit_cost)
+card_catalog     (id, tcgdex_id, set_id, set_code, set_name, number, name, rarity,
+                  image_url, cardmarket_id, quote, quote_updated_at)   ← catalogue des cartes et cotes
 ```
 
 Ajouts par rapport au cahier des charges, utiles en conditions réelles :
@@ -165,6 +167,21 @@ La documentation interactive de l'API (Swagger) est disponible en développement
   - *Prennent de la valeur* : plus-value ≥ 30 % par rapport au prix d'achat, ou hausse ≥ 15 % depuis l'estimation précédente.
   - *Stock qui dort* : en stock depuis plus de 90 jours (« à baisser ») ou 180 jours (« à liquider »), avec un conseil de prix.
   - Seuils modifiables dans **Paramètres**.
+
+### Cotes et estimation (catalogue des cartes)
+- Onglet **Cotes** : **Importer des séries** remplit le catalogue depuis l'API gratuite [TCGdex](https://tcgdex.dev)
+  (nom, image, n° Cardmarket). Par défaut, seules les cartes « rares » sont importées : sans communes, peu communes,
+  rares, holos, ni ex / V / VMAX / VSTAR classiques. Une série réimportée est mise à jour, les cotes sont conservées.
+- Saisissez la **cote FR (NM)** de chaque carte : **Entrée** enregistre et passe à la carte suivante. Le lien
+  « Offres FR » ouvre Cardmarket filtré sur les cartes françaises NM ou mieux.
+- Onglet **Estimation** : cherchez une carte (nom ou code, ex. `PFL 95`) et cliquez pour l'ajouter. Pour chaque carte :
+  état, quantité, cote (modifiable), **valeur** (cote × part selon l'état : NM 100 %, EXC 85 %, GOOD 70 %, LP 60 %,
+  PL 50 %, PO 30 %) et **prix d'achat** proposé (valeur − 20 %, arrondi au 0,50 € inférieur). La sélection reste
+  enregistrée dans le navigateur jusqu'à **Réinitialiser**.
+- **Créer l'achat** ouvre un nouvel achat pré-rempli avec ces cartes (en « Français », au prix d'achat proposé).
+  Chaque article reste **lié à sa carte du catalogue** : il reprend la cote comme valeur de marché, et toute nouvelle
+  cote met à jour la valeur de marché des exemplaires encore en stock (donc les alertes de hausse).
+- La remise (20 %) et les parts par état se règlent dans `frontend/src/app/core/catalog.ts`.
 
 ### Photos et justificatifs
 - Photos des cartes (vignette dans l'inventaire), tickets et factures d'achat, captures d'annonces, preuves d'origine
@@ -297,6 +314,11 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 | GET | `/api/shipping/summary?year=2026` | Synthèse des frais d'envoi (stock, coût réel, port payé, transporteurs) |
 | GET / POST | `/api/shipping/supplies` | Achats de fournitures d'envoi (`?year=&kind=`) / création |
 | GET / PUT / DELETE | `/api/shipping/supplies/:id` | Détail / modification / suppression |
+| GET | `/api/catalog/sets` | Séries du catalogue (nombre de cartes, de cartes cotées) |
+| GET | `/api/catalog/available-sets` | Séries disponibles chez TCGdex |
+| POST | `/api/catalog/sets/:setId/import?rareOnly=true` | Importe ou met à jour une série |
+| GET | `/api/catalog/cards?setId=&search=&quotedOnly=&take=` | Cartes du catalogue (`search` : nom ou code + numéro, ex. `PFL 95`) |
+| PUT | `/api/catalog/cards/:id/quote` | Cote d'une carte `{ quote }` (null pour l'effacer) |
 | GET | `/api/health` | État de l'API |
 
 Valeurs des énumérations (JSON) :

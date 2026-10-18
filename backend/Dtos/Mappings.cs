@@ -30,7 +30,7 @@ public static class Mappings
         p.Items.OrderBy(i => i.Id).Select(i => new PurchaseLineDto(
             i.Id, i.ItemId, i.Item.Name, i.Item.Category, i.Item.Language, i.Item.Type, i.Item.Condition,
             i.Quantity, i.UnitPrice, i.Quantity * i.UnitPrice, i.Item.Location,
-            i.Item.RemainingQuantity, i.Item.Quantity - i.Item.RemainingQuantity)).ToList());
+            i.Item.RemainingQuantity, i.Item.Quantity - i.Item.RemainingQuantity, i.Item.CatalogCardId)).ToList());
 
     /// <summary>Quantité retournée pour une ligne de vente (nécessite Refunds.Items chargés).</summary>
     public static int ReturnedQuantity(this Sale s, int saleItemId) =>

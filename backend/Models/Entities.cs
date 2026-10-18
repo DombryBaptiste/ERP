@@ -38,6 +38,8 @@ public class InventoryItem
     /// <summary>Estimation précédente : sert à détecter une hausse de valeur.</summary>
     public decimal? PreviousMarketValue { get; set; }
     public DateTime? MarketValueUpdatedAt { get; set; }
+    /// <summary>Carte du catalogue correspondante : sa cote met à jour la valeur de marché.</summary>
+    public int? CatalogCardId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public PurchaseItem? PurchaseItem { get; set; }

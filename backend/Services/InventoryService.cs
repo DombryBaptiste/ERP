@@ -71,7 +71,7 @@ public class InventoryService(AppDbContext db, AttachmentService attachments)
         await db.SaveChangesAsync();
     }
 
-    private static void ApplyMarketValue(InventoryItem item, decimal? value)
+    internal static void ApplyMarketValue(InventoryItem item, decimal? value)
     {
         if (value < 0) throw new BusinessException("La valeur de marché ne peut pas être négative.");
         var rounded = value.HasValue ? Math.Round(value.Value, 2) : (decimal?)null;

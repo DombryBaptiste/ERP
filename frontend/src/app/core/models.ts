@@ -72,6 +72,8 @@ export interface PurchaseLine {
   location: string | null;
   remainingQuantity: number;
   soldQuantity: number;
+  /** Carte du catalogue liée (ligne créée depuis l'estimation). */
+  catalogCardId: number | null;
 }
 
 export interface Purchase {
@@ -101,6 +103,7 @@ export interface PurchaseLineInput {
   quantity: number;
   unitPrice: number;
   location: string | null;
+  catalogCardId?: number | null;
 }
 
 export interface PurchaseInput {
@@ -540,4 +543,53 @@ export interface ShippingSummary {
   stock: ShippingStock[];
   monthly: ShippingMonth[];
   carriers: CarrierStat[];
+}
+
+// ----- Catalogue des cartes (cotes, estimation) -----
+export interface CatalogCard {
+  id: number;
+  tcgdexId: string;
+  setId: string;
+  /** Code officiel de la série (PFL, MEW…). */
+  setCode: string | null;
+  setName: string;
+  /** Bloc (Méga-Évolution, Écarlate et Violet…). */
+  serieName: string | null;
+  number: string;
+  name: string;
+  rarity: string | null;
+  /** Adresse de l'image sans extension : ajouter /low.webp ou /high.webp. */
+  imageUrl: string | null;
+  /** Page Cardmarket filtrée sur les offres en français, NM ou mieux. */
+  cardmarketUrl: string | null;
+  /** Cote saisie à la main (prix FR NM). */
+  quote: number | null;
+  quoteUpdatedAt: string | null;
+  /** Exemplaires en stock liés à cette carte. */
+  inStock: number;
+}
+
+export interface CatalogSet {
+  setId: string;
+  setCode: string | null;
+  setName: string;
+  serieName: string | null;
+  releaseDate: string | null;
+  cardCount: number;
+  quotedCount: number;
+}
+
+export interface AvailableSet {
+  setId: string;
+  name: string;
+  serieName: string;
+  importedCount: number;
+}
+
+export interface CatalogImportResult {
+  setId: string;
+  setName: string;
+  added: number;
+  updated: number;
+  total: number;
 }
