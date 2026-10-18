@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkSettings, CatalogCard, CatalogImportResult,
-  CardLanguage, CatalogSet, Dashboard, InventoryItem, InventoryItemInput,
+  CardLanguage, CatalogSet, Dashboard, RarityGroup, InventoryItem, InventoryItemInput,
   Purchase, PurchaseInput, RefundInput, Sale, SaleInput, ShippingSummary, ShippingSupply, ShippingSupplyInput, Statistics,
   TaxSettings, TaxSummary
 } from '../models';
@@ -177,8 +177,9 @@ export class CatalogService {
     return this.http.get<AvailableSet[]>(`${this.url}/available-sets`, { params: { language } });
   }
 
-  importSet(setId: string, language: CardLanguage, rareOnly: boolean): Observable<CatalogImportResult> {
-    const params = new HttpParams().set('language', language).set('rareOnly', rareOnly);
+  importSet(setId: string, language: CardLanguage, groups: RarityGroup[]): Observable<CatalogImportResult> {
+    let params = new HttpParams().set('language', language);
+    groups.forEach(g => params = params.append('groups', g));
     return this.http.post<CatalogImportResult>(`${this.url}/sets/${encodeURIComponent(setId)}/import`, {}, { params });
   }
 

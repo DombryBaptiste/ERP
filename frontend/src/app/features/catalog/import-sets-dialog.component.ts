@@ -8,10 +8,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
-import { CARD_LANGUAGES } from '../../core/catalog';
+import { CARD_LANGUAGES, RARITY_GROUPS } from '../../core/catalog';
 import { concatMap, from } from 'rxjs';
 import { normalizeText } from '../../core/products';
-import { AvailableSet, CardLanguage } from '../../core/models';
+import { AvailableSet, CardLanguage, RarityGroup } from '../../core/models';
 import { CatalogService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 
@@ -62,9 +62,26 @@ interface SerieGroup {
             (elles sont alors gardées).
           </p>
         }
-        <mat-checkbox [(ngModel)]="rareOnly">
-          Seulement les cartes rares (sans communes, peu communes, rares, holos, ni ex / V / VMAX / VSTAR classiques)
-        </mat-checkbox>
+        <div class="rarities">
+          <div class="rarities-head">
+            <strong>Cartes à importer</strong>
+            <span>
+              <button mat-button type="button" (click)="setGroups('default')">Cartes rares</button>
+              <button mat-button type="button" (click)="setGroups('all')">Tout</button>
+            </span>
+          </div>
+          <div class="rarity-grid">
+            @for (g of rarityGroups; track g.value) {
+              <mat-checkbox [checked]="rarities().has(g.value)" (change)="toggleGroupRarity(g.value)">
+                {{ g.label }}
+                @if (g.hint) { <span class="muted small">· {{ g.hint }}</span> }
+              </mat-checkbox>
+            }
+          </div>
+          <p class="muted small">
+            Réimporter une série avec plus de raretés ajoute les cartes manquantes ; les cartes déjà présentes sont gardées.
+          </p>
+        </div>
         <mat-form-field class="search">
           <mat-label>Filtrer</mat-label>
           <mat-icon matPrefix>search</mat-icon>
@@ -95,7 +112,7 @@ interface SerieGroup {
         <button mat-flat-button (click)="close()">Fermer</button>
       } @else {
         <button mat-button (click)="close()" [disabled]="running()">Annuler</button>
-        <button mat-flat-button (click)="start()" [disabled]="running() || selected().size === 0">
+        <button mat-flat-button (click)="start()" [disabled]="running() || selected().size === 0 || rarities().size === 0">
           <mat-icon>download</mat-icon> Importer {{ selected().size || '' }} série(s)
         </button>
       }
@@ -104,6 +121,9 @@ interface SerieGroup {
   styles: `
     .search { width: 100%; margin-top: 8px; }
     .language { width: 260px; }
+    .rarities { padding: 8px 12px; margin-bottom: 8px; border-radius: 10px; background: #f8f9fc; }
+    .rarities-head { display: flex; align-items: center; justify-content: space-between; }
+    .rarity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
     .group { margin-bottom: 12px; }
     .group-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--app-border); }
     .sets { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
@@ -125,7 +145,8 @@ export class ImportSetsDialogComponent {
   readonly filter = signal('');
   readonly progress = signal({ done: 0, total: 0, current: '' });
   readonly log = signal<string[]>([]);
-  rareOnly = true;
+  readonly rarityGroups = RARITY_GROUPS;
+  readonly rarities = signal(new Set<RarityGroup>(RARITY_GROUPS.filter(g => g.default).map(g => g.value)));
   private imported = 0;
 
   readonly groups = computed<SerieGroup[]>(() => {
@@ -160,6 +181,18 @@ export class ImportSetsDialogComponent {
     });
   }
 
+  toggleGroupRarity(group: RarityGroup): void {
+    this.rarities.update(current => {
+      const next = new Set(current);
+      if (next.has(group)) next.delete(group); else next.add(group);
+      return next;
+    });
+  }
+
+  setGroups(preset: 'default' | 'all'): void {
+    this.rarities.set(new Set(RARITY_GROUPS.filter(g => preset === 'all' || g.default).map(g => g.value)));
+  }
+
   toggle(setId: string): void {
     this.selected.update(current => {
       const next = new Set(current);
@@ -189,10 +222,12 @@ export class ImportSetsDialogComponent {
     this.progress.set({ done: 0, total: ids.length, current: names.get(ids[0]) ?? '' });
 
     const language = this.language();
-    from(ids).pipe(concatMap(id => this.api.importSet(id, language, this.rareOnly))).subscribe({
+    const groups = [...this.rarities()];
+    from(ids).pipe(concatMap(id => this.api.importSet(id, language, groups))).subscribe({
       next: r => {
         this.imported++;
-        this.log.update(l => [...l, `${r.setName} : ${r.total} carte(s) (${r.added} nouvelle(s), ${r.updated} mise(s) à jour)`]);
+        this.log.update(l => [...l,
+          `${r.setName} : ${r.total} carte(s) (${r.added} nouvelle(s), ${r.updated} mise(s) à jour, ${r.skipped} ignorée(s))`]);
         this.progress.update(p => ({ ...p, done: p.done + 1, current: names.get(ids[p.done + 1]) ?? '' }));
       },
       error: err => {

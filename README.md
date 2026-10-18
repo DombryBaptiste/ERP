@@ -170,8 +170,10 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 
 ### Cotes et estimation (catalogue des cartes)
 - Onglet **Cotes** : **Importer des séries** remplit le catalogue depuis l'API gratuite [TCGdex](https://tcgdex.dev)
-  (nom, image, n° Cardmarket). Par défaut, seules les cartes « rares » sont importées : sans communes, peu communes,
-  rares, holos, ni ex / V / VMAX / VSTAR classiques. Une série réimportée est mise à jour, les cotes sont conservées.
+  (nom, image, n° Cardmarket). On coche les **cartes à importer** : cartes rares (Full Art, AR, ALT, gold… : par défaut),
+  holos, ex / V / VMAX / VSTAR classiques, rares, peu communes, communes, sans rareté, rareté non renseignée.
+  Les holos des anciennes séries (que TCGdex classe en « Rare ») sont reconnues comme holos.
+  Une série réimportée est mise à jour (cartes ajoutées si l'on coche plus de raretés), les cotes sont conservées.
 - **Langues** : français, japonais, coréen, chinois traditionnel et chinois simplifié (choix dans la boîte d'import,
   filtre « Langue » sur les pages Cotes et Estimation). Chaque langue a ses propres séries et ses propres cotes.
   Les fiches asiatiques de TCGdex sont parfois incomplètes (image ou rareté manquante : la carte est alors gardée).
@@ -322,7 +324,7 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 | GET / PUT / DELETE | `/api/shipping/supplies/:id` | Détail / modification / suppression |
 | GET | `/api/catalog/sets` | Séries du catalogue (nombre de cartes, de cartes cotées) |
 | GET | `/api/catalog/available-sets?language=fr\|ja\|ko\|zh-tw\|zh-cn` | Séries disponibles chez TCGdex dans une langue |
-| POST | `/api/catalog/sets/:setId/import?language=fr&rareOnly=true` | Importe ou met à jour une série |
+| POST | `/api/catalog/sets/:setId/import?language=fr&groups=Other&groups=Holo` | Importe ou met à jour une série (`groups` : `Common`, `Uncommon`, `Rare`, `Holo`, `ClassicEx`, `NoRarity`, `Unknown`, `Other` ; par défaut `Other` + `Unknown`) |
 | GET | `/api/catalog/cards?language=&setId=&search=&quotedOnly=&take=` | Cartes du catalogue (`search` : nom ou code + numéro, ex. `PFL 95`) |
 | PUT | `/api/catalog/cards/:id/quote` | Cote d'une carte `{ quote }` (null pour l'effacer) |
 | GET | `/api/health` | État de l'API |

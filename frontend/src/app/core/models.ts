@@ -591,10 +591,15 @@ export interface AvailableSet {
   importedCount: number;
 }
 
+/** Groupes de rareté proposés à l'import. */
+export type RarityGroup = 'Common' | 'Uncommon' | 'Rare' | 'Holo' | 'ClassicEx' | 'NoRarity' | 'Unknown' | 'Other';
+
 export interface CatalogImportResult {
   setId: string;
   setName: string;
   added: number;
   updated: number;
   total: number;
+  /** Cartes ignorées (rareté non cochée). */
+  skipped: number;
 }

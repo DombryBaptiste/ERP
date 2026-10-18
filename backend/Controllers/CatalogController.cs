@@ -18,11 +18,14 @@ public class CatalogController(CatalogService service) : ControllerBase
     public Task<List<AvailableSetDto>> AvailableSets([FromQuery] string language = "fr", CancellationToken ct = default) =>
         service.GetAvailableSetsAsync(language, ct);
 
-    /// <summary>Importe ou met à jour une série (les cotes sont conservées).</summary>
+    /// <summary>
+    /// Importe ou met à jour une série (les cotes sont conservées).
+    /// Ex. : ?language=fr&amp;groups=Holo&amp;groups=Other (par défaut : Other et Unknown, les cartes « rares »).
+    /// </summary>
     [HttpPost("sets/{setId}/import")]
     public Task<CatalogImportResultDto> Import(string setId, [FromQuery] string language = "fr",
-        [FromQuery] bool rareOnly = true, CancellationToken ct = default) =>
-        service.ImportSetAsync(setId, language, rareOnly, ct);
+        [FromQuery] RarityGroup[]? groups = null, CancellationToken ct = default) =>
+        service.ImportSetAsync(setId, language, groups is { Length: > 0 } ? groups : CatalogService.DefaultGroups, ct);
 
     /// <summary>Ex. : /api/catalog/cards?language=fr&amp;setId=me02 ou ?search=PFL 95 ou ?search=Dracaufeu</summary>
     [HttpGet("cards")]

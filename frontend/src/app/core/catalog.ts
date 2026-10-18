@@ -1,4 +1,4 @@
-import { CardLanguage, CatalogCard, CatalogSet, ItemCondition } from './models';
+import { CardLanguage, CatalogCard, CatalogSet, ItemCondition, RarityGroup } from './models';
 
 /** Langues du catalogue : libellé (aussi utilisé comme langue de l'article acheté) et abréviation. */
 export const CARD_LANGUAGES: { value: CardLanguage; label: string; short: string }[] = [
@@ -27,6 +27,18 @@ export function parseSetKey(key: string): { language?: CardLanguage; setId?: str
   const [language, setId] = key.split('|');
   return { language: language as CardLanguage, setId };
 }
+
+/** Groupes de rareté proposés à l'import, avec ceux cochés par défaut (les cartes « rares »). */
+export const RARITY_GROUPS: { value: RarityGroup; label: string; hint: string; default: boolean }[] = [
+  { value: 'Other', label: 'Cartes rares', hint: 'Full Art, AR, ALT, gold, Prime, LÉGENDE, Radieux, galeries…', default: true },
+  { value: 'Holo', label: 'Holos', hint: 'Rares holo (dont les holos des anciennes séries, ex. Dracaufeu du Set de Base)', default: false },
+  { value: 'ClassicEx', label: 'ex / V / VMAX / VSTAR classiques', hint: 'Versions non Full Art', default: false },
+  { value: 'Rare', label: 'Rares', hint: 'Rares non holo', default: false },
+  { value: 'Uncommon', label: 'Peu communes', hint: '', default: false },
+  { value: 'Common', label: 'Communes', hint: '', default: false },
+  { value: 'NoRarity', label: 'Sans rareté', hint: 'Énergies de base…', default: false },
+  { value: 'Unknown', label: 'Rareté non renseignée', hint: 'Fréquent dans les séries asiatiques de TCGdex', default: true }
+];
 
 /** Remise appliquée à la valeur pour obtenir le prix d'achat (0,20 = −20 %). */
 export const BUYBACK_DISCOUNT = 0.2;

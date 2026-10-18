@@ -27,17 +27,37 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
         ["zh-cn"] = 6    // chinois simplifié
     };
 
-    /// <summary>
-    /// Raretés ignorées à l'import « cartes rares » : communes, peu communes, rares, holos
-    /// et ex / V / VMAX / VSTAR classiques (les versions Full Art, alternatives et gold sont gardées).
-    /// </summary>
-    public static readonly HashSet<string> CommonRarities = new(StringComparer.OrdinalIgnoreCase)
+    /// <summary>Groupes importés par défaut : les cartes « rares » (Full Art, alternatives, gold…) et les raretés inconnues.</summary>
+    public static readonly RarityGroup[] DefaultGroups = [RarityGroup.Other, RarityGroup.Unknown];
+
+    /// <summary>Raretés TCGdex (libellés français et anglais) rangées dans un groupe ; les autres vont dans « Other ».</summary>
+    private static readonly Dictionary<string, RarityGroup> RarityGroups = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Commune", "Peu Commune", "Rare", "Rare Holo", "Holo Rare", "Sans Rareté",
-        "Double rare", "Holo Rare V", "Holo Rare VMAX", "Holo Rare VSTAR",
-        // Libellés anglais (séries asiatiques, séries sans fiche française).
-        "Common", "Uncommon", "Rare Holo V", "Rare Holo VMAX", "Rare Holo VSTAR"
+        ["Commune"] = RarityGroup.Common, ["Common"] = RarityGroup.Common,
+        ["Peu Commune"] = RarityGroup.Uncommon, ["Uncommon"] = RarityGroup.Uncommon,
+        ["Rare"] = RarityGroup.Rare,
+        ["Rare Holo"] = RarityGroup.Holo, ["Holo Rare"] = RarityGroup.Holo,
+        ["Double rare"] = RarityGroup.ClassicEx,
+        ["Holo Rare V"] = RarityGroup.ClassicEx, ["Holo Rare VMAX"] = RarityGroup.ClassicEx, ["Holo Rare VSTAR"] = RarityGroup.ClassicEx,
+        ["Rare Holo V"] = RarityGroup.ClassicEx, ["Rare Holo VMAX"] = RarityGroup.ClassicEx, ["Rare Holo VSTAR"] = RarityGroup.ClassicEx,
+        ["Sans Rareté"] = RarityGroup.NoRarity,
+        ["None"] = RarityGroup.Unknown
     };
+
+    /// <summary>
+    /// Groupe de rareté d'une carte. TCGdex classe les holos des anciennes séries en simple « Rare »
+    /// (ex. Dracaufeu du Set de Base) : une rare qui n'existe qu'en version holo est donc rangée dans « Holo ».
+    /// </summary>
+    public static RarityGroup GroupOf(string? rarity, JsonElement? card = null)
+    {
+        if (string.IsNullOrWhiteSpace(rarity)) return RarityGroup.Unknown;
+        var group = RarityGroups.GetValueOrDefault(rarity, RarityGroup.Other);
+        if (group == RarityGroup.Rare && card is { } c && c.TryGetProperty("variants", out var v) && v.ValueKind == JsonValueKind.Object
+            && v.TryGetProperty("holo", out var holo) && holo.ValueKind == JsonValueKind.True
+            && !(v.TryGetProperty("normal", out var normal) && normal.ValueKind == JsonValueKind.True))
+            return RarityGroup.Holo;
+        return group;
+    }
 
     private const int MaxParallelRequests = 8;
 
@@ -88,9 +108,10 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
 
     /// <summary>
     /// Importe (ou met à jour) les cartes d'une série. Les cotes déjà saisies sont conservées.
-    /// Avec <paramref name="rareOnly"/>, les raretés de <see cref="CommonRarities"/> sont ignorées.
+    /// Seules les cartes dont la rareté appartient à <paramref name="groups"/> sont importées.
     /// </summary>
-    public async Task<CatalogImportResultDto> ImportSetAsync(string setId, string language, bool rareOnly, CancellationToken ct)
+    public async Task<CatalogImportResultDto> ImportSetAsync(string setId, string language, IReadOnlyCollection<RarityGroup> groups,
+        CancellationToken ct)
     {
         var wanted = CheckLanguage(language);
         var local = await GetJsonAsync($"{wanted}/sets/{Uri.EscapeDataString(setId)}", ct);
@@ -116,7 +137,7 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
 
         var existing = await db.CatalogCards.Where(c => c.Language == wanted && c.SetId == setId)
             .ToDictionaryAsync(c => c.TcgdexId, ct);
-        int added = 0, updated = 0;
+        int added = 0, updated = 0, skipped = 0;
         for (var i = 0; i < cards.Count; i++)
         {
             var brief = cards[i];
@@ -125,8 +146,8 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
             if (tcgdexId is null) continue;
 
             var rarity = detail is { } dt ? Str(dt, "rarity") : null;
-            if (rarity == "None") rarity = null;  // rareté inconnue (fréquent en japonais) : la carte est gardée
-            if (rareOnly && rarity is not null && CommonRarities.Contains(rarity)) continue;
+            if (!groups.Contains(GroupOf(rarity, detail))) { skipped++; continue; }
+            if (rarity == "None") rarity = null;  // rareté non renseignée (fréquent en japonais)
 
             var number = Str(brief, "localId") ?? "";
             if (!existing.TryGetValue(tcgdexId, out var card))
@@ -151,7 +172,7 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
         }
 
         await db.SaveChangesAsync(ct);
-        return new CatalogImportResultDto(setId, setName, added, updated, added + updated);
+        return new CatalogImportResultDto(setId, setName, added, updated, added + updated, skipped);
     }
 
     // ---------------------------------------------------------------- Cartes

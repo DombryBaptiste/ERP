@@ -17,6 +17,19 @@ public record CatalogSetDto(
 /// <summary>Série disponible chez TCGdex, proposée à l'import.</summary>
 public record AvailableSetDto(string SetId, string Name, string SerieName, int ImportedCount);
 
-public record CatalogImportResultDto(string SetId, string SetName, int Added, int Updated, int Total);
+public record CatalogImportResultDto(string SetId, string SetName, int Added, int Updated, int Total, int Skipped);
+
+/// <summary>Groupes de rareté proposés à l'import.</summary>
+public enum RarityGroup
+{
+    Common,      // Commune
+    Uncommon,    // Peu commune
+    Rare,        // Rare (non holo)
+    Holo,        // Rare holo (intéressantes dans les anciennes séries)
+    ClassicEx,   // ex / V / VMAX / VSTAR classiques (non Full Art)
+    NoRarity,    // « Sans rareté » : énergies de base...
+    Unknown,     // Rareté non renseignée par TCGdex (fréquent en japonais)
+    Other        // Tout le reste : Full Art, AR, ALT, gold, Prime, LÉGENDE, Radieux...
+}
 
 public record SetQuoteInput(decimal? Quote);
