@@ -15,6 +15,12 @@
       <button mat-flat-button type="button" (click)="invoice()">
         <mat-icon>receipt_long</mat-icon> {{ s.invoiceNumber ? 'Facture ' + s.invoiceNumber : 'Éditer une facture' }}
       </button>
+      @if (s.invoiceNumber) {
+        <button mat-icon-button type="button" (click)="regenerateInvoice()"
+                matTooltip="Régénérer le PDF de la facture" aria-label="Régénérer le PDF de la facture">
+          <mat-icon>refresh</mat-icon>
+        </button>
+      }
     </div>
   }
 </div>

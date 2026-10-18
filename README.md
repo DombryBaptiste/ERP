@@ -151,7 +151,9 @@ La documentation interactive de l'API (Swagger) est disponible en développement
   remboursement les rend de nouveau modifiables.
 - **Factures PDF** : renseignez vos coordonnées dans **Paramètres** (nom, SIRET, adresse), puis « Éditer une facture »
   sur la vente. Numéro définitif et continu (`F2026001`…), mentions « EI », « TVA non applicable, art. 293 B du CGI »,
-  mode de règlement, et mentions B2B (pénalités, indemnité de 40 €) quand le SIREN du client est renseigné.
+  mode de règlement, frais de port facturés à l'acheteur, et mentions B2B (pénalités, indemnité de 40 €) quand le SIREN
+  du client est renseigné. Le coût d'envoi payé par le vendeur reste une charge et ne s'ajoute pas au montant dû par le client.
+  Le bouton de rechargement régénère le PDF sans changer le numéro ; enregistrez les modifications de la vente avant de l'utiliser.
   Une vente facturée ne peut plus être supprimée : enregistrez un remboursement.
   PDF générés avec [QuestPDF](https://www.questpdf.com) (licence Community gratuite sous 1 M$ de CA annuel).
 
@@ -298,7 +300,7 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 | GET | `/api/health` | État de l'API |
 
 Valeurs des énumérations (JSON) :
-- `type` : `RawCard`, `GradedCard`, `Booster`, `Blister`, `Etb`, `Box` (coffret), `Display`, `Other`
+- `type` : `RawCard`, `GradedCard`, `Booster`, `Blister`, `Etb`, `Box` (coffret), `Display`, `MiniTin`, `Pokebox`, `Bundle`, `Bulk`, `Other`
 - `condition` : `NM`, `EXC`, `GOOD`, `LP`, `PL`, `PO` (comme sur Cardmarket ; les anciennes valeurs `New`, `Excellent`… sont converties automatiquement au démarrage)
 - `platform` : `Cardmarket`, `Ebay`, `Vinted`, `Leboncoin`, `FacebookMarketplace`, `InPerson`, `Other`
 

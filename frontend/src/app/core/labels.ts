@@ -11,6 +11,7 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   Box: 'Coffret',
   Display: 'Display',
   MiniTin: 'Mini-Tin',
+  Pokebox: 'Pokébox',
   Bundle: 'Bundle',
   Bulk: 'Bulk (vrac)',
   Other: 'Autre'
@@ -124,6 +125,7 @@ export const SHIPPING_PRESETS: { name: string; kind: ShippingSupplyKind; carrier
   { name: 'Bordereau Mondial Relay', kind: 'Label', carrier: 'MondialRelay' },
   { name: 'Enveloppe bulle', kind: 'Envelope', carrier: null },
   { name: 'Enveloppe cartonnée', kind: 'Envelope', carrier: null },
+  { name: 'Pochette plastique', kind: 'Envelope', carrier: null },
   { name: 'Toploader', kind: 'Protection', carrier: null },
   { name: 'Sleeves', kind: 'Protection', carrier: null },
   { name: 'Carton d\'expédition', kind: 'Box', carrier: null }

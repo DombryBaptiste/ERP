@@ -25,6 +25,7 @@ public class InvoicePdfService
             throw new BusinessException("Complétez « Mon entreprise » (nom, SIRET, adresse) dans Paramètres avant d'éditer une facture.");
 
         var isProfessional = !string.IsNullOrWhiteSpace(sale.CustomerSiren);
+        var invoiceTotal = sale.TotalAmount + sale.AmountPaid;
 
         return Document.Create(doc => doc.Page(page =>
         {
@@ -107,8 +108,21 @@ public class InvoicePdfService
                 {
                     c.Item().Row(r =>
                     {
-                        r.RelativeItem().Text("Total HT");
+                        r.RelativeItem().Text("Total articles");
                         r.RelativeItem().AlignRight().Text(Money(sale.TotalAmount));
+                    });
+                    if (sale.AmountPaid > 0)
+                    {
+                        c.Item().Row(r =>
+                        {
+                            r.RelativeItem().Text("Frais de port");
+                            r.RelativeItem().AlignRight().Text(Money(sale.AmountPaid));
+                        });
+                    }
+                    c.Item().Row(r =>
+                    {
+                        r.RelativeItem().Text("Total HT");
+                        r.RelativeItem().AlignRight().Text(Money(invoiceTotal));
                     });
                     c.Item().Row(r =>
                     {
@@ -118,7 +132,7 @@ public class InvoicePdfService
                     c.Item().PaddingTop(6).BorderTop(1).BorderColor(Accent).PaddingTop(6).Row(r =>
                     {
                         r.RelativeItem().Text("Total à payer").Bold().FontSize(12);
-                        r.RelativeItem().AlignRight().Text(Money(sale.TotalAmount)).Bold().FontSize(12).FontColor(Accent);
+                        r.RelativeItem().AlignRight().Text(Money(invoiceTotal)).Bold().FontSize(12).FontColor(Accent);
                     });
                 });
 

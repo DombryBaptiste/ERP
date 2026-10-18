@@ -325,6 +325,20 @@ export class SalesFormComponent implements OnInit {
     });
   }
 
+  /** Regénère le PDF d'une facture déjà émise sans changer son numéro. */
+  regenerateInvoice(): void {
+    const sale = this.sale();
+    if (!sale?.invoiceNumber) return;
+    if (this.form.dirty) {
+      this.notify.error(null, "Enregistrez d'abord vos modifications avant de régénérer la facture.");
+      return;
+    }
+
+    const url = new URL(this.api.invoiceUrl(sale.id));
+    url.searchParams.set('refresh', Date.now().toString());
+    window.open(url.toString(), '_blank');
+  }
+
   // ----- Lignes -----
 
   private createLine(key: string | null = null, search = '', quantity = 1, salePrice = 0): SaleLineForm {

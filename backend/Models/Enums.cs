@@ -11,6 +11,7 @@ public enum ItemType
     Box,         // Coffret
     Display,
     MiniTin,
+    Pokebox,
     Bundle,
     Bulk,        // Vrac : cartes communes, reverses... comptées à la carte
     Other        // Autre

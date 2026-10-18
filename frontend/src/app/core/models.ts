@@ -3,7 +3,7 @@
  * et sont envoyées au format "2026-09-30".
  */
 
-export type ItemType = 'RawCard' | 'GradedCard' | 'Booster' | 'Blister' | 'Etb' | 'Box' | 'Display' | 'MiniTin' | 'Bundle' | 'Bulk' | 'Other';
+export type ItemType = 'RawCard' | 'GradedCard' | 'Booster' | 'Blister' | 'Etb' | 'Box' | 'Display' | 'MiniTin' | 'Pokebox' | 'Bundle' | 'Bulk' | 'Other';
 export type ItemCondition = 'NM' | 'EXC' | 'GOOD' | 'LP' | 'PL' | 'PO';
 export type SalePlatform = 'Cardmarket' | 'Ebay' | 'Vinted' | 'Leboncoin' | 'FacebookMarketplace' | 'InPerson' | 'Other';
 /** Supplier = achat classique ; PersonalCollection = transfert depuis la collection personnelle. */
