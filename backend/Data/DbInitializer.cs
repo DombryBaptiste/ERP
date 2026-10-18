@@ -119,6 +119,34 @@ public static class DbInitializer
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
         await EnsureColumnAsync(db, "attachments", "sort_order", "INT NOT NULL DEFAULT 0 AFTER size");
+
+        // Catalogue des cartes (cotes, estimation) et lien avec les articles d'inventaire.
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS card_catalog (
+              id               INT           NOT NULL AUTO_INCREMENT,
+              tcgdex_id        VARCHAR(50)   NOT NULL,
+              set_id           VARCHAR(30)   NOT NULL,
+              set_code         VARCHAR(20)   NULL,
+              set_name         VARCHAR(150)  NOT NULL,
+              serie_name       VARCHAR(100)  NULL,
+              release_date     DATE          NULL,
+              number           VARCHAR(20)   NOT NULL,
+              sort_order       INT           NOT NULL,
+              name             VARCHAR(200)  NOT NULL,
+              rarity           VARCHAR(60)   NULL,
+              image_url        VARCHAR(300)  NULL,
+              cardmarket_id    BIGINT        NULL,
+              quote            DECIMAL(10,2) NULL,
+              quote_updated_at DATETIME(6)   NULL,
+              created_at       DATETIME(6)   NOT NULL,
+              updated_at       DATETIME(6)   NOT NULL,
+              PRIMARY KEY (id),
+              UNIQUE KEY IX_card_catalog_tcgdex_id (tcgdex_id),
+              KEY IX_card_catalog_set_id (set_id),
+              KEY IX_card_catalog_name (name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """);
+        await EnsureColumnAsync(db, "inventory_items", "catalog_card_id", "INT NULL AFTER market_value_updated_at");
     }
 
     /// <summary>Élargit une colonne décimale à 6 décimales si elle en a moins (les valeurs sont conservées).</summary>

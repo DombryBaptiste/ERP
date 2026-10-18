@@ -33,9 +33,11 @@ CREATE TABLE IF NOT EXISTS inventory_items (
   market_value       DECIMAL(10,2) NULL,      -- valeur de marché unitaire estimée
   previous_market_value DECIMAL(10,2) NULL,
   market_value_updated_at DATETIME(6) NULL,
+  catalog_card_id    INT           NULL,      -- carte du catalogue (card_catalog) : sa cote met à jour market_value
   created_at         DATETIME(6)   NOT NULL,
   PRIMARY KEY (id),
-  KEY IX_inventory_items_name (name)
+  KEY IX_inventory_items_name (name),
+  KEY IX_inventory_items_catalog_card_id (catalog_card_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS purchases (
@@ -150,4 +152,29 @@ CREATE TABLE IF NOT EXISTS attachments (
   uploaded_at  DATETIME(6)  NOT NULL,
   PRIMARY KEY (id),
   KEY IX_attachments_owner_type_owner_id (owner_type, owner_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Catalogue des cartes importé depuis TCGdex : cote saisie à la main, estimation de collections.
+CREATE TABLE IF NOT EXISTS card_catalog (
+  id               INT           NOT NULL AUTO_INCREMENT,
+  tcgdex_id        VARCHAR(50)   NOT NULL,  -- ex. me02-095
+  set_id           VARCHAR(30)   NOT NULL,  -- ex. me02
+  set_code         VARCHAR(20)   NULL,      -- ex. PFL
+  set_name         VARCHAR(150)  NOT NULL,
+  serie_name       VARCHAR(100)  NULL,      -- bloc, ex. Méga-Évolution
+  release_date     DATE          NULL,
+  number           VARCHAR(20)   NOT NULL,
+  sort_order       INT           NOT NULL,
+  name             VARCHAR(200)  NOT NULL,
+  rarity           VARCHAR(60)   NULL,
+  image_url        VARCHAR(300)  NULL,      -- sans extension (+ /low.webp ou /high.webp)
+  cardmarket_id    BIGINT        NULL,      -- idProduct Cardmarket
+  quote            DECIMAL(10,2) NULL,      -- cote saisie à la main (prix FR NM)
+  quote_updated_at DATETIME(6)   NULL,
+  created_at       DATETIME(6)   NOT NULL,
+  updated_at       DATETIME(6)   NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY IX_card_catalog_tcgdex_id (tcgdex_id),
+  KEY IX_card_catalog_set_id (set_id),
+  KEY IX_card_catalog_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

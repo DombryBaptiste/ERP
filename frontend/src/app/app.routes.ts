@@ -36,6 +36,14 @@ export const routes: Routes = [
         loadComponent: () => import('./features/inventory/inventory-form.component').then(m => m.InventoryFormComponent)
       },
       {
+        path: 'quotes', title: 'Cotes — PokéStock',
+        loadComponent: () => import('./features/catalog/quotes.component').then(m => m.QuotesComponent)
+      },
+      {
+        path: 'estimation', title: 'Estimation — PokéStock',
+        loadComponent: () => import('./features/estimation/estimation.component').then(m => m.EstimationComponent)
+      },
+      {
         path: 'sales', title: 'Ventes — PokéStock',
         loadComponent: () => import('./features/sales/sales-list.component').then(m => m.SalesListComponent)
       },

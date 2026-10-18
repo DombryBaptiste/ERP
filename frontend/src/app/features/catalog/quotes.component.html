@@ -1,0 +1,113 @@
+@let current = currentSet();
+<div class="page-header">
+  <div>
+    <h1>Cotes</h1>
+    <p class="subtitle">
+      Saisissez la cote FR (NM) de chaque carte : Entrée enregistre et passe à la suivante.
+      La cote met à jour la valeur de marché des cartes en stock et sert à l'estimation.
+    </p>
+  </div>
+  <div class="page-actions">
+    <button mat-flat-button (click)="openImport()"><mat-icon>download</mat-icon> Importer des séries</button>
+  </div>
+</div>
+
+@if (!loading() && sets().length === 0) {
+  <div class="empty">
+    <mat-icon>style</mat-icon>
+    <p>Le catalogue est vide. Importez les séries qui vous intéressent pour commencer à saisir les cotes.</p>
+    <button mat-flat-button (click)="openImport()"><mat-icon>download</mat-icon> Importer des séries</button>
+  </div>
+} @else {
+  <div class="filters">
+    <mat-form-field class="set-field">
+      <mat-label>Série</mat-label>
+      <mat-select [value]="setId()" (selectionChange)="onSetChange($event.value)">
+        <mat-option value="">Toutes (recherche)</mat-option>
+        @for (g of groups(); track g.name) {
+          <mat-optgroup [label]="g.name">
+            @for (s of g.sets; track s.setId) {
+              <mat-option [value]="s.setId">
+                <span class="ref">{{ s.setCode ?? s.setId }}</span> {{ s.setName }}
+                <span class="muted small">· {{ s.quotedCount }}/{{ s.cardCount }} cotées</span>
+              </mat-option>
+            }
+          </mat-optgroup>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field class="filter-search">
+      <mat-label>Recherche</mat-label>
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput [ngModel]="search()" (ngModelChange)="onSearch($event)" placeholder="Nom ou code (ex. PFL 95)">
+    </mat-form-field>
+
+    <mat-button-toggle-group [value]="onlyMissing()" (change)="onlyMissing.set($event.value)" aria-label="Filtre des cotes">
+      <mat-button-toggle [value]="false">Toutes</mat-button-toggle>
+      <mat-button-toggle [value]="true">Sans cote</mat-button-toggle>
+    </mat-button-toggle-group>
+
+    @if (current) {
+      <span class="muted small">{{ current.quotedCount }} / {{ current.cardCount }} cartes cotées</span>
+    }
+  </div>
+
+  @if (loading()) { <mat-progress-bar mode="indeterminate" /> }
+
+  @if (!loading() && visibleCards().length === 0) {
+    <p class="muted">
+      @if (!setId() && search().trim().length < 2) { Choisissez une série ou tapez au moins 2 caractères. }
+      @else { Aucune carte. }
+    </p>
+  }
+
+  <div class="card-grid">
+    @for (c of visibleCards(); track c.id) {
+      <div class="tile" [class.quoted]="c.quote !== null">
+        @if (thumbnail(c); as img) {
+          <img [src]="img" [alt]="c.name" loading="lazy">
+        } @else {
+          <div class="no-image"><mat-icon>image_not_supported</mat-icon></div>
+        }
+        <div class="tile-body">
+          <div class="tile-title">
+            <span class="ref">{{ code(c) }}</span>
+            @if (c.inStock) {
+              <span class="stock" matTooltip="Exemplaires en stock liés à cette carte">{{ c.inStock }} en stock</span>
+            }
+          </div>
+          <div class="name" [title]="c.name">{{ c.name }}</div>
+          <div class="muted small rarity">{{ c.rarity }}</div>
+
+          <mat-form-field class="quote-field" subscriptSizing="dynamic">
+            <mat-label>Cote FR</mat-label>
+            <input matInput class="quote-input" inputmode="decimal" autocomplete="off"
+                   [ngModel]="draft(c)" (ngModelChange)="setDraft(c, $event)"
+                   (blur)="save(c)" (keydown.enter)="saveAndNext(c, $event)">
+            <span matTextSuffix>€</span>
+          </mat-form-field>
+
+          <div class="tile-foot">
+            <span class="small">
+              @if (c.quote !== null) {
+                Achat <strong>{{ buyback(c.quote) | currency }}</strong>
+              } @else {
+                <span class="muted">Pas de cote</span>
+              }
+            </span>
+            @if (saving().has(c.id)) {
+              <mat-icon class="state">sync</mat-icon>
+            } @else if (c.cardmarketUrl) {
+              <a mat-icon-button [href]="c.cardmarketUrl" target="_blank" rel="noopener"
+                 matTooltip="Offres FR sur Cardmarket"><mat-icon>open_in_new</mat-icon></a>
+            }
+          </div>
+          @if (c.quoteUpdatedAt) {
+            <div class="muted small">le {{ c.quoteUpdatedAt | date: 'dd/MM/yyyy' }}</div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+}

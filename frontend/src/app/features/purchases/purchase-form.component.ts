@@ -15,7 +15,7 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CONDITIONS, ITEM_TYPES, PAYMENT_METHODS, PURCHASE_PLATFORMS } from '../../core/labels';
 import { isCard } from '../../core/labels';
-import { AppPreferences, CardSeriesEntry, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchasePlatform, PurchaseSource } from '../../core/models';
+import { AppPreferences, CardSeriesEntry, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchaseLineInput, PurchasePlatform, PurchaseSource } from '../../core/models';
 import { AttachmentsComponent } from '../../shared/attachments.component';
 import { LabelPipe } from '../../shared/label.pipe';
 import { groupProducts, normalizeText, ProductGroup, productKey } from '../../core/products';
@@ -35,6 +35,8 @@ type LineForm = FormGroup<{
   unitPrice: FormControl<number>;
   location: FormControl<string>;
   soldQuantity: FormControl<number>;
+  /** Carte du catalogue liée (ligne venant de l'estimation). */
+  catalogCardId: FormControl<number | null>;
 }>;
 
 type LineValues = ReturnType<LineForm['getRawValue']>;
@@ -143,6 +145,13 @@ export class PurchaseFormComponent implements OnInit {
       if (this.route.snapshot.queryParamMap.get('source') === 'collection') {
         this.form.controls.source.setValue('PersonalCollection');
       }
+      // Lignes transmises par la page Estimation (« Créer l'achat »).
+      const estimationLines = (history.state?.estimationLines ?? []) as PurchaseLineInput[];
+      if (estimationLines.length) {
+        estimationLines.forEach(line => this.items.push(this.createLine(line)));
+        this.notify.success(`${estimationLines.length} carte(s) reprise(s) de l'estimation : complétez le fournisseur et enregistrez.`);
+        return;
+      }
       this.addLine();
       return;
     }
@@ -171,8 +180,8 @@ export class PurchaseFormComponent implements OnInit {
     });
   }
 
-  private createLine(line?: PurchaseLine): LineForm {
-    const sold = line?.soldQuantity ?? 0;
+  private createLine(line?: PurchaseLine | PurchaseLineInput): LineForm {
+    const sold = line && 'soldQuantity' in line ? line.soldQuantity : 0;
     return this.fb.group({
       itemId: this.fb.control<number | null>(line?.itemId ?? null),
       name: this.fb.control(line?.name ?? '', [Validators.required, Validators.maxLength(200)]),
@@ -185,7 +194,8 @@ export class PurchaseFormComponent implements OnInit {
       quantity: this.fb.control(line?.quantity ?? 1, [Validators.required, Validators.min(Math.max(1, sold))]),
       unitPrice: this.fb.control(line?.unitPrice ?? 0, [Validators.required, Validators.min(0)]),
       location: this.fb.control(line?.location ?? ''),
-      soldQuantity: this.fb.control(sold)
+      soldQuantity: this.fb.control(sold),
+      catalogCardId: this.fb.control<number | null>(line?.catalogCardId ?? null)
     });
   }
 
@@ -362,7 +372,8 @@ export class PurchaseFormComponent implements OnInit {
         condition: l.condition,
         quantity: l.quantity,
         unitPrice: l.unitPrice,
-        location: l.location.trim() || null
+        location: l.location.trim() || null,
+        catalogCardId: l.catalogCardId
       }))
     };
 

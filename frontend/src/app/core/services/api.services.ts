@@ -2,7 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, BulkSettings, Dashboard, InventoryItem, InventoryItemInput,
+  Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkSettings, CatalogCard, CatalogImportResult,
+  CatalogSet, Dashboard, InventoryItem, InventoryItemInput,
   Purchase, PurchaseInput, RefundInput, Sale, SaleInput, Statistics, TaxSettings, TaxSummary
 } from '../models';
 
@@ -142,3 +143,32 @@ export class TaxService {
     return this.http.put<void>(`${this.url}/declarations/${periodKey}`, { declared });
   }
 }
+
+/** Catalogue des cartes (/api/catalog) : import TCGdex, cotes, recherche */
+@Injectable({ providedIn: 'root' })
+export class CatalogService {
+  private readonly http = inject(HttpClient);
+  private readonly url = '/api/catalog';
+
+  sets(): Observable<CatalogSet[]> { return this.http.get<CatalogSet[]>(`${this.url}/sets`); }
+  availableSets(): Observable<AvailableSet[]> { return this.http.get<AvailableSet[]>(`${this.url}/available-sets`); }
+
+  importSet(setId: string, rareOnly: boolean): Observable<CatalogImportResult> {
+    const params = new HttpParams().set('rareOnly', rareOnly);
+    return this.http.post<CatalogImportResult>(`${this.url}/sets/${encodeURIComponent(setId)}/import`, {}, { params });
+  }
+
+  cards(filter: { setId?: string; search?: string; quotedOnly?: boolean; take?: number }): Observable<CatalogCard[]> {
+    let params = new HttpParams();
+    if (filter.setId) params = params.set('setId', filter.setId);
+    if (filter.search) params = params.set('search', filter.search);
+    if (filter.quotedOnly) params = params.set('quotedOnly', true);
+    if (filter.take) params = params.set('take', filter.take);
+    return this.http.get<CatalogCard[]>(`${this.url}/cards`, { params });
+  }
+
+  setQuote(id: number, quote: number | null): Observable<CatalogCard> {
+    return this.http.put<CatalogCard>(`${this.url}/cards/${id}/quote`, { quote });
+  }
+}
+

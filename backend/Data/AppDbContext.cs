@@ -19,6 +19,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SaleRefund> SaleRefunds => Set<SaleRefund>();
     public DbSet<SaleRefundItem> SaleRefundItems => Set<SaleRefundItem>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<CatalogCard> CatalogCards => Set<CatalogCard>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -47,6 +48,26 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.PurchaseDate).HasColumnType("date");
             e.Property(x => x.MarketValue).HasPrecision(10, 2);
             e.Property(x => x.PreviousMarketValue).HasPrecision(10, 2);
+            e.HasIndex(x => x.Name);
+            e.HasIndex(x => x.CatalogCardId);
+        });
+
+        b.Entity<CatalogCard>(e =>
+        {
+            e.ToTable("card_catalog");
+            e.Property(x => x.TcgdexId).HasMaxLength(50).IsRequired();
+            e.Property(x => x.SetId).HasMaxLength(30).IsRequired();
+            e.Property(x => x.SetCode).HasMaxLength(20);
+            e.Property(x => x.SetName).HasMaxLength(150).IsRequired();
+            e.Property(x => x.SerieName).HasMaxLength(100);
+            e.Property(x => x.ReleaseDate).HasColumnType("date");
+            e.Property(x => x.Number).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Rarity).HasMaxLength(60);
+            e.Property(x => x.ImageUrl).HasMaxLength(300);
+            e.Property(x => x.Quote).HasPrecision(10, 2);
+            e.HasIndex(x => x.TcgdexId).IsUnique();
+            e.HasIndex(x => x.SetId);
             e.HasIndex(x => x.Name);
         });
 

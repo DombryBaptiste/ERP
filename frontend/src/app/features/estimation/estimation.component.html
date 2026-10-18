@@ -1,0 +1,137 @@
+@let t = totals();
+<div class="page-header">
+  <div>
+    <h1>Estimation</h1>
+    <p class="subtitle">
+      Cherchez les cartes de la collection et cliquez pour les ajouter : valeur selon la cote et l'état,
+      prix d'achat proposé (−20 %, arrondi au 0,50 € inférieur).
+    </p>
+  </div>
+  <div class="page-actions">
+    <a mat-stroked-button routerLink="/quotes"><mat-icon>sell</mat-icon> Saisir les cotes</a>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- Recherche dans le catalogue -->
+  <section class="search-panel">
+    <div class="filters">
+      <mat-form-field class="filter-search">
+        <mat-label>Rechercher une carte</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput [ngModel]="search()" (ngModelChange)="onSearch($event)" (keydown.enter)="addSingleResult()"
+               placeholder="Nom ou code (ex. PFL 95)" autocomplete="off">
+        <mat-hint>Entrée ajoute la carte si elle est seule</mat-hint>
+      </mat-form-field>
+      <mat-form-field class="set-field">
+        <mat-label>Série</mat-label>
+        <mat-select [value]="setId()" (selectionChange)="onSetChange($event.value)">
+          <mat-option value="">Toutes</mat-option>
+          @for (s of sets(); track s.setId) {
+            <mat-option [value]="s.setId"><span class="ref">{{ s.setCode ?? s.setId }}</span> {{ s.setName }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    @if (searching()) { <mat-progress-bar mode="indeterminate" /> }
+
+    @if (sets().length === 0) {
+      <p class="muted">Le catalogue est vide : importez des séries depuis la page <a routerLink="/quotes">Cotes</a>.</p>
+    } @else if (!searching() && results().length === 0) {
+      <p class="muted">
+        @if (!setId() && search().trim().length < 2) { Choisissez une série ou tapez au moins 2 caractères. }
+        @else { Aucune carte trouvée. }
+      </p>
+    }
+
+    <div class="result-grid">
+      @for (c of results(); track c.id) {
+        <button type="button" class="result" (click)="add(c)" [matTooltip]="c.name + ' — ' + (c.rarity ?? '')">
+          @if (thumbnail(c); as img) {
+            <img [src]="img" [alt]="c.name" loading="lazy">
+          } @else {
+            <div class="no-image"><mat-icon>image_not_supported</mat-icon></div>
+          }
+          @if (selectedCount().get(c.id); as n) { <span class="badge">{{ n }}</span> }
+          <span class="result-code ref">{{ code(c) }}</span>
+          <span class="result-name">{{ c.name }}</span>
+          <span class="result-quote" [class.muted]="c.quote === null">
+            {{ c.quote === null ? 'Pas de cote' : (c.quote | currency) }}
+          </span>
+        </button>
+      }
+    </div>
+  </section>
+
+  <!-- Sélection -->
+  <mat-card class="card selection">
+    <mat-card-header>
+      <mat-card-title>Collection à estimer</mat-card-title>
+      <mat-card-subtitle>{{ t.cards }} carte(s)</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="totals">
+        <div><span class="muted small">Valeur</span><strong>{{ t.value | currency }}</strong></div>
+        <div class="buyback"><span class="small">Prix d'achat</span><strong>{{ t.buyback | currency }}</strong></div>
+      </div>
+      @if (t.missing) {
+        <p class="warning small">
+          <mat-icon class="inline-icon">warning</mat-icon>
+          {{ t.missing }} carte(s) sans cote : saisissez-la dans la ligne (ou sur la page Cotes).
+        </p>
+      }
+
+      @if (lines().length === 0) {
+        <p class="muted">Cliquez sur une carte à gauche pour l'ajouter.</p>
+      }
+
+      <div class="lines">
+        @for (l of lines(); track $index) {
+          <div class="line" [class.missing]="l.quote === null">
+            @if (thumbnail(l.card); as img) { <img [src]="img" [alt]="l.card.name"> }
+            <div class="line-main">
+              <div class="line-title">
+                <span class="ref">{{ code(l.card) }}</span> {{ l.card.name }}
+              </div>
+              <div class="line-fields">
+                <mat-form-field subscriptSizing="dynamic" class="f-cond">
+                  <mat-label>État</mat-label>
+                  <mat-select [value]="l.condition" (selectionChange)="update(l, { condition: $event.value })">
+                    @for (c of conditions; track c.value) { <mat-option [value]="c.value">{{ c.label }}</mat-option> }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field subscriptSizing="dynamic" class="f-qty">
+                  <mat-label>Qté</mat-label>
+                  <input matInput type="number" min="1" [ngModel]="l.quantity" (ngModelChange)="setQuantity(l, $event)">
+                </mat-form-field>
+                <mat-form-field subscriptSizing="dynamic" class="f-quote">
+                  <mat-label>Cote NM</mat-label>
+                  <input matInput inputmode="decimal" [ngModel]="l.quote" (change)="setQuote(l, $any($event.target).value)">
+                  <span matTextSuffix>€</span>
+                </mat-form-field>
+              </div>
+              <div class="line-figures small">
+                <span>Valeur {{ value(l) === null ? '—' : (value(l)! * l.quantity | currency) }}</span>
+                <strong>Achat {{ unitBuyback(l) === null ? '—' : (unitBuyback(l)! * l.quantity | currency) }}</strong>
+                @if (l.quantity > 1 && unitBuyback(l) !== null) {
+                  <span class="muted">({{ unitBuyback(l) | currency }} / u)</span>
+                }
+              </div>
+            </div>
+            <button mat-icon-button matTooltip="Retirer" (click)="remove(l)"><mat-icon>close</mat-icon></button>
+          </div>
+        }
+      </div>
+    </mat-card-content>
+    @if (lines().length) {
+      <mat-card-actions align="end">
+        <button mat-button (click)="reset()"><mat-icon>restart_alt</mat-icon> Réinitialiser</button>
+        <button mat-flat-button (click)="createPurchase()"
+                matTooltip="Ouvre un nouvel achat pré-rempli avec ces cartes, au prix d'achat proposé">
+          <mat-icon>add_shopping_cart</mat-icon> Créer l'achat
+        </button>
+      </mat-card-actions>
+    }
+  </mat-card>
+</div>

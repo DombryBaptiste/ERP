@@ -42,6 +42,15 @@ builder.Services.AddScoped<AlertService>();
 builder.Services.AddScoped<ExportService>();
 builder.Services.AddSingleton<InvoicePdfService>();
 
+// Catalogue des cartes : fiches importées depuis l'API publique TCGdex.
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<CatalogService>(client =>
+{
+    client.BaseAddress = new Uri(CatalogService.ApiBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("PokeStock/1.0");
+});
+
 // QuestPDF : licence Community (gratuite pour les entreprises de moins de 1 M$ de chiffre d'affaires).
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
