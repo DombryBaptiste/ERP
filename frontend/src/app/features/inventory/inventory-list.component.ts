@@ -222,6 +222,7 @@ export class InventoryListComponent {
     if (['fr', 'french', 'france', 'français'].includes(value ?? '')) return '🇫🇷';
     if (['jap', 'japanese', 'japon', 'japonaise'].includes(value ?? '')) return '🇯🇵';
     if (['kr', 'korean', 'corée', 'coree', 'coréen'].includes(value ?? '')) return '🇰🇷';
+    if (['cn', 'chinese', 'chine', 'chinois'].includes(value ?? '')) return '🇨🇳';
     return '—';
   }
 

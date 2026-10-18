@@ -3,7 +3,7 @@
  * et sont envoyées au format "2026-09-30".
  */
 
-export type ItemType = 'RawCard' | 'GradedCard' | 'Booster' | 'Blister' | 'Etb' | 'Box' | 'Display' | 'MiniTin' | 'Bundle' | 'Bulk' | 'Other';
+export type ItemType = 'RawCard' | 'GradedCard' | 'Booster' | 'Blister' | 'Etb' | 'Box' | 'Display' | 'MiniTin' | 'Pokebox' | 'Bundle' | 'Bulk' | 'Other';
 export type ItemCondition = 'NM' | 'EXC' | 'GOOD' | 'LP' | 'PL' | 'PO';
 export type SalePlatform = 'Cardmarket' | 'Ebay' | 'Vinted' | 'Leboncoin' | 'FacebookMarketplace' | 'InPerson' | 'Other';
 /** Supplier = achat classique ; PersonalCollection = transfert depuis la collection personnelle. */
@@ -11,7 +11,9 @@ export type PurchaseSource = 'Supplier' | 'PersonalCollection';
 export type PurchasePlatform = 'Cardmarket' | 'Ebay' | 'Vinted' | 'Leboncoin' | 'FacebookMarketplace' | 'Amazon' | 'Store' | 'Other';
 export type ItemOrigin = 'Purchase' | 'PersonalCollection' | 'Manual';
 export type PaymentMethod = 'Platform' | 'BankTransfer' | 'PayPal' | 'Card' | 'Cash' | 'Check' | 'Other';
-export type AttachmentOwner = 'InventoryItem' | 'Purchase' | 'Sale';
+export type AttachmentOwner = 'InventoryItem' | 'Purchase' | 'Sale' | 'ShippingSupply';
+export type ShippingSupplyKind = 'Stamp' | 'Label' | 'Envelope' | 'Protection' | 'Box' | 'Other';
+export type ShippingCarrier = 'LaPoste' | 'Colissimo' | 'MondialRelay' | 'RelaisColis' | 'Chronopost' | 'VintedGo' | 'Ups' | 'HandDelivery' | 'Other';
 export type AttachmentKind = 'Photo' | 'Receipt' | 'Listing' | 'OriginProof' | 'Other';
 
 // ----- Inventaire -----
@@ -158,6 +160,10 @@ export interface Sale {
   /** Montant effectivement reçu du client, avant éventuels remboursements. */
   amountPaid: number;
   trackingNumber: string | null;
+  carrier: ShippingCarrier | null;
+  /** Coût réel de l'envoi (fournitures consommées). */
+  shippingCost: number;
+  shipping: ShippingUsage[];
   /** Montant initial de la vente. */
   totalAmount: number;
   refundedAmount: number;
@@ -199,6 +205,9 @@ export interface SaleInput {
   customerSiren: string | null;
   amountPaid: number;
   trackingNumber: string | null;
+  carrier: ShippingCarrier | null;
+  /** Fournitures d'envoi consommées (une ligne par lot). */
+  shipping: ShippingUsageInput[];
 }
 
 // ----- Tableau de bord & statistiques -----
@@ -241,6 +250,9 @@ export interface Dashboard {
   last12Months: MonthlyPoint[];
   stockDistribution: DistributionSlice[];
   recentSales: SaleSummary[];
+  monthShippingSpent: number;
+  monthShippingCost: number;
+  monthShippingPaid: number;
 }
 
 export interface ProductStat {
@@ -350,6 +362,10 @@ export interface Statistics {
   topSales: SaleSummary[];
   topProductsByRevenue: ProductStat[];
   topProductsByProfit: ProductStat[];
+  annualShippingSpent: number;
+  annualShippingCost: number;
+  annualShippingPaid: number;
+  shippedSalesCount: number;
 }
 
 // ----- Alertes -----
@@ -358,6 +374,7 @@ export interface AlertSettings {
   dormantCriticalDays: number;
   marketGainThreshold: number;
   marketRiseThreshold: number;
+  lowShippingStock: number;
 }
 
 export interface MarketAlert {
@@ -384,6 +401,7 @@ export interface Alerts {
   itemsWithoutMarketValue: number;
   marketAlerts: MarketAlert[];
   dormant: DormantItem[];
+  lowShippingStock: ShippingStock[];
 }
 
 // ----- Fichiers joints -----
@@ -436,6 +454,95 @@ export interface BulkSettings {
   /** Poids moyen d'une carte en grammes, pour compter au poids. */
   gramsPerCard: number;
   categories: BulkCategory[];
+}
+
+// ----- Frais d'envoi -----
+export interface ShippingSupply {
+  id: number;
+  supplyNumber: string;
+  purchaseDate: string;
+  kind: ShippingSupplyKind;
+  carrier: ShippingCarrier | null;
+  name: string;
+  quantity: number;
+  remainingQuantity: number;
+  usedQuantity: number;
+  totalAmount: number;
+  unitCost: number;
+  stockValue: number;
+  supplier: string | null;
+  paymentMethod: PaymentMethod | null;
+  comment: string | null;
+}
+
+export interface ShippingSupplyInput {
+  purchaseDate: string;
+  kind: ShippingSupplyKind;
+  carrier: ShippingCarrier | null;
+  name: string;
+  quantity: number;
+  totalAmount: number;
+  supplier: string | null;
+  paymentMethod: PaymentMethod | null;
+  comment: string | null;
+}
+
+export interface ShippingUsage {
+  id: number;
+  supplyId: number;
+  supplyNumber: string;
+  name: string;
+  kind: ShippingSupplyKind;
+  quantity: number;
+  unitCost: number;
+  cost: number;
+}
+
+export interface ShippingUsageInput {
+  supplyId: number;
+  quantity: number;
+}
+
+export interface ShippingStock {
+  name: string;
+  kind: ShippingSupplyKind;
+  carrier: ShippingCarrier | null;
+  remaining: number;
+  averageUnitCost: number;
+  stockValue: number;
+  usedThisYear: number;
+  low: boolean;
+}
+
+export interface ShippingMonth {
+  month: number;
+  spent: number;
+  used: number;
+  paidByBuyers: number;
+  shippedSales: number;
+}
+
+export interface CarrierStat {
+  carrier: ShippingCarrier | null;
+  shipments: number;
+  cost: number;
+  paidByBuyers: number;
+}
+
+export interface ShippingSummary {
+  year: number;
+  availableYears: number[];
+  lowStockThreshold: number;
+  spentThisYear: number;
+  spentThisMonth: number;
+  usedThisYear: number;
+  paidByBuyersThisYear: number;
+  shippedSalesThisYear: number;
+  averageCostPerShipment: number;
+  stockValue: number;
+  stock: ShippingStock[];
+  monthly: ShippingMonth[];
+  carriers: CarrierStat[];
 }
 
 // ----- Catalogue des cartes (cotes, estimation) -----

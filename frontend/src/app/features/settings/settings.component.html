@@ -103,6 +103,12 @@
               <mat-hint>Alerte « la carte prend de la valeur »</mat-hint>
             </mat-form-field>
           </div>
+          <mat-form-field>
+            <mat-label>Fournitures d'envoi presque épuisées à partir de</mat-label>
+            <input matInput type="number" min="0" formControlName="lowShippingStock">
+            <span matTextSuffix>unités</span>
+            <mat-hint>Timbres, enveloppes, protections, cartons</mat-hint>
+          </mat-form-field>
         </form>
       </mat-card-content>
     </mat-card>

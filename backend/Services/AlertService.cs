@@ -8,7 +8,7 @@ namespace PokeStock.Api.Services;
 /// <summary>
 /// Alertes : articles dont la valeur de marché a fortement augmenté, et stock qui dort.
 /// </summary>
-public class AlertService(AppDbContext db, PreferencesService preferences, AttachmentService attachments)
+public class AlertService(AppDbContext db, PreferencesService preferences, AttachmentService attachments, ShippingService shipping)
 {
     public async Task<AlertsDto> GetAsync()
     {
@@ -59,7 +59,8 @@ public class AlertService(AppDbContext db, PreferencesService preferences, Attac
             ItemsWithMarketValue: items.Count(i => i.MarketValue.HasValue),
             ItemsWithoutMarketValue: items.Count(i => !i.MarketValue.HasValue),
             MarketAlerts: marketAlerts.OrderByDescending(a => a.RisePercent ?? 0).ThenByDescending(a => a.LatentGain).ToList(),
-            Dormant: dormant);
+            Dormant: dormant,
+            LowShippingStock: (await shipping.GetStockAsync(DateTime.Today.Year, settings.LowShippingStock)).Where(s => s.Low).ToList());
     }
 
     /// <summary>Conseil de prix pour un article qui ne se vend pas.</summary>

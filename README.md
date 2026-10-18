@@ -153,7 +153,9 @@ La documentation interactive de l'API (Swagger) est disponible en développement
   remboursement les rend de nouveau modifiables.
 - **Factures PDF** : renseignez vos coordonnées dans **Paramètres** (nom, SIRET, adresse), puis « Éditer une facture »
   sur la vente. Numéro définitif et continu (`F2026001`…), mentions « EI », « TVA non applicable, art. 293 B du CGI »,
-  mode de règlement, et mentions B2B (pénalités, indemnité de 40 €) quand le SIREN du client est renseigné.
+  mode de règlement, frais de port facturés à l'acheteur, et mentions B2B (pénalités, indemnité de 40 €) quand le SIREN
+  du client est renseigné. Le coût d'envoi payé par le vendeur reste une charge et ne s'ajoute pas au montant dû par le client.
+  Le bouton de rechargement régénère le PDF sans changer le numéro ; enregistrez les modifications de la vente avant de l'utiliser.
   Une vente facturée ne peut plus être supprimée : enregistrez un remboursement.
   PDF générés avec [QuestPDF](https://www.questpdf.com) (licence Community gratuite sous 1 M$ de CA annuel).
 
@@ -191,6 +193,23 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - **Livre des recettes** et **registre des achats** par année, en **Excel** ou **PDF**.
 - Les remboursements apparaissent en négatif dans le livre des recettes. Les transferts de collection figurent
   à part dans le registre des achats.
+
+### Frais d'envoi (onglet Envois)
+- **Achats de fournitures** : timbres, bordereaux, enveloppes, protections, cartons… numérotés `E2026001`,
+  avec quantité, prix total (→ coût unitaire), transporteur, fournisseur, mode de règlement et justificatif.
+  Des désignations courantes sont proposées (« Timbre Lettre verte 20 g », « Bordereau Mondial Relay »…).
+- **Stock** par fourniture (achats de même nom regroupés), avec alerte quand il en reste peu (seuil dans Paramètres)
+  et bouton « Racheter ».
+- **Dans chaque vente**, section **Expédition** : transporteur et fournitures utilisées (ex. 2 timbres + 1 enveloppe).
+  Le stock baisse automatiquement (FIFO) et le **coût réel de l'envoi** est calculé.
+  « Bordereau pour cette vente » crée l'achat du bordereau et l'utilise d'un coup.
+- **Bénéfice** : si des fournitures sont indiquées, bénéfice = … + port payé par l'acheteur − coût réel de l'envoi.
+  Sans fourniture indiquée, le port payé est considéré comme couvrant exactement l'envoi (comme avant).
+- Synthèse annuelle : fournitures achetées, coût réel des envois, port payé par les acheteurs, **marge sur le port**,
+  coût moyen par envoi, détail par mois et par transporteur.
+- Intégration : tableau de bord (envois du mois), statistiques (coût et marge sur le port), alertes (fournitures
+  presque épuisées), liste des ventes (transporteur et coût d'envoi), registre des achats (section « Fournitures d'envoi »).
+- Les fournitures d'envoi n'entrent pas dans le CA déclaré à l'URSSAF ; elles pèsent sur le bénéfice réel.
 
 ### Bulk (cartes en vrac)
 Onglet **Bulk** : les communes, peu communes, reverses, etc. se gèrent **au nombre de cartes**, sans fiche par carte.
@@ -292,6 +311,9 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 | GET | `/api/exports/receipts?year=&format=xlsx\|pdf` | Livre des recettes |
 | GET | `/api/exports/purchases?year=&format=xlsx\|pdf` | Registre des achats |
 | GET / PUT | `/api/settings` | Préférences (entreprise, seuils d'alerte) |
+| GET | `/api/shipping/summary?year=2026` | Synthèse des frais d'envoi (stock, coût réel, port payé, transporteurs) |
+| GET / POST | `/api/shipping/supplies` | Achats de fournitures d'envoi (`?year=&kind=`) / création |
+| GET / PUT / DELETE | `/api/shipping/supplies/:id` | Détail / modification / suppression |
 | GET | `/api/catalog/sets` | Séries du catalogue (nombre de cartes, de cartes cotées) |
 | GET | `/api/catalog/available-sets` | Séries disponibles chez TCGdex |
 | POST | `/api/catalog/sets/:setId/import?rareOnly=true` | Importe ou met à jour une série |
@@ -300,7 +322,7 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 | GET | `/api/health` | État de l'API |
 
 Valeurs des énumérations (JSON) :
-- `type` : `RawCard`, `GradedCard`, `Booster`, `Blister`, `Etb`, `Box` (coffret), `Display`, `Other`
+- `type` : `RawCard`, `GradedCard`, `Booster`, `Blister`, `Etb`, `Box` (coffret), `Display`, `MiniTin`, `Pokebox`, `Bundle`, `Bulk`, `Other`
 - `condition` : `NM`, `EXC`, `GOOD`, `LP`, `PL`, `PO` (comme sur Cardmarket ; les anciennes valeurs `New`, `Excellent`… sont converties automatiquement au démarrage)
 - `platform` : `Cardmarket`, `Ebay`, `Vinted`, `Leboncoin`, `FacebookMarketplace`, `InPerson`, `Other`
 

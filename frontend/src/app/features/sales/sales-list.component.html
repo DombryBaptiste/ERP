@@ -84,6 +84,9 @@
         <td mat-cell *matCellDef="let s">
           <span class="chip">{{ s.platform | label: 'platform' }}</span>
           <div class="muted small">{{ s.paymentMethod | label: 'payment' }}</div>
+          @if (s.carrier || s.shippingCost > 0) {
+            <div class="muted small"><mat-icon class="inline-icon">local_shipping</mat-icon>{{ s.carrier ? (s.carrier | label: 'carrier') : 'Envoi' }}{{ s.shippingCost > 0 ? ' · ' + (s.shippingCost | currency) : '' }}</div>
+          }
         </td>
         <td mat-footer-cell *matFooterCellDef></td>
       </ng-container>

@@ -11,6 +11,7 @@ public enum ItemType
     Box,         // Coffret
     Display,
     MiniTin,
+    Pokebox,
     Bundle,
     Bulk,        // Vrac : cartes communes, reverses... comptées à la carte
     Other        // Autre
@@ -89,7 +90,33 @@ public enum AttachmentOwner
 {
     InventoryItem,
     Purchase,
-    Sale
+    Sale,
+    ShippingSupply   // Achat de fournitures d'envoi (ticket de La Poste, facture de bordereaux...)
+}
+
+/// <summary>Nature d'une fourniture d'envoi.</summary>
+public enum ShippingSupplyKind
+{
+    Stamp,       // Timbre
+    Label,       // Bordereau / étiquette d'affranchissement
+    Envelope,    // Enveloppe (bulle, carton, lettre)
+    Protection,  // Toploader, sleeve, papier bulle...
+    Box,         // Carton, boîte d'expédition
+    Other
+}
+
+/// <summary>Transporteur utilisé pour un envoi.</summary>
+public enum ShippingCarrier
+{
+    LaPoste,       // Lettre, lettre suivie
+    Colissimo,
+    MondialRelay,
+    RelaisColis,
+    Chronopost,
+    VintedGo,
+    Ups,
+    HandDelivery,  // Remise en main propre (pas d'envoi)
+    Other
 }
 
 /// <summary>Nature d'un fichier joint.</summary>

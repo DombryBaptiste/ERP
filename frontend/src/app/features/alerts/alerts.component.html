@@ -133,5 +133,35 @@
         </div>
       </div>
     </mat-tab>
+    <!-- ========== FOURNITURES D'ENVOI ========== -->
+    <mat-tab>
+      <ng-template mat-tab-label><mat-icon>local_post_office</mat-icon>&nbsp;Fournitures d'envoi ({{ a.lowShippingStock.length }})</ng-template>
+      <div class="tab-body">
+        <p class="tab-intro">
+          Timbres, enveloppes, protections et cartons dont il reste <strong>{{ a.settings.lowShippingStock }} unité(s) ou moins</strong>.
+          Pensez à en racheter avant le prochain envoi.
+        </p>
+        @if (a.lowShippingStock.length === 0) {
+          <p class="empty">Stock de fournitures suffisant.</p>
+        } @else {
+          <div class="table-card">
+            <table class="simple-table">
+              <thead><tr><th>Fourniture</th><th>Type</th><th class="num">Restant</th><th class="num">Utilisé cette année</th><th></th></tr></thead>
+              <tbody>
+                @for (st of a.lowShippingStock; track st.name + st.kind) {
+                  <tr>
+                    <td class="strong">{{ st.name }}</td>
+                    <td>{{ st.kind | label: 'shippingKind' }}</td>
+                    <td class="num"><span class="level" [class]="st.remaining === 0 ? 'level level-critical' : 'level level-warning'">{{ st.remaining }}</span></td>
+                    <td class="num">{{ st.usedThisYear }}</td>
+                    <td class="actions-cell"><a mat-button routerLink="/shipping"><mat-icon>add_shopping_cart</mat-icon> Racheter</a></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </mat-tab>
   </mat-tab-group>
 }

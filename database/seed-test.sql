@@ -309,6 +309,39 @@ INSERT INTO sale_refund_items (id, refund_id, sale_item_id, quantity, restocked)
 (1, 1, 15, 1, 1);
 
 -- ----------------------------------------------------------------------------
+-- ----------------------------------------------------------------------------
+-- Frais d'envoi : achats de fournitures (timbres, enveloppes, protections, bordereaux)
+-- Les colonnes d'expédition des ventes (carrier, shipping_cost) et la table shipping_usages
+-- sont ajoutées par l'application au démarrage.
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE shipping_supplies (
+  id                 INT           NOT NULL AUTO_INCREMENT,
+  supply_number      VARCHAR(20)   NOT NULL,
+  purchase_date      DATE          NOT NULL,
+  kind               VARCHAR(30)   NOT NULL,
+  carrier            VARCHAR(30)   NULL,
+  name               VARCHAR(200)  NOT NULL,
+  quantity           INT           NOT NULL,
+  remaining_quantity INT           NOT NULL,
+  total_amount       DECIMAL(10,2) NOT NULL,
+  unit_cost          DECIMAL(14,6) NOT NULL,
+  supplier           VARCHAR(150)  NULL,
+  payment_method     VARCHAR(30)   NULL,
+  comment            VARCHAR(1000) NULL,
+  created_at         DATETIME(6)   NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY IX_shipping_supplies_supply_number (supply_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO shipping_supplies
+  (id, supply_number, purchase_date, kind, carrier, name, quantity, remaining_quantity, total_amount, unit_cost, supplier, payment_method, comment, created_at) VALUES
+(1, 'E2026001', '2026-01-10', 'Stamp',      'LaPoste',      'Timbre Lettre verte 20 g', 12,  3, 18.24, 1.520000, 'Bureau de poste', 'Card',   'Carnet de 12 (9 utilisés avant le suivi dans l''appli)', NOW(6)),
+(2, 'E2026002', '2026-02-03', 'Envelope',   NULL,           'Enveloppe bulle',          50, 31, 12.90, 0.258000, 'Amazon',          'Card',   NULL, NOW(6)),
+(3, 'E2026003', '2026-02-03', 'Protection', NULL,           'Toploader',               100, 64,  9.90, 0.099000, 'Cardmarket',      'PayPal', NULL, NOW(6)),
+(4, 'E2026004', '2026-06-12', 'Stamp',      'LaPoste',      'Timbre Lettre verte 20 g', 12, 12, 18.24, 1.520000, 'Bureau de poste', 'Card',   NULL, NOW(6)),
+(5, 'E2026005', '2026-09-18', 'Label',      'MondialRelay', 'Bordereau Mondial Relay',   1,  1,  4.40, 4.400000, 'Mondial Relay',   'Card',   NULL, NOW(6));
+
 -- Vérification rapide
 -- ----------------------------------------------------------------------------
 SELECT 'Articles' AS element, COUNT(*) AS nombre FROM inventory_items

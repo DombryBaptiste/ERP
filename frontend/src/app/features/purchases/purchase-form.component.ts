@@ -191,7 +191,9 @@ export class PurchaseFormComponent implements OnInit {
       type: this.fb.control<ItemType>(line?.type ?? 'RawCard', Validators.required),
       condition: this.fb.control<ItemCondition>(line?.condition ?? 'NM', Validators.required),
       // On ne peut pas descendre sous la quantité déjà vendue.
-      quantity: this.fb.control(line?.quantity ?? 1, [Validators.required, Validators.min(Math.max(1, sold))]),
+      quantity: this.fb.control(line?.quantity ?? 1, [
+        Validators.required, Validators.min(Math.max(1, sold)), Validators.pattern(/^\d+$/)
+      ]),
       unitPrice: this.fb.control(line?.unitPrice ?? 0, [Validators.required, Validators.min(0)]),
       location: this.fb.control(line?.location ?? ''),
       soldQuantity: this.fb.control(sold),
@@ -284,7 +286,7 @@ export class PurchaseFormComponent implements OnInit {
   }
 
   usesCardSeries(type: ItemType): boolean {
-    return isCard(type) || type === 'Booster' || type === 'Blister' || type === 'Etb' || type === 'MiniTin' || type === 'Bundle';
+    return isCard(type) || type === 'Booster' || type === 'Blister' || type === 'Etb' || type === 'MiniTin' || type === 'Pokebox' || type === 'Bundle';
   }
 
   languages(): string[] {

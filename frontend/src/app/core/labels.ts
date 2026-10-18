@@ -1,4 +1,4 @@
-import { AttachmentKind, ItemCondition, ItemOrigin, ItemType, PaymentMethod, PurchasePlatform, SalePlatform } from './models';
+import { AttachmentKind, ItemCondition, ItemOrigin, ItemType, PaymentMethod, PurchasePlatform, SalePlatform, ShippingCarrier, ShippingSupplyKind } from './models';
 
 /** Libellés français des valeurs techniques renvoyées par l'API. */
 
@@ -11,6 +11,7 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   Box: 'Coffret',
   Display: 'Display',
   MiniTin: 'Mini-Tin',
+  Pokebox: 'Pokébox',
   Bundle: 'Bundle',
   Bulk: 'Bulk (vrac)',
   Other: 'Autre'
@@ -84,6 +85,52 @@ export function defaultPaymentFor(platform: SalePlatform): PaymentMethod {
   }
 }
 
+export const SHIPPING_KIND_LABELS: Record<ShippingSupplyKind, string> = {
+  Stamp: 'Timbre',
+  Label: 'Bordereau',
+  Envelope: 'Enveloppe',
+  Protection: 'Protection',
+  Box: 'Carton',
+  Other: 'Autre'
+};
+
+export const SHIPPING_KIND_ICONS: Record<ShippingSupplyKind, string> = {
+  Stamp: 'local_post_office',
+  Label: 'receipt',
+  Envelope: 'mail',
+  Protection: 'shield',
+  Box: 'inventory_2',
+  Other: 'category'
+};
+
+export const CARRIER_LABELS: Record<ShippingCarrier, string> = {
+  LaPoste: 'La Poste',
+  Colissimo: 'Colissimo',
+  MondialRelay: 'Mondial Relay',
+  RelaisColis: 'Relais Colis',
+  Chronopost: 'Chronopost',
+  VintedGo: 'Vinted Go',
+  Ups: 'UPS',
+  HandDelivery: 'Main propre',
+  Other: 'Autre'
+};
+
+/** Désignations courantes proposées à la saisie d'un achat de fournitures (modifiables). */
+export const SHIPPING_PRESETS: { name: string; kind: ShippingSupplyKind; carrier: ShippingCarrier | null }[] = [
+  { name: 'Timbre Lettre verte 20 g', kind: 'Stamp', carrier: 'LaPoste' },
+  { name: 'Timbre Lettre verte 100 g', kind: 'Stamp', carrier: 'LaPoste' },
+  { name: 'Timbre Lettre internationale 20 g', kind: 'Stamp', carrier: 'LaPoste' },
+  { name: 'Lettre suivie', kind: 'Label', carrier: 'LaPoste' },
+  { name: 'Bordereau Colissimo', kind: 'Label', carrier: 'Colissimo' },
+  { name: 'Bordereau Mondial Relay', kind: 'Label', carrier: 'MondialRelay' },
+  { name: 'Enveloppe bulle', kind: 'Envelope', carrier: null },
+  { name: 'Enveloppe cartonnée', kind: 'Envelope', carrier: null },
+  { name: 'Pochette plastique', kind: 'Envelope', carrier: null },
+  { name: 'Toploader', kind: 'Protection', carrier: null },
+  { name: 'Sleeves', kind: 'Protection', carrier: null },
+  { name: 'Carton d\'expédition', kind: 'Box', carrier: null }
+];
+
 export interface Option<T extends string> {
   value: T;
   label: string;
@@ -100,6 +147,8 @@ export const PURCHASE_PLATFORMS = toOptions(PURCHASE_PLATFORM_LABELS);
 export const ORIGINS = toOptions(ORIGIN_LABELS);
 export const PAYMENT_METHODS = toOptions(PAYMENT_LABELS);
 export const ATTACHMENT_KINDS = toOptions(ATTACHMENT_KIND_LABELS);
+export const SHIPPING_KINDS = toOptions(SHIPPING_KIND_LABELS);
+export const CARRIERS = toOptions(CARRIER_LABELS);
 
 /** Recherche de prix sur Cardmarket (ouverte dans un nouvel onglet, aucune donnée envoyée automatiquement). */
 export function cardmarketSearchUrl(name: string): string {

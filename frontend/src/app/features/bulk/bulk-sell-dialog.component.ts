@@ -249,6 +249,9 @@ export class BulkSellDialogComponent {
       customerSiren: null,
       amountPaid: 0,
       trackingNumber: null,
+      // L'envoi (transporteur, fournitures) se complète ensuite depuis la vente si besoin.
+      carrier: null,
+      shipping: [],
       // Une ligne par lot de bulk utilisé, au même prix par carte.
       items: allocation.map(a => ({ inventoryItemId: a.lot.id, quantity: a.quantity, salePrice: perCard }))
     };

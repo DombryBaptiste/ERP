@@ -103,7 +103,7 @@ export class RefundDialogComponent {
   private readonly notify = inject(NotifyService);
   private readonly ref = inject(MatDialogRef<RefundDialogComponent, Sale>);
 
-  readonly maxAmount = Math.round((this.sale.totalAmount - this.sale.refundedAmount) * 100) / 100;
+  readonly maxAmount = Math.round((this.sale.totalAmount + this.sale.amountPaid - this.sale.refundedAmount) * 100) / 100;
   readonly lines: ReturnLine[] = this.sale.items
     .map(i => ({ saleItemId: i.id, name: i.itemName, salePrice: i.salePrice, max: i.quantity - i.returnedQuantity, quantity: 0 }))
     .filter(l => l.max > 0);

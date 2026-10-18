@@ -19,6 +19,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SaleRefund> SaleRefunds => Set<SaleRefund>();
     public DbSet<SaleRefundItem> SaleRefundItems => Set<SaleRefundItem>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<ShippingSupply> ShippingSupplies => Set<ShippingSupply>();
+    public DbSet<ShippingUsage> ShippingUsages => Set<ShippingUsage>();
     public DbSet<CatalogCard> CatalogCards => Set<CatalogCard>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -111,6 +113,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Comment).HasMaxLength(1000);
             e.Property(x => x.AmountPaid).HasPrecision(10, 2);
             e.Property(x => x.TrackingNumber).HasMaxLength(100);
+            e.Property(x => x.Carrier).HasConversion<string>().HasMaxLength(30);
+            e.Property(x => x.ShippingCost).HasPrecision(10, 2);
             e.Property(x => x.TotalAmount).HasPrecision(10, 2);
             e.Property(x => x.RefundedAmount).HasPrecision(10, 2);
             e.Property(x => x.Profit).HasPrecision(10, 2);
@@ -150,6 +154,33 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.StoredName).HasMaxLength(100).IsRequired();
             e.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
             e.HasIndex(x => new { x.OwnerType, x.OwnerId });
+        });
+
+        b.Entity<ShippingSupply>(e =>
+        {
+            e.ToTable("shipping_supplies");
+            e.Property(x => x.SupplyNumber).HasMaxLength(20).IsRequired();
+            e.Property(x => x.PurchaseDate).HasColumnType("date");
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(30);
+            e.Property(x => x.Carrier).HasConversion<string>().HasMaxLength(30);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.TotalAmount).HasPrecision(10, 2);
+            e.Property(x => x.UnitCost).HasPrecision(14, 6);
+            e.Property(x => x.Supplier).HasMaxLength(150);
+            e.Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(30);
+            e.Property(x => x.Comment).HasMaxLength(1000);
+            e.HasIndex(x => x.SupplyNumber).IsUnique();
+        });
+
+        b.Entity<ShippingUsage>(e =>
+        {
+            e.ToTable("shipping_usages");
+            e.Property(x => x.UnitCost).HasPrecision(14, 6);
+            e.HasOne(x => x.Sale).WithMany(s => s.ShippingUsages)
+                .HasForeignKey(x => x.SaleId).OnDelete(DeleteBehavior.Cascade);
+            // Une fourniture déjà utilisée par une vente ne peut pas être supprimée.
+            e.HasOne(x => x.Supply).WithMany(s => s.Usages)
+                .HasForeignKey(x => x.SupplyId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<SaleItem>(e =>

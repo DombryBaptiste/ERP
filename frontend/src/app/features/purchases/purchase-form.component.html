@@ -209,11 +209,15 @@
 
             <mat-form-field class="f-qty">
               <mat-label>Qté</mat-label>
-              <input matInput type="number" min="1" formControlName="quantity">
+              <input matInput type="number" min="1" step="1" formControlName="quantity">
               @if (line.controls.soldQuantity.value > 0) {
                 <mat-hint>{{ line.controls.soldQuantity.value }} vendu(s)</mat-hint>
               }
-              <mat-error>Min. {{ line.controls.soldQuantity.value > 0 ? line.controls.soldQuantity.value : 1 }}</mat-error>
+              @if (line.controls.quantity.hasError('pattern')) {
+                <mat-error>La quantité doit être un nombre entier.</mat-error>
+              } @else {
+                <mat-error>Min. {{ line.controls.soldQuantity.value > 0 ? line.controls.soldQuantity.value : 1 }}</mat-error>
+              }
             </mat-form-field>
 
             <mat-form-field class="f-price">

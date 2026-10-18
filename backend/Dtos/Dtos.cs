@@ -62,7 +62,8 @@ public record SaleLineInput(int InventoryItemId, int Quantity, decimal SalePrice
 public record SaleInput(
     DateTime SaleDate, string? Customer, SalePlatform Platform, decimal Fees, string? Comment, List<SaleLineInput> Items,
     PaymentMethod PaymentMethod = PaymentMethod.Platform, string? CustomerAddress = null, string? CustomerSiren = null,
-    decimal AmountPaid = 0, string? TrackingNumber = null);
+    decimal AmountPaid = 0, string? TrackingNumber = null,
+    ShippingCarrier? Carrier = null, List<ShippingUsageInput>? Shipping = null);
 
 public record SaleLineDto(
     int Id, int InventoryItemId, string ItemName, ItemType ItemType, int Quantity,
@@ -75,6 +76,7 @@ public record SaleRefundDto(int Id, DateTime RefundDate, decimal Amount, string?
 public record SaleDto(
     int Id, string SaleNumber, DateTime SaleDate, string? Customer, SalePlatform Platform, PaymentMethod PaymentMethod,
     decimal Fees, string? Comment, decimal AmountPaid, string? TrackingNumber,
+    ShippingCarrier? Carrier, decimal ShippingCost, List<ShippingUsageDto> Shipping,
     // Montant initial, total remboursé et montant net (encaissé définitivement).
     decimal TotalAmount, decimal RefundedAmount, decimal NetAmount,
     decimal Profit, decimal Margin,
@@ -101,7 +103,9 @@ public record DashboardDto(
     decimal StockMarketValue, decimal LatentGain,
     int MonthSalesCount, decimal MonthRevenue, decimal MonthProfit, decimal MonthPurchases,
     decimal TotalPurchases, List<MonthlyPoint> Last12Months, List<DistributionSlice> StockDistribution,
-    List<RecentSaleDto> RecentSales);
+    List<RecentSaleDto> RecentSales,
+    // Frais d'envoi : fournitures achetées ce mois-ci, coût réel des envois du mois et port payé par les acheteurs.
+    decimal MonthShippingSpent, decimal MonthShippingCost, decimal MonthShippingPaid);
 
 public record ProductStatDto(string Name, ItemType Type, int QuantitySold, decimal Revenue, decimal Profit, decimal Margin);
 
@@ -110,7 +114,9 @@ public record StatisticsDto(
     decimal AnnualRevenue, decimal AnnualProfit, decimal AnnualPurchases, int AnnualSalesCount,
     decimal CurrentMonthRevenue, decimal CurrentMonthProfit, decimal AverageMonthlyRevenue, decimal AverageMonthlyProfit,
     decimal StockValue, List<MonthlyPoint> Monthly, List<RecentSaleDto> TopSales,
-    List<ProductStatDto> TopProductsByRevenue, List<ProductStatDto> TopProductsByProfit);
+    List<ProductStatDto> TopProductsByRevenue, List<ProductStatDto> TopProductsByProfit,
+    // Frais d'envoi de l'année : fournitures achetées, coût réel des envois, port payé par les acheteurs.
+    decimal AnnualShippingSpent, decimal AnnualShippingCost, decimal AnnualShippingPaid, int ShippedSalesCount);
 
 // ----- Alertes -----
 /// <param name="Reason">"gain" : forte plus-value par rapport au prix d'achat ; "rise" : hausse depuis la dernière estimation.</param>
@@ -123,7 +129,9 @@ public record AlertsDto(
     AlertSettings Settings,
     decimal StockCost, decimal StockMarketValue, decimal LatentGain,
     int ItemsWithMarketValue, int ItemsWithoutMarketValue,
-    List<MarketAlertDto> MarketAlerts, List<DormantItemDto> Dormant);
+    List<MarketAlertDto> MarketAlerts, List<DormantItemDto> Dormant,
+    // Fournitures d'envoi (timbres, enveloppes...) presque épuisées.
+    List<ShippingStockDto> LowShippingStock);
 
 // ----- Fichiers joints -----
 public record AttachmentDto(
