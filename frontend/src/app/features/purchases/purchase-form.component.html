@@ -140,8 +140,29 @@
 
             <mat-form-field class="f-name">
               <mat-label>Nom</mat-label>
-              <input matInput formControlName="name" placeholder="ex. Booster EV08, Dracaufeu PSA 10" [matAutocomplete]="productAuto">
-              <mat-autocomplete #productAuto="matAutocomplete">
+              <input matInput formControlName="name" [matAutocomplete]="productAuto"
+                     [placeholder]="usesCatalog(line) ? 'Nom ou code de la carte (ex. Dracaufeu, PFL 95)' : 'ex. Booster EV08, Dracaufeu PSA 10'"
+                     (input)="searchCatalog(line, $any($event.target).value)" (focus)="searchCatalog(line, line.controls.name.value)">
+              <mat-autocomplete #productAuto="matAutocomplete" class="catalog-autocomplete">
+                @if (usesCatalog(line) && catalogResults().length) {
+                  <mat-optgroup label="Catalogue des cartes">
+                    @for (c of catalogResults(); track c.id) {
+                      <mat-option [value]="c.name + ' — ' + cardCode(c)" (onSelectionChange)="$event.isUserInput && useCatalogCard(line, c)">
+                        <div class="catalog-option">
+                          @if (cardThumbnail(c); as img) { <img [src]="img" alt=""> }
+                          <div>
+                            <div class="opt-name">{{ c.name }}</div>
+                            <div class="opt-meta">
+                              {{ cardCode(c) }} · {{ c.setName }} · {{ languageShort(c.language) }}
+                              @if (c.quote !== null) { · cote {{ c.quote | currency }} }
+                              @if (c.inStock) { · {{ c.inStock }} en stock }
+                            </div>
+                          </div>
+                        </div>
+                      </mat-option>
+                    }
+                  </mat-optgroup>
+                }
                 @for (p of filterProducts(line.controls.name.value); track p.key) {
                   <mat-option [value]="p.name" (onSelectionChange)="$event.isUserInput && useProduct(line, p)">
                     <div class="opt-name">{{ p.name }}</div>
@@ -152,7 +173,19 @@
                   </mat-option>
                 }
               </mat-autocomplete>
-              @if (matchingProduct(line); as match) {
+              @if (line.controls.catalogCardId.value !== null) {
+                <mat-hint class="hint-ok">
+                  <mat-icon class="inline-icon">style</mat-icon>Liée au catalogue
+                  @if (linkedCard(line); as card) {
+                    ({{ cardCode(card) }}@if (card.quote !== null) {, cote {{ card.quote | currency }}})
+                  }
+                  · <a href="" class="unlink" (click)="$event.preventDefault(); unlinkCatalogCard(line)">délier</a>
+                </mat-hint>
+              } @else if (usesCatalog(line) && line.controls.name.value.trim() && !line.controls.itemId.value) {
+                <mat-hint class="hint-warn">
+                  <mat-icon class="inline-icon">help_outline</mat-icon>Hors catalogue : choisissez la carte dans la liste pour la lier
+                </mat-hint>
+              } @else if (matchingProduct(line); as match) {
                 <mat-hint class="hint-ok">
                   <mat-icon class="inline-icon">link</mat-icon>Rejoindra le produit existant ({{ match.remaining }} en stock, {{ match.lots.length }} lot(s))
                 </mat-hint>
@@ -173,7 +206,7 @@
               <mat-form-field class="f-language">
                 <mat-label>Langue</mat-label>
                 <mat-select formControlName="language" (selectionChange)="onLanguageChange(line)">
-                  @for (language of languages(); track language) {
+                  @for (language of languagesFor(line); track language) {
                     <mat-option [value]="language">{{ language }}</mat-option>
                   }
                 </mat-select>

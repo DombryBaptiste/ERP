@@ -181,6 +181,9 @@ La documentation interactive de l'API (Swagger) est disponible en développement
   état, quantité, cote (modifiable), **valeur** (cote × part selon l'état : NM 100 %, EXC 85 %, GOOD 70 %, LP 60 %,
   PL 50 %, PO 30 %) et **prix d'achat** proposé (valeur − 20 %, arrondi au 0,50 € inférieur). La sélection reste
   enregistrée dans le navigateur jusqu'à **Réinitialiser**.
+- **Dans un achat**, pour une carte (brute ou gradée), le champ Nom cherche aussi dans le catalogue (nom ou code,
+  ex. `PFL 95`) : choisir une carte remplit le nom, la langue, la série, propose le prix d'achat (si le prix est à 0)
+  et **lie l'article à la carte**. Une carte saisie à la main est signalée « Hors catalogue ».
 - **Créer l'achat** ouvre un nouvel achat pré-rempli avec ces cartes (langue de la carte, prix d'achat proposé).
   Chaque article reste **lié à sa carte du catalogue** : il reprend la cote comme valeur de marché, et toute nouvelle
   cote met à jour la valeur de marché des exemplaires encore en stock (donc les alertes de hausse).

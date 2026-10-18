@@ -275,6 +275,18 @@ a.link:hover { text-decoration: underline; }
 
 .hint-error { color: var(--app-danger) !important; }
 .hint-ok { color: var(--app-positive) !important; }
+.hint-warn { color: #e65100 !important; }
+.hint-ok .unlink { color: inherit; }
+
+/* Suggestions du catalogue (formulaire d'achat) */
+.catalog-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+
+  img { width: 34px; border-radius: 3px; }
+}
 
 /* Choix achat / collection dans le formulaire d'entrée en stock */
 .source-switch {
