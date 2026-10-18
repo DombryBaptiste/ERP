@@ -14,7 +14,8 @@ import { Router, RouterLink } from '@angular/router';
 import { cardmarketSearchUrl, CONDITIONS, ITEM_TYPES } from '../../core/labels';
 import { AttachmentsComponent } from '../../shared/attachments.component';
 import { InventoryItem, InventoryItemInput, ItemCondition, ItemType } from '../../core/models';
-import { InventoryService } from '../../core/services/api.services';
+import { CatalogService, InventoryService } from '../../core/services/api.services';
+import { catalogCategory, UNCATEGORIZED } from '../../core/catalog';
 import { NotifyService } from '../../core/services/notify.service';
 import { parseApiDate, toIsoDate } from '../../core/utils';
 
@@ -33,6 +34,8 @@ export class InventoryFormComponent implements OnInit {
 
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly api = inject(InventoryService);
+  private readonly catalogApi = inject(CatalogService);
+  readonly uncategorized = UNCATEGORIZED;
   private readonly notify = inject(NotifyService);
   private readonly router = inject(Router);
 
@@ -69,7 +72,8 @@ export class InventoryFormComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.api.categories().subscribe(c => this.categories.set(c));
+    // Catégories proposées : uniquement les séries importées dans le catalogue (page Cotes).
+    this.catalogApi.sets().subscribe({ next: sets => this.categories.set(sets.map(s => catalogCategory(s))), error: err => this.notify.error(err) });
 
     const id = this.id();
     if (!id) return;
@@ -100,6 +104,12 @@ export class InventoryFormComponent implements OnInit {
         this.router.navigate(['/inventory']);
       }
     });
+  }
+
+  /** Carte brute ou gradée : sa catégorie vient de la carte du catalogue liée (sinon « Hors catégorie »). */
+  isCatalogCard(): boolean {
+    const type = this.form.controls.type.value;
+    return type === 'RawCard' || type === 'GradedCard';
   }
 
   filterCategories(term: string): string[] {

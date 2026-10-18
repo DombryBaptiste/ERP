@@ -56,7 +56,7 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
             purchase.Items.Add(NewLine(line, purchase.PurchaseDate));
 
         purchase.TotalAmount = ComputeTotal(purchase);
-        await FillMarketValuesFromCatalogAsync(purchase.Items.Select(i => i.Item));
+        await CatalogService.ApplyCatalogLinksAsync(db, purchase.Items.Select(i => i.Item));
         db.Purchases.Add(purchase);
         await db.SaveChangesAsync();
         return (await GetByIdAsync(purchase.Id))!;
@@ -119,7 +119,7 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
         foreach (var pi in purchase.Items) pi.Item.PurchaseDate = purchase.PurchaseDate;
 
         purchase.TotalAmount = ComputeTotal(purchase);
-        await FillMarketValuesFromCatalogAsync(purchase.Items.Select(i => i.Item));
+        await CatalogService.ApplyCatalogLinksAsync(db, purchase.Items.Select(i => i.Item));
         await db.SaveChangesAsync();
         // Photos et justificatifs des articles retirés.
         if (removedItemIds.Count > 0)
@@ -166,18 +166,6 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
         item.CatalogCardId = line.CatalogCardId;
     }
 
-    /// <summary>Articles liés à une carte cotée du catalogue et encore sans valeur de marché : on reprend la cote.</summary>
-    private async Task FillMarketValuesFromCatalogAsync(IEnumerable<InventoryItem> items)
-    {
-        var withoutValue = items.Where(i => i.CatalogCardId.HasValue && i.MarketValue is null).ToList();
-        if (withoutValue.Count == 0) return;
-        var ids = withoutValue.Select(i => i.CatalogCardId!.Value).Distinct().ToList();
-        var quotes = await db.CatalogCards.Where(c => ids.Contains(c.Id) && c.Quote != null)
-            .ToDictionaryAsync(c => c.Id, c => c.Quote);
-        foreach (var item in withoutValue)
-            if (quotes.TryGetValue(item.CatalogCardId!.Value, out var quote))
-                InventoryService.ApplyMarketValue(item, quote);
-    }
 
     private static decimal ComputeTotal(Purchase p) => Math.Round(
         p.Items.Sum(i => i.Quantity * i.UnitPrice) + p.PlatformFees + p.ShippingFees, 2);

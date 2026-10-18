@@ -40,6 +40,13 @@
           <mat-error>Nom obligatoire</mat-error>
         </mat-form-field>
 
+        @if (isCatalogCard()) {
+          <mat-form-field>
+            <mat-label>Catégorie / série</mat-label>
+            <input matInput [value]="form.controls.category.value || uncategorized" disabled>
+            <mat-hint>Vient de la carte du catalogue liée (via un achat ou l'Estimation), sinon « {{ uncategorized }} »</mat-hint>
+          </mat-form-field>
+        } @else {
         <mat-form-field>
           <mat-label>Catégorie / série</mat-label>
           <input matInput formControlName="category" [matAutocomplete]="catAuto">
@@ -48,7 +55,9 @@
               <mat-option [value]="c">{{ c }}</mat-option>
             }
           </mat-autocomplete>
+          <mat-hint>Séries importées dans Cotes</mat-hint>
         </mat-form-field>
+        }
 
         <mat-form-field>
           <mat-label>Type</mat-label>

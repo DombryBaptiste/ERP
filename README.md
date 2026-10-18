@@ -183,6 +183,11 @@ La documentation interactive de l'API (Swagger) est disponible en développement
   état, quantité, cote (modifiable), **valeur** (cote × part selon l'état) et **prix d'achat** proposé
   (par défaut valeur − 20 %, arrondi au 0,50 € inférieur ; réglable dans les Paramètres). La sélection reste
   enregistrée dans le navigateur jusqu'à **Réinitialiser**.
+- **Catégories = séries importées.** Pour une carte (brute ou gradée), la catégorie vient de la carte du catalogue liée
+  (« code + série », ex. `PFL Flammes Fantasmagoriques`) ; une carte non liée est classée **« Hors catégorie »**
+  (règle appliquée par l'API à chaque enregistrement d'achat ou d'article). Pour les produits scellés, la liste des
+  séries ne propose que les séries importées dans Cotes. Les articles existants gardent leur catégorie jusqu'à leur
+  prochaine modification.
 - **Dans un achat**, pour une carte (brute ou gradée), le champ Nom cherche aussi dans le catalogue (nom ou code,
   ex. `PFL 95`) : choisir une carte remplit le nom, la langue, la série, propose le prix d'achat (si le prix est à 0)
   et **lie l'article à la carte**. Une carte saisie à la main est signalée « Hors catalogue ».
