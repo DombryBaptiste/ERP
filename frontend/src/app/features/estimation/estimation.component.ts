@@ -11,10 +11,13 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
-import { buybackPrice, cardCode, cardThumbnail, CONDITION_FACTORS } from '../../core/catalog';
+import {
+  CARD_LANGUAGES, cardCode, cardThumbnail, languageLabel, languageShort, parseSetKey, setKey
+} from '../../core/catalog';
 import { CONDITIONS } from '../../core/labels';
-import { CatalogCard, CatalogSet, ItemCondition, PurchaseLineInput } from '../../core/models';
+import { CardLanguage, CatalogCard, CatalogSet, ItemCondition, PurchaseLineInput } from '../../core/models';
 import { CatalogService } from '../../core/services/api.services';
+import { BuybackService } from '../../core/services/buyback.service';
 import { NotifyService } from '../../core/services/notify.service';
 
 /** Une carte de la collection à estimer. */
@@ -31,7 +34,7 @@ const STORAGE_KEY = 'pokestock.estimation';
 
 /**
  * Estimation d'une collection : on cherche les cartes dans le catalogue, on les ajoute en un clic,
- * et on obtient la valeur et le prix d'achat proposé (−20 %, arrondi au 0,50 € inférieur).
+ * et on obtient la valeur et le prix d'achat proposé (règle réglable dans les Paramètres).
  * La sélection peut ensuite devenir un achat.
  */
 @Component({
@@ -48,13 +51,20 @@ export class EstimationComponent {
   private readonly api = inject(CatalogService);
   private readonly notify = inject(NotifyService);
   private readonly router = inject(Router);
+  readonly buyback = inject(BuybackService);
 
   readonly code = cardCode;
   readonly thumbnail = cardThumbnail;
   readonly conditions = CONDITIONS;
+  readonly key = setKey;
+  readonly short = languageShort;
+  readonly languages = CARD_LANGUAGES;
 
   readonly sets = signal<CatalogSet[]>([]);
+  /** Série choisie (clé langue|id). */
   readonly setId = signal('');
+  readonly language = signal<CardLanguage | ''>('');
+  readonly visibleSets = computed(() => this.sets().filter(s => !this.language() || s.language === this.language()));
   readonly search = signal('');
   readonly results = signal<CatalogCard[]>([]);
   readonly searching = signal(false);
@@ -93,6 +103,12 @@ export class EstimationComponent {
     this.search$.next();
   }
 
+  onLanguageChange(language: CardLanguage | ''): void {
+    this.language.set(language);
+    if (language && parseSetKey(this.setId()).language !== language) this.setId.set('');
+    this.loadResults();
+  }
+
   onSetChange(setId: string): void {
     this.setId.set(setId);
     this.loadResults();
@@ -102,7 +118,8 @@ export class EstimationComponent {
     const search = this.search().trim();
     if (!this.setId() && search.length < 2) { this.results.set([]); return; }
     this.searching.set(true);
-    this.api.cards({ setId: this.setId() || undefined, search: search || undefined, take: 200 }).subscribe({
+    const { language, setId } = parseSetKey(this.setId());
+    this.api.cards({ language: language ?? (this.language() || undefined), setId, search: search || undefined, take: 200 }).subscribe({
       next: cards => { this.results.set(cards); this.searching.set(false); },
       error: err => { this.searching.set(false); this.notify.error(err); }
     });
@@ -151,11 +168,11 @@ export class EstimationComponent {
 
   /** Valeur unitaire : cote × part retenue selon l'état. */
   value(line: EstimationLine): number | null {
-    return line.quote === null ? null : Math.round(line.quote * CONDITION_FACTORS[line.condition] * 100) / 100;
+    return this.buyback.value(line.quote, line.condition);
   }
 
   unitBuyback(line: EstimationLine): number | null {
-    return buybackPrice(this.value(line));
+    return this.buyback.price(this.value(line));
   }
 
   /** Ouvre un nouvel achat pré-rempli avec les cartes sélectionnées, au prix d'achat proposé. */
@@ -164,7 +181,7 @@ export class EstimationComponent {
       itemId: null,
       name: `${l.card.name} — ${cardCode(l.card)}`,
       category: `${l.card.setCode ?? l.card.setId} ${l.card.setName}`,
-      language: 'Français',
+      language: languageLabel(l.card.language),
       type: 'RawCard',
       condition: l.condition,
       quantity: l.quantity,
@@ -178,7 +195,10 @@ export class EstimationComponent {
   private restore(): EstimationLine[] {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-      return Array.isArray(saved) ? saved : [];
+      // Sélections enregistrées avant l'ajout des langues : cartes françaises.
+      return Array.isArray(saved)
+        ? saved.map((l: EstimationLine) => ({ ...l, card: { ...l.card, language: l.card.language ?? 'fr' } }))
+        : [];
     } catch {
       return [];
     }

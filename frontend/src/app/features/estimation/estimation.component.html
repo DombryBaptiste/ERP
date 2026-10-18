@@ -4,7 +4,7 @@
     <h1>Estimation</h1>
     <p class="subtitle">
       Cherchez les cartes de la collection et cliquez pour les ajouter : valeur selon la cote et l'état,
-      prix d'achat proposé (−20 %, arrondi au 0,50 € inférieur).
+      prix d'achat proposé ({{ buyback.rule() }} — <a routerLink="/settings">modifier</a>).
     </p>
   </div>
   <div class="page-actions">
@@ -23,12 +23,22 @@
                placeholder="Nom ou code (ex. PFL 95)" autocomplete="off">
         <mat-hint>Entrée ajoute la carte si elle est seule</mat-hint>
       </mat-form-field>
+      <mat-form-field class="language-field">
+        <mat-label>Langue</mat-label>
+        <mat-select [value]="language()" (selectionChange)="onLanguageChange($event.value)">
+          <mat-option value="">Toutes</mat-option>
+          @for (l of languages; track l.value) { <mat-option [value]="l.value">{{ l.label }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
       <mat-form-field class="set-field">
         <mat-label>Série</mat-label>
         <mat-select [value]="setId()" (selectionChange)="onSetChange($event.value)">
           <mat-option value="">Toutes</mat-option>
-          @for (s of sets(); track s.setId) {
-            <mat-option [value]="s.setId"><span class="ref">{{ s.setCode ?? s.setId }}</span> {{ s.setName }}</mat-option>
+          @for (s of visibleSets(); track key(s)) {
+            <mat-option [value]="key(s)">
+              <span class="ref">{{ s.setCode ?? s.setId }}</span> {{ s.setName }}
+              @if (s.language !== 'fr') { <span class="muted small">({{ short(s.language) }})</span> }
+            </mat-option>
           }
         </mat-select>
       </mat-form-field>
@@ -54,7 +64,7 @@
             <div class="no-image"><mat-icon>image_not_supported</mat-icon></div>
           }
           @if (selectedCount().get(c.id); as n) { <span class="badge">{{ n }}</span> }
-          <span class="result-code ref">{{ code(c) }}</span>
+          <span class="result-code ref">{{ code(c) }}@if (c.language !== 'fr') { · {{ short(c.language) }} }</span>
           <span class="result-name">{{ c.name }}</span>
           <span class="result-quote" [class.muted]="c.quote === null">
             {{ c.quote === null ? 'Pas de cote' : (c.quote | currency) }}
@@ -92,7 +102,9 @@
             @if (thumbnail(l.card); as img) { <img [src]="img" [alt]="l.card.name"> }
             <div class="line-main">
               <div class="line-title">
-                <span class="ref">{{ code(l.card) }}</span> {{ l.card.name }}
+                <span class="ref">{{ code(l.card) }}</span>
+                @if (l.card.language !== 'fr') { <span class="lang">{{ short(l.card.language) }}</span> }
+                {{ l.card.name }}
               </div>
               <div class="line-fields">
                 <mat-form-field subscriptSizing="dynamic" class="f-cond">
@@ -106,7 +118,7 @@
                   <input matInput type="number" min="1" [ngModel]="l.quantity" (ngModelChange)="setQuantity(l, $event)">
                 </mat-form-field>
                 <mat-form-field subscriptSizing="dynamic" class="f-quote">
-                  <mat-label>Cote NM</mat-label>
+                  <mat-label>Cote {{ short(l.card.language) }} NM</mat-label>
                   <input matInput inputmode="decimal" [ngModel]="l.quote" (change)="setQuote(l, $any($event.target).value)">
                   <span matTextSuffix>€</span>
                 </mat-form-field>

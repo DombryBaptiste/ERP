@@ -74,6 +74,14 @@ public class PreferencesService(SettingsStore store)
     {
         prefs.Company ??= new CompanyInfo();
         prefs.Alerts ??= new AlertSettings();
+        prefs.Buyback ??= new BuybackSettings();
+        var r = prefs.Buyback;
+        if (r.DiscountPercent is < 0 or > 100)
+            throw new BusinessException("La remise de rachat doit être comprise entre 0 et 100 %.");
+        if (r.RoundingStep is < 0 or > 100)
+            throw new BusinessException("Le pas d'arrondi du rachat doit être compris entre 0 et 100 €.");
+        if (new[] { r.NmPercent, r.ExcPercent, r.GoodPercent, r.LpPercent, r.PlPercent, r.PoPercent }.Any(p => p is < 0 or > 200))
+            throw new BusinessException("Les parts de la cote selon l'état doivent être comprises entre 0 et 200 %.");
         prefs.CardSeries ??= [];
         prefs.CardSeries = prefs.CardSeries
             .Where(x => !string.IsNullOrWhiteSpace(x.Language) && !string.IsNullOrWhiteSpace(x.Series))

@@ -57,6 +57,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         b.Entity<CatalogCard>(e =>
         {
             e.ToTable("card_catalog");
+            e.Property(x => x.Language).HasMaxLength(10).IsRequired();
             e.Property(x => x.TcgdexId).HasMaxLength(50).IsRequired();
             e.Property(x => x.SetId).HasMaxLength(30).IsRequired();
             e.Property(x => x.SetCode).HasMaxLength(20);
@@ -68,8 +69,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Rarity).HasMaxLength(60);
             e.Property(x => x.ImageUrl).HasMaxLength(300);
             e.Property(x => x.Quote).HasPrecision(10, 2);
-            e.HasIndex(x => x.TcgdexId).IsUnique();
-            e.HasIndex(x => x.SetId);
+            // Les séries asiatiques réutilisent les mêmes identifiants (SV8a-237 en japonais et en chinois).
+            e.HasIndex(x => new { x.Language, x.TcgdexId }).IsUnique();
+            e.HasIndex(x => new { x.Language, x.SetId });
             e.HasIndex(x => x.Name);
         });
 

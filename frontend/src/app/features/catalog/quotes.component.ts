@@ -11,9 +11,10 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subject, debounceTime } from 'rxjs';
-import { buybackPrice, cardCode, cardThumbnail } from '../../core/catalog';
-import { CatalogCard, CatalogSet } from '../../core/models';
+import { CARD_LANGUAGES, cardCode, cardThumbnail, languageShort, parseSetKey, setKey } from '../../core/catalog';
+import { CardLanguage, CatalogCard, CatalogSet } from '../../core/models';
 import { CatalogService } from '../../core/services/api.services';
+import { BuybackService } from '../../core/services/buyback.service';
 import { NotifyService } from '../../core/services/notify.service';
 import { ImportSetsDialogComponent } from './import-sets-dialog.component';
 
@@ -44,12 +45,20 @@ export class QuotesComponent {
 
   readonly code = cardCode;
   readonly thumbnail = cardThumbnail;
-  readonly buyback = buybackPrice;
+  private readonly buybackService = inject(BuybackService);
+  /** Prix de rachat d'une carte NM à sa cote. */
+  readonly buyback = (quote: number | null) => this.buybackService.price(quote);
+  readonly key = setKey;
+  readonly short = languageShort;
+  readonly languages = CARD_LANGUAGES;
 
   readonly sets = signal<CatalogSet[]>([]);
   readonly cards = signal<CatalogCard[]>([]);
   readonly loading = signal(true);
+  /** Série choisie (clé langue|id), ou '' pour chercher dans tout le catalogue. */
   readonly setId = signal('');
+  /** Langue filtrée quand aucune série n'est choisie ('' = toutes). */
+  readonly language = signal<CardLanguage | ''>('');
   readonly search = signal('');
   readonly onlyMissing = signal(false);
   /** Saisie en cours, par carte (texte du champ). */
@@ -60,7 +69,8 @@ export class QuotesComponent {
   readonly groups = computed<SerieGroup[]>(() => {
     const groups: SerieGroup[] = [];
     for (const s of this.sets()) {
-      const name = s.serieName ?? 'Autres';
+      if (this.language() && s.language !== this.language()) continue;
+      const name = `${s.serieName ?? 'Autres'}${s.language === 'fr' ? '' : ' — ' + languageShort(s.language)}`;
       let g = groups.find(x => x.name === name);
       if (!g) groups.push(g = { name, sets: [] });
       g.sets.push(s);
@@ -71,7 +81,7 @@ export class QuotesComponent {
   readonly visibleCards = computed(() =>
     this.onlyMissing() ? this.cards().filter(c => c.quote === null) : this.cards());
 
-  readonly currentSet = computed(() => this.sets().find(s => s.setId === this.setId()) ?? null);
+  readonly currentSet = computed(() => this.sets().find(s => setKey(s) === this.setId()) ?? null);
 
   constructor() {
     this.search$.pipe(debounceTime(300)).subscribe(() => this.loadCards());
@@ -82,7 +92,7 @@ export class QuotesComponent {
     this.api.sets().subscribe({
       next: sets => {
         this.sets.set(sets);
-        if (selectFirst && !this.setId() && sets.length) this.setId.set(sets[0].setId);
+        if (selectFirst && !this.setId() && sets.length) this.setId.set(setKey(sets[0]));
         if (sets.length) this.loadCards(); else this.loading.set(false);
       },
       error: err => { this.loading.set(false); this.notify.error(err); }
@@ -94,7 +104,8 @@ export class QuotesComponent {
     // Sans série choisie, il faut une recherche (le catalogue peut compter des milliers de cartes).
     if (!this.setId() && search.length < 2) { this.cards.set([]); this.loading.set(false); return; }
     this.loading.set(true);
-    this.api.cards({ setId: this.setId() || undefined, search: search || undefined, take: 500 }).subscribe({
+    const { language, setId } = parseSetKey(this.setId());
+    this.api.cards({ language: language ?? (this.language() || undefined), setId, search: search || undefined, take: 500 }).subscribe({
       next: cards => { this.cards.set(cards); this.drafts.set(new Map()); this.loading.set(false); },
       error: err => { this.loading.set(false); this.notify.error(err); }
     });
@@ -102,6 +113,12 @@ export class QuotesComponent {
 
   onSetChange(setId: string): void {
     this.setId.set(setId);
+    this.loadCards();
+  }
+
+  onLanguageChange(language: CardLanguage | ''): void {
+    this.language.set(language);
+    if (this.currentSet() && language && this.currentSet()!.language !== language) this.setId.set('');
     this.loadCards();
   }
 

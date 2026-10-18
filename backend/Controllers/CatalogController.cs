@@ -15,18 +15,23 @@ public class CatalogController(CatalogService service) : ControllerBase
 
     /// <summary>Séries disponibles chez TCGdex, à importer.</summary>
     [HttpGet("available-sets")]
-    public Task<List<AvailableSetDto>> AvailableSets(CancellationToken ct) => service.GetAvailableSetsAsync(ct);
+    public Task<List<AvailableSetDto>> AvailableSets([FromQuery] string language = "fr", CancellationToken ct = default) =>
+        service.GetAvailableSetsAsync(language, ct);
 
-    /// <summary>Importe ou met à jour une série (les cotes sont conservées).</summary>
+    /// <summary>
+    /// Importe ou met à jour une série (les cotes sont conservées).
+    /// Ex. : ?language=fr&amp;groups=Holo&amp;groups=Other (par défaut : Other et Unknown, les cartes « rares »).
+    /// </summary>
     [HttpPost("sets/{setId}/import")]
-    public Task<CatalogImportResultDto> Import(string setId, [FromQuery] bool rareOnly = true, CancellationToken ct = default) =>
-        service.ImportSetAsync(setId, rareOnly, ct);
+    public Task<CatalogImportResultDto> Import(string setId, [FromQuery] string language = "fr",
+        [FromQuery] RarityGroup[]? groups = null, CancellationToken ct = default) =>
+        service.ImportSetAsync(setId, language, groups is { Length: > 0 } ? groups : CatalogService.DefaultGroups, ct);
 
-    /// <summary>Ex. : /api/catalog/cards?setId=me02 ou ?search=PFL 95 ou ?search=Dracaufeu</summary>
+    /// <summary>Ex. : /api/catalog/cards?language=fr&amp;setId=me02 ou ?search=PFL 95 ou ?search=Dracaufeu</summary>
     [HttpGet("cards")]
-    public Task<List<CatalogCardDto>> Cards([FromQuery] string? setId, [FromQuery] string? search,
+    public Task<List<CatalogCardDto>> Cards([FromQuery] string? language, [FromQuery] string? setId, [FromQuery] string? search,
         [FromQuery] bool quotedOnly = false, [FromQuery] int take = 300, CancellationToken ct = default) =>
-        service.SearchAsync(setId, search, quotedOnly, take, ct);
+        service.SearchAsync(language, setId, search, quotedOnly, take, ct);
 
     /// <summary>Saisit (ou efface, avec null) la cote d'une carte.</summary>
     [HttpPut("cards/{id:int}/quote")]

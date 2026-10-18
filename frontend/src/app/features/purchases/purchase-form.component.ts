@@ -13,13 +13,16 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { catchError, debounceTime, distinctUntilChanged, of, Subject, switchMap } from 'rxjs';
+import { cardCode, cardThumbnail, languageLabel, languageShort } from '../../core/catalog';
+import { BuybackService } from '../../core/services/buyback.service';
 import { CONDITIONS, ITEM_TYPES, PAYMENT_METHODS, PURCHASE_PLATFORMS } from '../../core/labels';
 import { isCard } from '../../core/labels';
-import { AppPreferences, CardSeriesEntry, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchaseLineInput, PurchasePlatform, PurchaseSource } from '../../core/models';
+import { AppPreferences, CardSeriesEntry, CatalogCard, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchaseLineInput, PurchasePlatform, PurchaseSource } from '../../core/models';
 import { AttachmentsComponent } from '../../shared/attachments.component';
 import { LabelPipe } from '../../shared/label.pipe';
 import { groupProducts, normalizeText, ProductGroup, productKey } from '../../core/products';
-import { InventoryService, PurchaseService, ToolsService } from '../../core/services/api.services';
+import { CatalogService, InventoryService, PurchaseService, ToolsService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 import { parseApiDate, toIsoDate } from '../../core/utils';
 
@@ -58,6 +61,8 @@ export class PurchaseFormComponent implements OnInit {
   private readonly api = inject(PurchaseService);
   private readonly inventoryApi = inject(InventoryService);
   private readonly toolsApi = inject(ToolsService);
+  private readonly catalogApi = inject(CatalogService);
+  private readonly buyback = inject(BuybackService);
   private readonly notify = inject(NotifyService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -71,6 +76,14 @@ export class PurchaseFormComponent implements OnInit {
   readonly knownProducts = signal<ProductGroup[]>([]);
   readonly loading = signal(false);
   readonly saving = signal(false);
+  /** Cartes du catalogue correspondant à la saisie du nom (ligne en cours d'édition). */
+  readonly catalogResults = signal<CatalogCard[]>([]);
+  /** Cartes du catalogue choisies dans ce formulaire, par id (aperçu sous le nom). */
+  readonly linkedCards = signal(new Map<number, CatalogCard>());
+  private readonly catalogSearch$ = new Subject<string>();
+  readonly cardCode = cardCode;
+  readonly cardThumbnail = cardThumbnail;
+  readonly languageShort = languageShort;
   readonly linePage = signal(0);
   readonly linePageSize = 20;
   private automaticPlatformFees = false;
@@ -121,6 +134,14 @@ export class PurchaseFormComponent implements OnInit {
       if (!this.settingAutomaticPlatformFees) this.automaticPlatformFees = false;
     });
     this.items.valueChanges.subscribe(() => this.updateAutomaticPlatformFees());
+
+    // Recherche dans le catalogue des cartes pendant la saisie du nom.
+    this.catalogSearch$.pipe(
+      debounceTime(250),
+      distinctUntilChanged(),
+      switchMap(term => term.trim().length < 2 ? of([])
+        : this.catalogApi.cards({ search: term.trim(), take: 15 }).pipe(catchError(() => of([]))))
+    ).subscribe(cards => this.catalogResults.set(cards));
 
     // Le fournisseur n'est obligatoire que pour un vrai achat.
     this.form.controls.source.valueChanges.subscribe(source => {
@@ -280,6 +301,54 @@ export class PurchaseFormComponent implements OnInit {
     return this.knownProducts().find(p => p.key === key);
   }
 
+  /** Carte (brute ou gradée) : le nom se cherche dans le catalogue. */
+  usesCatalog(line: LineForm): boolean {
+    const type = line.controls.type.value;
+    return type === 'RawCard' || type === 'GradedCard';
+  }
+
+  searchCatalog(line: LineForm, term: string): void {
+    if (this.usesCatalog(line)) this.catalogSearch$.next(term ?? '');
+  }
+
+  /**
+   * Remplit la ligne depuis une carte du catalogue : nom, langue, série, lien vers la carte
+   * (sa cote deviendra la valeur de marché) et, si le prix est encore à 0, le prix d'achat proposé.
+   */
+  useCatalogCard(line: LineForm, card: CatalogCard): void {
+    const language = languageLabel(card.language);
+    line.patchValue({
+      name: `${card.name} — ${cardCode(card)}`,
+      language,
+      category: this.seriesForCard(language, card),
+      catalogCardId: card.id
+    });
+    if (!line.controls.unitPrice.value && card.quote !== null && !this.isCollection) {
+      line.controls.unitPrice.setValue(this.buyback.price(this.buyback.value(card.quote, line.controls.condition.value)) ?? 0);
+    }
+    this.linkedCards.update(cards => new Map(cards).set(card.id, card));
+    this.catalogResults.set([]);
+  }
+
+  unlinkCatalogCard(line: LineForm): void {
+    line.controls.catalogCardId.setValue(null);
+  }
+
+  linkedCard(line: LineForm): CatalogCard | undefined {
+    const id = line.controls.catalogCardId.value;
+    return id === null ? undefined : this.linkedCards().get(id);
+  }
+
+  /** Série des Paramètres correspondant à la carte (même nom ou même code), sinon « CODE Nom de la série ». */
+  private seriesForCard(language: string, card: CatalogCard): string {
+    const setName = normalizeText(card.setName);
+    const code = normalizeText(card.setCode ?? card.setId);
+    const configured = this.cardSeries().filter(x => x.language === language).map(x => x.series);
+    return configured.find(s => normalizeText(s).includes(setName))
+      ?? configured.find(s => normalizeText(s).split(' ')[0] === code)
+      ?? `${card.setCode ?? card.setId} ${card.setName}`;
+  }
+
   filterCategories(term: string): string[] {
     const t = (term ?? '').toLowerCase();
     return this.categories().filter(c => c.toLowerCase().includes(t)).slice(0, 20);
@@ -291,6 +360,13 @@ export class PurchaseFormComponent implements OnInit {
 
   languages(): string[] {
     return [...new Set(this.cardSeries().map(x => x.language))].sort((a, b) => a.localeCompare(b));
+  }
+
+  /** Langues des Paramètres, plus celle de la ligne (ex. « Japonais » reprise du catalogue). */
+  languagesFor(line: LineForm): string[] {
+    const current = line.controls.language.value;
+    const languages = this.languages();
+    return current && !languages.includes(current) ? [...languages, current] : languages;
   }
 
   seriesFor(line: LineForm): string[] {

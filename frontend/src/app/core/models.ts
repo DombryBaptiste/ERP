@@ -432,9 +432,24 @@ export interface CompanyInfo {
   invoiceFooter: string | null;
 }
 
+/** Calcul du prix de rachat : valeur = cote × part selon l'état ; rachat = valeur − remise, arrondi au pas inférieur. */
+export interface BuybackSettings {
+  /** Remise en % (20 = valeur − 20 %). */
+  discountPercent: number;
+  /** Arrondi au multiple inférieur, en euros (0 = au centime). */
+  roundingStep: number;
+  nmPercent: number;
+  excPercent: number;
+  goodPercent: number;
+  lpPercent: number;
+  plPercent: number;
+  poPercent: number;
+}
+
 export interface AppPreferences {
   company: CompanyInfo;
   alerts: AlertSettings;
+  buyback?: BuybackSettings;
   cardSeries: CardSeriesEntry[];
 }
 
@@ -546,8 +561,12 @@ export interface ShippingSummary {
 }
 
 // ----- Catalogue des cartes (cotes, estimation) -----
+/** Langue d'une carte du catalogue (code TCGdex). */
+export type CardLanguage = 'fr' | 'ja' | 'ko' | 'zh-tw' | 'zh-cn';
+
 export interface CatalogCard {
   id: number;
+  language: CardLanguage;
   tcgdexId: string;
   setId: string;
   /** Code officiel de la série (PFL, MEW…). */
@@ -560,7 +579,7 @@ export interface CatalogCard {
   rarity: string | null;
   /** Adresse de l'image sans extension : ajouter /low.webp ou /high.webp. */
   imageUrl: string | null;
-  /** Page Cardmarket filtrée sur les offres en français, NM ou mieux. */
+  /** Page Cardmarket filtrée sur les offres dans la langue de la carte, NM ou mieux. */
   cardmarketUrl: string | null;
   /** Cote saisie à la main (prix FR NM). */
   quote: number | null;
@@ -570,6 +589,7 @@ export interface CatalogCard {
 }
 
 export interface CatalogSet {
+  language: CardLanguage;
   setId: string;
   setCode: string | null;
   setName: string;
@@ -586,10 +606,15 @@ export interface AvailableSet {
   importedCount: number;
 }
 
+/** Groupes de rareté proposés à l'import. */
+export type RarityGroup = 'Common' | 'Uncommon' | 'Rare' | 'Holo' | 'ClassicEx' | 'NoRarity' | 'Unknown' | 'Other';
+
 export interface CatalogImportResult {
   setId: string;
   setName: string;
   added: number;
   updated: number;
   total: number;
+  /** Cartes ignorées (rareté non cochée). */
+  skipped: number;
 }

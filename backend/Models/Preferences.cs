@@ -35,11 +35,31 @@ public class AlertSettings
     public int LowShippingStock { get; set; } = 5;
 }
 
+/// <summary>
+/// Calcul du prix de rachat (pages Estimation et Cotes, achats depuis le catalogue) :
+/// valeur = cote × part selon l'état ; prix de rachat = valeur − remise, arrondi au pas inférieur.
+/// </summary>
+public class BuybackSettings
+{
+    /// <summary>Remise appliquée à la valeur, en % (20 = la valeur − 20 %).</summary>
+    public decimal DiscountPercent { get; set; } = 20m;
+    /// <summary>Arrondi au multiple inférieur, en euros (0,50 : 6,70 -> 6,50). 0 = au centime.</summary>
+    public decimal RoundingStep { get; set; } = 0.5m;
+    /// <summary>Part de la cote (NM) retenue selon l'état, en %.</summary>
+    public decimal NmPercent { get; set; } = 100m;
+    public decimal ExcPercent { get; set; } = 85m;
+    public decimal GoodPercent { get; set; } = 70m;
+    public decimal LpPercent { get; set; } = 60m;
+    public decimal PlPercent { get; set; } = 50m;
+    public decimal PoPercent { get; set; } = 30m;
+}
+
 /// <summary>Préférences de l'application.</summary>
 public class AppPreferences
 {
     public CompanyInfo Company { get; set; } = new();
     public AlertSettings Alerts { get; set; } = new();
+    public BuybackSettings Buyback { get; set; } = new();
     public List<CardSeriesEntry> CardSeries { get; set; } = [];
 }
 

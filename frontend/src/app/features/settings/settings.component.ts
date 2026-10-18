@@ -9,6 +9,8 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
 import { AppPreferences, CardSeriesEntry } from '../../core/models';
 import { ToolsService } from '../../core/services/api.services';
+import { BuybackService } from '../../core/services/buyback.service';
+import { buybackPrice, DEFAULT_BUYBACK } from '../../core/catalog';
 import { NotifyService } from '../../core/services/notify.service';
 
 /** Paramètres : informations de l'entreprise (factures) et seuils d'alerte. */
@@ -21,6 +23,7 @@ export class SettingsComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly api = inject(ToolsService);
   private readonly notify = inject(NotifyService);
+  private readonly buybackService = inject(BuybackService);
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -54,6 +57,26 @@ export class SettingsComponent implements OnInit {
     lowShippingStock: [5, [Validators.required, Validators.min(0)]]
   });
 
+  readonly buyback = this.fb.group({
+    discountPercent: [DEFAULT_BUYBACK.discountPercent, [Validators.required, Validators.min(0), Validators.max(100)]],
+    roundingStep: [DEFAULT_BUYBACK.roundingStep, [Validators.required, Validators.min(0), Validators.max(100)]],
+    nmPercent: [DEFAULT_BUYBACK.nmPercent, [Validators.required, Validators.min(0), Validators.max(200)]],
+    excPercent: [DEFAULT_BUYBACK.excPercent, [Validators.required, Validators.min(0), Validators.max(200)]],
+    goodPercent: [DEFAULT_BUYBACK.goodPercent, [Validators.required, Validators.min(0), Validators.max(200)]],
+    lpPercent: [DEFAULT_BUYBACK.lpPercent, [Validators.required, Validators.min(0), Validators.max(200)]],
+    plPercent: [DEFAULT_BUYBACK.plPercent, [Validators.required, Validators.min(0), Validators.max(200)]],
+    poPercent: [DEFAULT_BUYBACK.poPercent, [Validators.required, Validators.min(0), Validators.max(200)]]
+  });
+
+  /** Exemple de calcul affiché sous les réglages : carte NM cotée 10 €. */
+  buybackExample(): number | null {
+    return this.buyback.valid ? buybackPrice(10, this.buyback.getRawValue()) : null;
+  }
+
+  resetBuyback(): void {
+    this.buyback.setValue({ ...DEFAULT_BUYBACK });
+  }
+
   ngOnInit(): void {
     this.api.preferences().subscribe({
       next: prefs => {
@@ -64,6 +87,7 @@ export class SettingsComponent implements OnInit {
           vatMention: c.vatMention || 'TVA non applicable, art. 293 B du CGI', invoiceFooter: c.invoiceFooter ?? ''
         });
         this.alerts.patchValue(prefs.alerts);
+        this.buyback.patchValue({ ...DEFAULT_BUYBACK, ...(prefs.buyback ?? {}) });
         this.cardSeries.set([...(prefs.cardSeries ?? [])].sort((a, b) =>
           a.language.localeCompare(b.language) || a.series.localeCompare(b.series)));
         this.loading.set(false);
@@ -140,9 +164,10 @@ export class SettingsComponent implements OnInit {
   }
 
   save(): void {
-    if (this.company.invalid || this.alerts.invalid) {
+    if (this.company.invalid || this.alerts.invalid || this.buyback.invalid) {
       this.company.markAllAsTouched();
       this.alerts.markAllAsTouched();
+      this.buyback.markAllAsTouched();
       this.notify.error(null, 'Certains champs sont invalides.');
       return;
     }
@@ -161,12 +186,14 @@ export class SettingsComponent implements OnInit {
         invoiceFooter: blankToNull(c.invoiceFooter)
       },
       alerts: this.alerts.getRawValue(),
+      buyback: this.buyback.getRawValue(),
       cardSeries: this.cardSeries()
     };
     this.saving.set(true);
     this.api.savePreferences(prefs).subscribe({
       next: () => {
         this.saving.set(false);
+        this.buybackService.reload();
         this.notify.success('Paramètres enregistrés.');
       },
       error: err => {
