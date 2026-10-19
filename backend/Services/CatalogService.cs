@@ -109,8 +109,21 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
 
     // ---------------------------------------------------------------- Séries
 
-    /// <summary>Série proposée à l'import (nom déjà traduit en anglais pour les langues asiatiques).</summary>
-    private sealed record AvailableSet(string Id, string Name, string SerieId, string Serie, string? Code);
+    /// <summary>
+    /// Langues dont il manque des séries chez TCGdex, complétées par une autre langue qui a les mêmes séries
+    /// (mêmes codes, mêmes numéros) : le coréen reprend les séries japonaises Soleil et Lune, Épée et Bouclier,
+    /// Écarlate et Violet et Méga.
+    /// </summary>
+    private static readonly Dictionary<string, (string Language, string[] Series)> FallbackLanguages = new()
+    {
+        ["ko"] = ("ja", ["SM", "S", "SV", "M"])
+    };
+
+    /// <summary>
+    /// Série proposée à l'import (nom déjà traduit en anglais pour les langues asiatiques).
+    /// <see cref="DataLanguage"/> : langue des fiches TCGdex utilisées si elle diffère (ex. « ja » pour une série coréenne).
+    /// </summary>
+    private sealed record AvailableSet(string Id, string Name, string SerieId, string Serie, string? Code, string? DataLanguage = null);
 
     /// <summary>
     /// Séries disponibles chez TCGdex dans une langue (hors jeu mobile TCG Pocket), de la plus récente à la plus ancienne.
@@ -122,6 +135,19 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
         if (!cache.TryGetValue($"catalog:available-sets:{lang}", out List<AvailableSet>? sets) || sets is null)
         {
             sets = await LoadSeriesSetsAsync(lang, ct);
+            if (FallbackLanguages.TryGetValue(lang, out var fallback))
+            {
+                // Ordre de la langue de repli (plus complète), en reprenant la fiche propre à la langue quand elle existe.
+                var own = sets.ToDictionary(s => s.Id);
+                var merged = new List<AvailableSet>();
+                foreach (var f in await LoadSeriesSetsAsync(fallback.Language, ct))
+                {
+                    if (own.Remove(f.Id, out var mine)) merged.Add(mine);
+                    else if (fallback.Series.Contains(f.SerieId)) merged.Add(f with { DataLanguage = fallback.Language });
+                }
+                merged.AddRange(sets.Where(s => own.ContainsKey(s.Id)));  // séries propres à la langue
+                sets = merged;
+            }
             if (lang == "fr")
             {
                 // Séries sans fiche française (ex. Legendary Treasures) : importées avec la fiche anglaise, rangées dans le bloc français.
@@ -146,7 +172,8 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
         var imported = await db.CatalogCards.Where(c => c.Language == lang).GroupBy(c => c.SetId)
             .Select(g => new { SetId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.SetId, x => x.Count, ct);
-        return sets.Select(s => new AvailableSetDto(s.Id, s.Code, s.Name, s.Serie, imported.GetValueOrDefault(s.Id))).ToList();
+        return sets.Select(s => new AvailableSetDto(s.Id, s.Code, s.Name, s.Serie, imported.GetValueOrDefault(s.Id), s.DataLanguage))
+            .ToList();
     }
 
     /// <summary>Séries d'une langue, bloc par bloc, de la plus récente à la plus ancienne.</summary>
@@ -199,15 +226,22 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
     {
         var wanted = CheckLanguage(language);
         var local = await GetJsonAsync($"{wanted}/sets/{Uri.EscapeDataString(setId)}", ct);
+        var lang = wanted;
+        // Série absente dans cette langue chez TCGdex : fiche de la langue de repli (ex. japonaise pour le coréen).
+        if (local is null && FallbackLanguages.TryGetValue(wanted, out var fallback))
+        {
+            local = await GetJsonAsync($"{fallback.Language}/sets/{Uri.EscapeDataString(setId)}", ct);
+            lang = fallback.Language;
+        }
         // Fiche anglaise : code officiel (PFL...) des séries internationales, et repli si la fiche française manque.
         var en = wanted == "fr" ? await GetJsonAsync($"en/sets/{Uri.EscapeDataString(setId)}", ct) : null;
         var set = local ?? en ?? throw BusinessException.NotFound($"Série « {setId} » introuvable chez TCGdex.");
-        var lang = local is not null ? wanted : "en";
+        if (local is null) lang = "en";
 
-        // Langues asiatiques : noms anglais pour la série, le bloc et les cartes.
-        var setName = CatalogTranslations.SetName(wanted, setId, Str(set, "name") ?? setId);
+        // Langues asiatiques : noms anglais pour la série, le bloc et les cartes (traduits depuis la langue des fiches).
+        var setName = CatalogTranslations.SetName(lang, setId, Str(set, "name") ?? setId);
         var serieName = set.TryGetProperty("serie", out var serie)
-            ? CatalogTranslations.SerieName(wanted, Str(serie, "id"), Str(serie, "name")) : null;
+            ? CatalogTranslations.SerieName(lang, Str(serie, "id"), Str(serie, "name")) : null;
         var code = Abbreviation(en) ?? Abbreviation(local);
         var releaseDate = DateTime.TryParse(Str(set, "releaseDate") ?? (en is { } e ? Str(e, "releaseDate") : null),
             CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d.Date : (DateTime?)null;
@@ -255,7 +289,7 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
             {
                 "Trainer" => "Trainer", "Energy" => "Energy", "Pokemon" => "Pokémon", _ => "Card"
             };
-            card.Name = CatalogTranslations.CardName(wanted, Str(brief, "name") ?? (detail is { } dn ? Str(dn, "name") : null) ?? number,
+            card.Name = CatalogTranslations.CardName(lang, Str(brief, "name") ?? (detail is { } dn ? Str(dn, "name") : null) ?? number,
                 fallback: $"{kind} {number}");
             card.Rarity = rarity;
             card.ImageUrl = Str(brief, "image") ?? (detail is { } di ? Str(di, "image") : null) ?? SubsetImage(setId, number, lang);

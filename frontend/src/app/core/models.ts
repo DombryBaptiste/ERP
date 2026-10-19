@@ -606,6 +606,8 @@ export interface AvailableSet {
   name: string;
   serieName: string;
   importedCount: number;
+  /** Série absente dans cette langue chez TCGdex : importée avec les fiches d'une autre langue (ex. « ja » pour le coréen). */
+  dataLanguage?: CardLanguage | null;
 }
 
 export interface CatalogDeleteResult {

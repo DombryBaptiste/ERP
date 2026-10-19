@@ -346,8 +346,9 @@ export class PurchaseFormComponent implements OnInit {
 
   /** Catégorie affichée d'une carte : celle de la carte liée, sinon « Hors catégorie ». */
   cardCategory(line: LineForm): string {
-    return line.controls.catalogCardId.value !== null && line.controls.category.value
-      ? line.controls.category.value : UNCATEGORIZED;
+    if (line.controls.catalogCardId.value === null) return UNCATEGORIZED;
+    const card = this.linkedCard(line);
+    return line.controls.category.value || (card ? catalogCategory(card) : UNCATEGORIZED);
   }
 
   linkedCard(line: LineForm): CatalogCard | undefined {
@@ -386,7 +387,17 @@ export class PurchaseFormComponent implements OnInit {
   }
 
   onLanguageChange(line: LineForm): void {
-    line.controls.category.setValue('');
+    const card = this.linkedCard(line);
+    if (line.controls.catalogCardId.value !== null) {
+      // Carte liée : même langue -> on garde sa série ; autre langue -> la carte ne correspond plus, on la délie.
+      if (card && languageLabel(card.language) === line.controls.language.value) {
+        line.controls.category.setValue(catalogCategory(card));
+        return;
+      }
+      line.patchValue({ catalogCardId: null, category: UNCATEGORIZED });
+    } else {
+      line.controls.category.setValue(this.usesCatalog(line) ? UNCATEGORIZED : '');
+    }
     this.searchCatalog(line, line.controls.name.value);  // propositions dans la nouvelle langue
   }
 
