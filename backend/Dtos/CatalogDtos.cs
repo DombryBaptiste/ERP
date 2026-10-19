@@ -15,7 +15,7 @@ public record CatalogSetDto(
     int CardCount, int QuotedCount);
 
 /// <summary>Série disponible chez TCGdex, proposée à l'import.</summary>
-public record AvailableSetDto(string SetId, string Name, string SerieName, int ImportedCount);
+public record AvailableSetDto(string SetId, string? Code, string Name, string SerieName, int ImportedCount);
 
 public record CatalogImportResultDto(string SetId, string SetName, int Added, int Updated, int Total, int Skipped);
 

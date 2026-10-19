@@ -10,6 +10,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Noms anglais des cartes et séries asiatiques du catalogue (voir Services/CatalogTranslations.cs) -->
+    <EmbeddedResource Include="Data\Catalog\*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- ORM : Entity Framework Core + fournisseur MySQL -->
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
     <!-- Génération des PDF (factures, registres) : licence Community gratuite sous 1 M$ de CA -->

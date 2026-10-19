@@ -601,6 +601,8 @@ export interface CatalogSet {
 
 export interface AvailableSet {
   setId: string;
+  /** Code officiel (BWP, PFL…) ou identifiant de la série asiatique. */
+  code: string | null;
   name: string;
   serieName: string;
   importedCount: number;

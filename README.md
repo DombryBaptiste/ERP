@@ -177,6 +177,12 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - **Langues** : français, japonais, coréen, chinois traditionnel et chinois simplifié (choix dans la boîte d'import,
   filtre « Langue » sur les pages Cotes et Estimation). Chaque langue a ses propres séries et ses propres cotes.
   Les fiches asiatiques de TCGdex sont parfois incomplètes (image ou rareté manquante : la carte est alors gardée).
+  Les noms asiatiques sont affichés **en anglais suivis du nom d'origine**, ex. « Mega Charizard X ex (メガリザードンXex) »,
+  « Inferno X (インフェルノX) » : noms des Pokémon d'après PokéAPI (`backend/Data/Catalog/pokemon-names.json`), noms des
+  séries d'après `backend/Data/Catalog/set-names.json`. Les dresseurs et objets restent dans leur langue d'origine.
+  Pour traduire des cartes déjà importées, réimportez leur série.
+- La boîte d'import affiche le **code** de chaque série (BWP, PFL…) et permet de le chercher. En français, les séries
+  qui n'ont qu'une fiche anglaise chez TCGdex (ex. Legendary Treasures) sont aussi proposées.
 - **Supprimer** : l'icône corbeille d'une carte, ou **Supprimer la série** pour la série affichée, retire les cartes
   du catalogue avec leurs cotes. Les cartes en stock liées restent dans l'inventaire et passent en « Hors catégorie ».
   Une série supprimée peut être réimportée.
