@@ -38,7 +38,11 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
     };
 
     /// <summary>Catégorie d'une carte du catalogue : « code + nom de la série », ex. « PFL Flammes Fantasmagoriques ».</summary>
-    public static string CategoryOf(CatalogCard card) => $"{card.SetCode ?? card.SetId} {card.SetName}";
+    public static string CategoryOf(CatalogCard card)
+    {
+        var category = $"{card.SetCode ?? card.SetId} {card.SetName}";
+        return category.Length <= 100 ? category : category[..100];  // inventory_items.category : 100 caractères
+    }
 
     /// <summary>
     /// Règle des cartes (brutes ou gradées) : la catégorie et la langue viennent de la carte du catalogue liée ;
@@ -105,36 +109,74 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
 
     // ---------------------------------------------------------------- Séries
 
-    /// <summary>Séries disponibles chez TCGdex dans une langue (hors jeu mobile TCG Pocket), de la plus récente à la plus ancienne.</summary>
+    /// <summary>Série proposée à l'import (nom déjà traduit en anglais pour les langues asiatiques).</summary>
+    private sealed record AvailableSet(string Id, string Name, string SerieId, string Serie, string? Code);
+
+    /// <summary>
+    /// Séries disponibles chez TCGdex dans une langue (hors jeu mobile TCG Pocket), de la plus récente à la plus ancienne.
+    /// En français, on ajoute les séries qui n'ont qu'une fiche anglaise chez TCGdex et le code officiel de chaque série (BWP, PFL…).
+    /// </summary>
     public async Task<List<AvailableSetDto>> GetAvailableSetsAsync(string language, CancellationToken ct)
     {
         var lang = CheckLanguage(language);
-        if (!cache.TryGetValue($"catalog:available-sets:{lang}", out List<(string Id, string Name, string Serie)>? sets) || sets is null)
+        if (!cache.TryGetValue($"catalog:available-sets:{lang}", out List<AvailableSet>? sets) || sets is null)
         {
-            var series = await GetJsonAsync($"{lang}/series", ct) ?? throw new BusinessException("TCGdex ne répond pas.");
-            var serieIds = series.EnumerateArray()
-                .Select(s => (Id: Str(s, "id")!, Name: Str(s, "name") ?? ""))
-                .Where(s => s.Id != "tcgp")
-                .ToList();
+            sets = await LoadSeriesSetsAsync(lang, ct);
+            if (lang == "fr")
+            {
+                // Séries sans fiche française (ex. Legendary Treasures) : importées avec la fiche anglaise, rangées dans le bloc français.
+                var known = sets.Select(s => s.Id).ToHashSet();
+                var frenchSeries = sets.GroupBy(s => s.SerieId).ToDictionary(g => g.Key, g => g.First().Serie);
+                var english = await LoadSeriesSetsAsync("en", ct);
+                sets.AddRange(english.Where(s => !known.Contains(s.Id))
+                    .Select(s => s with { Serie = frenchSeries.GetValueOrDefault(s.SerieId, s.Serie) }));
 
-            var details = new (string Id, string Name, string Serie)[serieIds.Count][];
-            await Parallel.ForEachAsync(Enumerable.Range(0, serieIds.Count),
-                new ParallelOptions { MaxDegreeOfParallelism = MaxParallelRequests, CancellationToken = ct }, async (i, token) =>
-                {
-                    var serie = await GetJsonAsync($"{lang}/series/{Uri.EscapeDataString(serieIds[i].Id)}", token);
-                    details[i] = serie is { } s && s.TryGetProperty("sets", out var list)
-                        ? list.EnumerateArray().Select(x => (Str(x, "id")!, Str(x, "name") ?? "", serieIds[i].Name)).ToArray()
-                        : [];
-                });
-            // TCGdex liste du plus ancien au plus récent : on inverse.
-            sets = details.Reverse().SelectMany(d => d.Reverse()).ToList();
+                var all = sets;
+                var codes = new string?[all.Count];
+                await Parallel.ForEachAsync(Enumerable.Range(0, all.Count),
+                    new ParallelOptions { MaxDegreeOfParallelism = MaxParallelRequests, CancellationToken = ct }, async (i, token) =>
+                    {
+                        codes[i] = Abbreviation(await GetJsonAsync($"en/sets/{Uri.EscapeDataString(all[i].Id)}", token));
+                    });
+                sets = all.Select((s, i) => s with { Code = codes[i] }).ToList();
+            }
             cache.Set($"catalog:available-sets:{lang}", sets, TimeSpan.FromHours(12));
         }
 
         var imported = await db.CatalogCards.Where(c => c.Language == lang).GroupBy(c => c.SetId)
             .Select(g => new { SetId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.SetId, x => x.Count, ct);
-        return sets.Select(s => new AvailableSetDto(s.Id, s.Name, s.Serie, imported.GetValueOrDefault(s.Id))).ToList();
+        return sets.Select(s => new AvailableSetDto(s.Id, s.Code, s.Name, s.Serie, imported.GetValueOrDefault(s.Id))).ToList();
+    }
+
+    /// <summary>Séries d'une langue, bloc par bloc, de la plus récente à la plus ancienne.</summary>
+    private async Task<List<AvailableSet>> LoadSeriesSetsAsync(string lang, CancellationToken ct)
+    {
+        var series = await GetJsonAsync($"{lang}/series", ct) ?? throw new BusinessException("TCGdex ne répond pas.");
+        var serieIds = series.EnumerateArray()
+            .Select(s => (Id: Str(s, "id")!, Name: Str(s, "name") ?? ""))
+            .Where(s => s.Id != "tcgp")
+            .ToList();
+        var asian = lang is not ("fr" or "en");
+
+        var details = new AvailableSet[serieIds.Count][];
+        await Parallel.ForEachAsync(Enumerable.Range(0, serieIds.Count),
+            new ParallelOptions { MaxDegreeOfParallelism = MaxParallelRequests, CancellationToken = ct }, async (i, token) =>
+            {
+                var (serieId, serieName) = serieIds[i];
+                var serie = await GetJsonAsync($"{lang}/series/{Uri.EscapeDataString(serieId)}", token);
+                details[i] = serie is { } s && s.TryGetProperty("sets", out var list)
+                    ? list.EnumerateArray().Select(x =>
+                    {
+                        var id = Str(x, "id")!;
+                        var name = Str(x, "name") ?? id;
+                        return new AvailableSet(id, CatalogTranslations.SetName(lang, id, name), serieId,
+                            CatalogTranslations.SerieName(lang, serieId, serieName) ?? serieName, asian ? id : null);
+                    }).ToArray()
+                    : [];
+            });
+        // TCGdex liste du plus ancien au plus récent : on inverse.
+        return details.Reverse().SelectMany(d => d.Reverse()).ToList();
     }
 
     /// <summary>Séries présentes dans le catalogue, de la plus récente à la plus ancienne.</summary>
@@ -162,8 +204,10 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
         var set = local ?? en ?? throw BusinessException.NotFound($"Série « {setId} » introuvable chez TCGdex.");
         var lang = local is not null ? wanted : "en";
 
-        var setName = Str(set, "name") ?? setId;
-        var serieName = set.TryGetProperty("serie", out var serie) ? Str(serie, "name") : null;
+        // Langues asiatiques : « nom anglais (nom d'origine) » pour la série, le bloc et les cartes.
+        var setName = CatalogTranslations.SetName(wanted, setId, Str(set, "name") ?? setId);
+        var serieName = set.TryGetProperty("serie", out var serie)
+            ? CatalogTranslations.SerieName(wanted, Str(serie, "id"), Str(serie, "name")) : null;
         var code = Abbreviation(en) ?? Abbreviation(local);
         var releaseDate = DateTime.TryParse(Str(set, "releaseDate") ?? (en is { } e ? Str(e, "releaseDate") : null),
             CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d.Date : (DateTime?)null;
@@ -206,7 +250,7 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
             card.ReleaseDate = releaseDate;
             card.Number = number;
             card.SortOrder = i;
-            card.Name = Str(brief, "name") ?? (detail is { } dn ? Str(dn, "name") : null) ?? number;
+            card.Name = CatalogTranslations.CardName(wanted, Str(brief, "name") ?? (detail is { } dn ? Str(dn, "name") : null) ?? number);
             card.Rarity = rarity;
             card.ImageUrl = Str(brief, "image") ?? (detail is { } di ? Str(di, "image") : null) ?? SubsetImage(setId, number, lang);
             card.CardmarketId = detail is { } dc ? CardmarketId(dc) : null;

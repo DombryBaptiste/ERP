@@ -34,7 +34,7 @@ interface SerieGroup {
     <mat-dialog-content>
       @if (loading()) {
         <mat-progress-bar mode="indeterminate" />
-        <p class="muted small">Chargement des séries disponibles…</p>
+        <p class="muted small">Chargement des séries disponibles… (jusqu'à 20 secondes la première fois)</p>
       } @else if (running() || done()) {
         <p>
           {{ running() ? 'Import en cours' : 'Import terminé' }} :
@@ -85,7 +85,7 @@ interface SerieGroup {
         <mat-form-field class="search">
           <mat-label>Filtrer</mat-label>
           <mat-icon matPrefix>search</mat-icon>
-          <input matInput [ngModel]="filter()" (ngModelChange)="filter.set($event)" placeholder="Nom de série ou de bloc">
+          <input matInput [ngModel]="filter()" (ngModelChange)="filter.set($event)" placeholder="Code (BWP, PFL…), nom de série ou de bloc">
         </mat-form-field>
         @for (g of groups(); track g.name) {
           <div class="group">
@@ -98,6 +98,7 @@ interface SerieGroup {
             <div class="sets">
               @for (s of g.sets; track s.setId) {
                 <mat-checkbox [checked]="selected().has(s.setId)" (change)="toggle(s.setId)">
+                  @if (s.code) { <span class="ref">{{ s.code }}</span> }
                   {{ s.name }}
                   @if (s.importedCount) { <span class="muted small">({{ s.importedCount }} déjà)</span> }
                 </mat-checkbox>
@@ -153,7 +154,7 @@ export class ImportSetsDialogComponent {
     const f = normalizeText(this.filter());
     const groups: SerieGroup[] = [];
     for (const s of this.available()) {
-      if (f && !normalizeText(`${s.name} ${s.serieName}`).includes(f)) continue;
+      if (f && !normalizeText(`${s.code ?? ''} ${s.setId} ${s.name} ${s.serieName}`).includes(f)) continue;
       let g = groups.find(x => x.name === s.serieName);
       if (!g) groups.push(g = { name: s.serieName, sets: [] });
       g.sets.push(s);

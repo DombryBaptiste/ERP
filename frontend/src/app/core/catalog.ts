@@ -82,7 +82,7 @@ export const UNCATEGORIZED = 'Hors catégorie';
 
 /** Catégorie d'une série ou d'une carte du catalogue : « code + nom », ex. « PFL Flammes Fantasmagoriques ». */
 export function catalogCategory(set: Pick<CatalogSet, 'setCode' | 'setId' | 'setName'>): string {
-  return `${set.setCode ?? set.setId} ${set.setName}`;
+  return `${set.setCode ?? set.setId} ${set.setName}`.slice(0, 100);  // même limite que l'API
 }
 
 /** Code court de la carte, ex. « PFL 095 ». */
