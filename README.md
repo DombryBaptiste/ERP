@@ -177,6 +177,9 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - **Langues** : français, japonais, coréen, chinois traditionnel et chinois simplifié (choix dans la boîte d'import,
   filtre « Langue » sur les pages Cotes et Estimation). Chaque langue a ses propres séries et ses propres cotes.
   Les fiches asiatiques de TCGdex sont parfois incomplètes (image ou rareté manquante : la carte est alors gardée).
+- **Supprimer** : l'icône corbeille d'une carte, ou **Supprimer la série** pour la série affichée, retire les cartes
+  du catalogue avec leurs cotes. Les cartes en stock liées restent dans l'inventaire et passent en « Hors catégorie ».
+  Une série supprimée peut être réimportée.
 - Saisissez la **cote FR (NM)** de chaque carte : **Entrée** enregistre et passe à la carte suivante. Le lien
   « Offres » ouvre Cardmarket filtré sur la langue de la carte, NM ou mieux.
 - Onglet **Estimation** : cherchez une carte (nom ou code, ex. `PFL 95`) et cliquez pour l'ajouter. Pour chaque carte :
@@ -334,6 +337,8 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 | POST | `/api/catalog/sets/:setId/import?language=fr&groups=Other&groups=Holo` | Importe ou met à jour une série (`groups` : `Common`, `Uncommon`, `Rare`, `Holo`, `ClassicEx`, `NoRarity`, `Unknown`, `Other` ; par défaut `Other` + `Unknown`) |
 | GET | `/api/catalog/cards?language=&setId=&search=&quotedOnly=&take=` | Cartes du catalogue (`search` : nom ou code + numéro, ex. `PFL 95`) |
 | PUT | `/api/catalog/cards/:id/quote` | Cote d'une carte `{ quote }` (null pour l'effacer) |
+| DELETE | `/api/catalog/cards/:id` | Supprime une carte du catalogue (articles liés → « Hors catégorie ») |
+| DELETE | `/api/catalog/sets/:setId?language=fr` | Supprime toute une série du catalogue |
 | GET | `/api/health` | État de l'API |
 
 Valeurs des énumérations (JSON) :

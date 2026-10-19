@@ -606,6 +606,12 @@ export interface AvailableSet {
   importedCount: number;
 }
 
+export interface CatalogDeleteResult {
+  deletedCards: number;
+  /** Articles en stock qui étaient liés : déliés et passés en « Hors catégorie ». */
+  unlinkedItems: number;
+}
+
 /** Groupes de rareté proposés à l'import. */
 export type RarityGroup = 'Common' | 'Uncommon' | 'Rare' | 'Holo' | 'ClassicEx' | 'NoRarity' | 'Unknown' | 'Other';
 

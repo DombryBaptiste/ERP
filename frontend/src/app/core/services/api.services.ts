@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkSettings, CatalogCard, CatalogImportResult,
-  CardLanguage, CatalogSet, Dashboard, RarityGroup, InventoryItem, InventoryItemInput,
+  CardLanguage, CatalogDeleteResult, CatalogSet, Dashboard, RarityGroup, InventoryItem, InventoryItemInput,
   Purchase, PurchaseInput, RefundInput, Sale, SaleInput, ShippingSummary, ShippingSupply, ShippingSupplyInput, Statistics,
   TaxSettings, TaxSummary
 } from '../models';
@@ -195,6 +195,14 @@ export class CatalogService {
 
   setQuote(id: number, quote: number | null): Observable<CatalogCard> {
     return this.http.put<CatalogCard>(`${this.url}/cards/${id}/quote`, { quote });
+  }
+
+  deleteCard(id: number): Observable<CatalogDeleteResult> {
+    return this.http.delete<CatalogDeleteResult>(`${this.url}/cards/${id}`);
+  }
+
+  deleteSet(setId: string, language: CardLanguage): Observable<CatalogDeleteResult> {
+    return this.http.delete<CatalogDeleteResult>(`${this.url}/sets/${encodeURIComponent(setId)}`, { params: { language } });
   }
 }
 

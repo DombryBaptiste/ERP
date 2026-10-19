@@ -33,3 +33,6 @@ public enum RarityGroup
 }
 
 public record SetQuoteInput(decimal? Quote);
+
+/// <summary>Résultat d'une suppression : cartes retirées du catalogue, articles en stock déliés.</summary>
+public record CatalogDeleteResultDto(int DeletedCards, int UnlinkedItems);

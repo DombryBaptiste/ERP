@@ -33,6 +33,15 @@ public class CatalogController(CatalogService service) : ControllerBase
         [FromQuery] bool quotedOnly = false, [FromQuery] int take = 300, CancellationToken ct = default) =>
         service.SearchAsync(language, setId, search, quotedOnly, take, ct);
 
+    /// <summary>Supprime une carte du catalogue (les articles liés passent en « Hors catégorie »).</summary>
+    [HttpDelete("cards/{id:int}")]
+    public Task<CatalogDeleteResultDto> DeleteCard(int id, CancellationToken ct) => service.DeleteCardAsync(id, ct);
+
+    /// <summary>Supprime toute une série du catalogue, ex. DELETE /api/catalog/sets/me02?language=fr.</summary>
+    [HttpDelete("sets/{setId}")]
+    public Task<CatalogDeleteResultDto> DeleteSet(string setId, [FromQuery] string language = "fr", CancellationToken ct = default) =>
+        service.DeleteSetAsync(setId, language, ct);
+
     /// <summary>Saisit (ou efface, avec null) la cote d'une carte.</summary>
     [HttpPut("cards/{id:int}/quote")]
     public Task<CatalogCardDto> SetQuote(int id, SetQuoteInput input, CancellationToken ct) =>

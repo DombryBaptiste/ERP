@@ -58,6 +58,9 @@
 
     @if (current) {
       <span class="muted small">{{ current.quotedCount }} / {{ current.cardCount }} cartes cotées</span>
+      <button mat-button type="button" class="danger" (click)="deleteSet(current)" matTooltip="Retirer toute la série du catalogue">
+        <mat-icon>delete_sweep</mat-icon> Supprimer la série
+      </button>
     }
   </div>
 
@@ -105,12 +108,16 @@
                 <span class="muted">Pas de cote</span>
               }
             </span>
-            @if (saving().has(c.id)) {
-              <mat-icon class="state">sync</mat-icon>
-            } @else if (c.cardmarketUrl) {
-              <a mat-icon-button [href]="c.cardmarketUrl" target="_blank" rel="noopener"
-                 [matTooltip]="'Offres ' + short(c.language) + ' sur Cardmarket'"><mat-icon>open_in_new</mat-icon></a>
-            }
+            <span class="tile-actions">
+              @if (saving().has(c.id)) {
+                <mat-icon class="state">sync</mat-icon>
+              } @else if (c.cardmarketUrl) {
+                <a mat-icon-button [href]="c.cardmarketUrl" target="_blank" rel="noopener"
+                   [matTooltip]="'Offres ' + short(c.language) + ' sur Cardmarket'"><mat-icon>open_in_new</mat-icon></a>
+              }
+              <button mat-icon-button type="button" class="delete" (click)="deleteCard(c)"
+                      matTooltip="Supprimer cette carte du catalogue"><mat-icon>delete</mat-icon></button>
+            </span>
           </div>
           @if (c.quoteUpdatedAt) {
             <div class="muted small">le {{ c.quoteUpdatedAt | date: 'dd/MM/yyyy' }}</div>

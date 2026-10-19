@@ -1,5 +1,6 @@
 .set-field { min-width: 340px; }
 .language-field { width: 170px; }
+.danger { color: var(--app-danger); }
 
 .lang {
   padding: 1px 6px;
@@ -98,4 +99,7 @@
   min-height: 40px;
 
   .state { color: var(--app-muted); }
+  .tile-actions { display: flex; align-items: center; }
+  .delete { color: var(--app-muted); }
+  .delete:hover { color: var(--app-danger); }
 }
