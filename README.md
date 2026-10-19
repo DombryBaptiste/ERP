@@ -177,6 +177,9 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - **Langues** : français, japonais, coréen, chinois traditionnel et chinois simplifié (choix dans la boîte d'import,
   filtre « Langue » sur les pages Cotes et Estimation). Chaque langue a ses propres séries et ses propres cotes.
   Les fiches asiatiques de TCGdex sont parfois incomplètes (image ou rareté manquante : la carte est alors gardée).
+  **Coréen** : TCGdex n'a pas toutes les séries coréennes ; comme elles reprennent les séries japonaises (mêmes codes,
+  mêmes numéros), les séries manquantes (Soleil et Lune, Épée et Bouclier, Écarlate et Violet, Méga) sont proposées
+  avec les fiches japonaises (mention « fiches JP ») et importées comme cartes coréennes.
   Les noms asiatiques sont affichés **en anglais uniquement**, ex. « Mega Charizard X ex », « Inferno X » : noms des
   Pokémon d'après PokéAPI (`backend/Data/Catalog/pokemon-names.json`), noms des séries d'après
   `backend/Data/Catalog/set-names.json`. Une carte sans nom traduisible (dresseur, objet) s'appelle « Trainer 112 ».

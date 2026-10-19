@@ -8,7 +8,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
-import { CARD_LANGUAGES, RARITY_GROUPS } from '../../core/catalog';
+import { CARD_LANGUAGES, languageLabel, languageShort, RARITY_GROUPS } from '../../core/catalog';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { concatMap, from } from 'rxjs';
 import { normalizeText } from '../../core/products';
 import { AvailableSet, CardLanguage, RarityGroup } from '../../core/models';
@@ -28,7 +29,7 @@ interface SerieGroup {
 @Component({
   selector: 'app-import-sets-dialog',
   imports: [FormsModule, MatDialogModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule,
-    MatIconModule, MatProgressBarModule, MatSelectModule],
+    MatIconModule, MatProgressBarModule, MatSelectModule, MatTooltipModule],
   template: `
     <h2 mat-dialog-title>Importer des séries</h2>
     <mat-dialog-content>
@@ -101,6 +102,11 @@ interface SerieGroup {
                   @if (s.code) { <span class="ref">{{ s.code }}</span> }
                   {{ s.name }}
                   @if (s.importedCount) { <span class="muted small">({{ s.importedCount }} déjà)</span> }
+                  @if (s.dataLanguage) {
+                    <span class="muted small" matTooltip="Série absente en {{ languageName(language()) }} chez TCGdex : importée avec les fiches en {{ languageName(s.dataLanguage) }} (mêmes cartes, mêmes numéros)">
+                      · fiches {{ short(s.dataLanguage) }}
+                    </span>
+                  }
                 </mat-checkbox>
               }
             </div>
@@ -137,6 +143,10 @@ export class ImportSetsDialogComponent {
   private readonly ref = inject(MatDialogRef<ImportSetsDialogComponent, boolean>);
 
   readonly languages = CARD_LANGUAGES;
+  readonly short = languageShort;
+  languageName(language: CardLanguage): string {
+    return languageLabel(language).toLowerCase();
+  }
   readonly language = signal<CardLanguage>('fr');
   readonly loading = signal(true);
   readonly running = signal(false);
