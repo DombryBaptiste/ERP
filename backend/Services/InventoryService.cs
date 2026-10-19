@@ -93,6 +93,7 @@ public class InventoryService(AppDbContext db, AttachmentService attachments)
         var item = new InventoryItem { RemainingQuantity = input.Quantity };
         Apply(item, input);
         ApplyMarketValue(item, input.MarketValue);
+        await CatalogService.ApplyCatalogLinksAsync(db, [item]);
         db.InventoryItems.Add(item);
         await db.SaveChangesAsync();
         return (await GetByIdAsync(item.Id))!;
@@ -112,6 +113,7 @@ public class InventoryService(AppDbContext db, AttachmentService attachments)
 
         Apply(item, input);
         ApplyMarketValue(item, input.MarketValue);
+        await CatalogService.ApplyCatalogLinksAsync(db, [item]);
         item.RemainingQuantity = input.Quantity - sold;
 
         // Article issu d'un achat : on garde l'achat cohérent (quantité, prix, total, date).

@@ -77,6 +77,14 @@ export function buybackRule(settings: BuybackSettings = DEFAULT_BUYBACK): string
   return `−${settings.discountPercent.toLocaleString('fr-FR')} %, ${step}`;
 }
 
+/** Catégorie d'une carte (brute ou gradée) qui n'est liée à aucune carte du catalogue. */
+export const UNCATEGORIZED = 'Hors catégorie';
+
+/** Catégorie d'une série ou d'une carte du catalogue : « code + nom », ex. « PFL Flammes Fantasmagoriques ». */
+export function catalogCategory(set: Pick<CatalogSet, 'setCode' | 'setId' | 'setName'>): string {
+  return `${set.setCode ?? set.setId} ${set.setName}`;
+}
+
 /** Code court de la carte, ex. « PFL 095 ». */
 export function cardCode(card: Pick<CatalogCard, 'setCode' | 'setId' | 'number'>): string {
   return `${card.setCode ?? card.setId} ${card.number}`;

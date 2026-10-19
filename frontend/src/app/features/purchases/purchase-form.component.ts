@@ -14,11 +14,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, debounceTime, distinctUntilChanged, of, Subject, switchMap } from 'rxjs';
-import { cardCode, cardThumbnail, languageLabel, languageShort } from '../../core/catalog';
+import { cardCode, cardThumbnail, catalogCategory, languageLabel, languageShort, UNCATEGORIZED } from '../../core/catalog';
 import { BuybackService } from '../../core/services/buyback.service';
 import { CONDITIONS, ITEM_TYPES, PAYMENT_METHODS, PURCHASE_PLATFORMS } from '../../core/labels';
 import { isCard } from '../../core/labels';
-import { AppPreferences, CardSeriesEntry, CatalogCard, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchaseLineInput, PurchasePlatform, PurchaseSource } from '../../core/models';
+import { AppPreferences, CardSeriesEntry, CatalogCard, CatalogSet, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchaseLineInput, PurchasePlatform, PurchaseSource } from '../../core/models';
 import { AttachmentsComponent } from '../../shared/attachments.component';
 import { LabelPipe } from '../../shared/label.pipe';
 import { groupProducts, normalizeText, ProductGroup, productKey } from '../../core/products';
@@ -73,6 +73,9 @@ export class PurchaseFormComponent implements OnInit {
   readonly purchase = signal<Purchase | null>(null);
   readonly categories = signal<string[]>([]);
   readonly cardSeries = signal<CardSeriesEntry[]>([]);
+  /** Séries importées dans le catalogue : seules catégories proposées pour les produits Pokémon. */
+  readonly catalogSets = signal<CatalogSet[]>([]);
+  readonly uncategorized = UNCATEGORIZED;
   readonly knownProducts = signal<ProductGroup[]>([]);
   readonly loading = signal(false);
   readonly saving = signal(false);
@@ -157,6 +160,7 @@ export class PurchaseFormComponent implements OnInit {
       error: err => this.notify.error(err)
     });
     this.inventoryApi.categories().subscribe(c => this.categories.set(c));
+    this.catalogApi.sets().subscribe({ next: sets => this.catalogSets.set(sets), error: err => this.notify.error(err) });
     // Produits déjà connus : proposés à la saisie du nom pour regrouper les lots sous le même produit.
     this.inventoryApi.getAll().subscribe(items => this.knownProducts.set(groupProducts(items)));
 
@@ -320,7 +324,7 @@ export class PurchaseFormComponent implements OnInit {
     line.patchValue({
       name: `${card.name} — ${cardCode(card)}`,
       language,
-      category: this.seriesForCard(language, card),
+      category: catalogCategory(card),
       catalogCardId: card.id
     });
     if (!line.controls.unitPrice.value && card.quote !== null && !this.isCollection) {
@@ -331,22 +335,18 @@ export class PurchaseFormComponent implements OnInit {
   }
 
   unlinkCatalogCard(line: LineForm): void {
-    line.controls.catalogCardId.setValue(null);
+    line.patchValue({ catalogCardId: null, category: UNCATEGORIZED });
+  }
+
+  /** Catégorie affichée d'une carte : celle de la carte liée, sinon « Hors catégorie ». */
+  cardCategory(line: LineForm): string {
+    return line.controls.catalogCardId.value !== null && line.controls.category.value
+      ? line.controls.category.value : UNCATEGORIZED;
   }
 
   linkedCard(line: LineForm): CatalogCard | undefined {
     const id = line.controls.catalogCardId.value;
     return id === null ? undefined : this.linkedCards().get(id);
-  }
-
-  /** Série des Paramètres correspondant à la carte (même nom ou même code), sinon « CODE Nom de la série ». */
-  private seriesForCard(language: string, card: CatalogCard): string {
-    const setName = normalizeText(card.setName);
-    const code = normalizeText(card.setCode ?? card.setId);
-    const configured = this.cardSeries().filter(x => x.language === language).map(x => x.series);
-    return configured.find(s => normalizeText(s).includes(setName))
-      ?? configured.find(s => normalizeText(s).split(' ')[0] === code)
-      ?? `${card.setCode ?? card.setId} ${card.setName}`;
   }
 
   filterCategories(term: string): string[] {
@@ -358,8 +358,9 @@ export class PurchaseFormComponent implements OnInit {
     return isCard(type) || type === 'Booster' || type === 'Blister' || type === 'Etb' || type === 'MiniTin' || type === 'Pokebox' || type === 'Bundle';
   }
 
+  /** Langues des séries importées dans le catalogue. */
   languages(): string[] {
-    return [...new Set(this.cardSeries().map(x => x.language))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(this.catalogSets().map(s => languageLabel(s.language)))].sort((a, b) => a.localeCompare(b));
   }
 
   /** Langues des Paramètres, plus celle de la ligne (ex. « Japonais » reprise du catalogue). */
@@ -369,9 +370,10 @@ export class PurchaseFormComponent implements OnInit {
     return current && !languages.includes(current) ? [...languages, current] : languages;
   }
 
+  /** Séries importées dans le catalogue pour la langue de la ligne (produits scellés : booster, ETB…). */
   seriesFor(line: LineForm): string[] {
     const language = line.controls.language.value;
-    const configured = this.cardSeries().filter(x => x.language === language).map(x => x.series);
+    const configured = this.catalogSets().filter(s => languageLabel(s.language) === language).map(s => catalogCategory(s));
     const current = line.controls.category.value;
     if (current && !configured.includes(current)) configured.push(current);
     return configured.sort((a, b) => a.localeCompare(b));
@@ -444,7 +446,10 @@ export class PurchaseFormComponent implements OnInit {
       items: v.items.map(l => ({
         itemId: l.itemId,
         name: l.name.trim(),
-        category: l.category.trim() || null,
+        // Carte (brute ou gradée) : catégorie de la carte liée, sinon « Hors catégorie » (règle aussi appliquée par l'API).
+        category: (l.type === 'RawCard' || l.type === 'GradedCard')
+          ? (l.catalogCardId !== null ? l.category.trim() : UNCATEGORIZED)
+          : l.category.trim() || null,
         language: l.language.trim() || null,
         type: l.type,
         condition: l.condition,

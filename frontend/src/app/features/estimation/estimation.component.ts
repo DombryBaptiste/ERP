@@ -12,7 +12,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
 import {
-  CARD_LANGUAGES, cardCode, cardThumbnail, languageLabel, languageShort, parseSetKey, setKey
+  CARD_LANGUAGES, cardCode, cardThumbnail, catalogCategory, languageLabel, languageShort, parseSetKey, setKey
 } from '../../core/catalog';
 import { CONDITIONS } from '../../core/labels';
 import { CardLanguage, CatalogCard, CatalogSet, ItemCondition, PurchaseLineInput } from '../../core/models';
@@ -180,7 +180,7 @@ export class EstimationComponent {
     const items: PurchaseLineInput[] = this.lines().map(l => ({
       itemId: null,
       name: `${l.card.name} — ${cardCode(l.card)}`,
-      category: `${l.card.setCode ?? l.card.setId} ${l.card.setName}`,
+      category: catalogCategory(l.card),
       language: languageLabel(l.card.language),
       type: 'RawCard',
       condition: l.condition,

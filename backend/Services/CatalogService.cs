@@ -27,6 +27,48 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
         ["zh-cn"] = 6    // chinois simplifié
     };
 
+    /// <summary>Catégorie d'une carte (brute ou gradée) qui n'est liée à aucune carte du catalogue.</summary>
+    public const string Uncategorized = "Hors catégorie";
+
+    /// <summary>Langue de l'article acheté, selon la langue de la carte du catalogue.</summary>
+    public static readonly IReadOnlyDictionary<string, string> LanguageLabels = new Dictionary<string, string>
+    {
+        ["fr"] = "Français", ["ja"] = "Japonais", ["ko"] = "Coréen",
+        ["zh-tw"] = "Chinois traditionnel", ["zh-cn"] = "Chinois simplifié"
+    };
+
+    /// <summary>Catégorie d'une carte du catalogue : « code + nom de la série », ex. « PFL Flammes Fantasmagoriques ».</summary>
+    public static string CategoryOf(CatalogCard card) => $"{card.SetCode ?? card.SetId} {card.SetName}";
+
+    /// <summary>
+    /// Règle des cartes (brutes ou gradées) : la catégorie et la langue viennent de la carte du catalogue liée ;
+    /// sans carte liée, la catégorie est « Hors catégorie ». Une carte liée cotée donne aussi sa valeur de marché
+    /// à un article qui n'en a pas encore.
+    /// </summary>
+    public static async Task ApplyCatalogLinksAsync(AppDbContext db, IEnumerable<InventoryItem> items)
+    {
+        var cards = items.Where(i => i.Type is ItemType.RawCard or ItemType.GradedCard).ToList();
+        if (cards.Count == 0) return;
+        var ids = cards.Where(i => i.CatalogCardId.HasValue).Select(i => i.CatalogCardId!.Value).Distinct().ToList();
+        var catalog = ids.Count == 0 ? new Dictionary<int, CatalogCard>()
+            : await db.CatalogCards.Where(c => ids.Contains(c.Id)).ToDictionaryAsync(c => c.Id);
+
+        foreach (var item in cards)
+        {
+            if (item.CatalogCardId is int id && catalog.TryGetValue(id, out var card))
+            {
+                item.Category = CategoryOf(card);
+                item.Language = LanguageLabels.GetValueOrDefault(card.Language, item.Language ?? "");
+                if (item.MarketValue is null && card.Quote is not null) InventoryService.ApplyMarketValue(item, card.Quote);
+            }
+            else
+            {
+                item.CatalogCardId = null;  // carte supprimée du catalogue ou id inconnu
+                item.Category = Uncategorized;
+            }
+        }
+    }
+
     /// <summary>Groupes importés par défaut : les cartes « rares » (Full Art, alternatives, gold…) et les raretés inconnues.</summary>
     public static readonly RarityGroup[] DefaultGroups = [RarityGroup.Other, RarityGroup.Unknown];
 
