@@ -59,6 +59,11 @@
         <th mat-header-cell *matHeaderCellDef>Articles</th>
         <td mat-cell *matCellDef="let p">
           <div class="ellipsis items-summary" [matTooltip]="itemsSummary(p)">{{ itemsSummary(p) }}</div>
+          @if (unlinkedCards(p); as n) {
+            <div class="unlinked-note small" matTooltip="Ouvrez l'achat et choisissez la carte dans le catalogue pour la lier">
+              <mat-icon class="inline-icon">link_off</mat-icon>{{ n }} carte(s) non liée(s) au catalogue
+            </div>
+          }
         </td>
       </ng-container>
 
@@ -81,7 +86,8 @@
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
-      <tr mat-row *matRowDef="let row; columns: columns" class="clickable" (click)="edit(row)"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns" class="clickable" [class.unlinked-row]="unlinkedCards(row) > 0"
+          (click)="edit(row)"></tr>
       <tr class="mat-mdc-row" *matNoDataRow>
         <td class="mat-mdc-cell no-data" [attr.colspan]="columns.length">
           {{ loading() ? 'Chargement…' : 'Aucun achat trouvé.' }}

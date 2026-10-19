@@ -72,6 +72,11 @@ export class PurchaseListComponent {
     return platform ? PURCHASE_PLATFORM_LABELS[platform] : '';
   }
 
+  /** Lignes de cartes (brutes ou gradées) qui ne sont liées à aucune carte du catalogue (« Hors catégorie »). */
+  unlinkedCards(p: Purchase): number {
+    return p.items.filter(i => (i.type === 'RawCard' || i.type === 'GradedCard') && i.catalogCardId === null).length;
+  }
+
   filteredTotal(): number {
     return this.dataSource.filteredData
       .filter(p => p.source === 'Supplier')

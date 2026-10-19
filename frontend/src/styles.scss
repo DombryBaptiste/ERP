@@ -169,6 +169,12 @@ th.mat-mdc-header-cell {
 
 tr.clickable { cursor: pointer; }
 tr.mat-mdc-row.clickable:hover { background: #f5f7ff; }
+
+/* Achat contenant une carte non liée au catalogue (« Hors catégorie ») : ligne orange pâle */
+tr.mat-mdc-row.unlinked-row { background: #fff3e0; }
+tr.mat-mdc-row.unlinked-row.clickable:hover { background: #ffe8cc; }
+.unlinked-note { color: #e65100; }
+.purchase-line.unlinked-line { background: #fff3e0; }
 tr.row-sold td { opacity: .6; }
 .mat-mdc-footer-cell { background: #f8f9fc; }
 
