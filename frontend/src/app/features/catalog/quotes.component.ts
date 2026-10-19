@@ -170,6 +170,51 @@ export class QuotesComponent {
     });
   }
 
+  /** Supprime une carte du catalogue, après confirmation. */
+  deleteCard(card: CatalogCard): void {
+    const stock = card.inStock
+      ? ` Les ${card.inStock} exemplaire(s) en stock liés restent dans l'inventaire, en « Hors catégorie ».` : '';
+    this.notify.confirm({
+      title: 'Supprimer cette carte ?',
+      message: `« ${card.name} » (${cardCode(card)}) sera retirée du catalogue, avec sa cote.${stock}`
+    }).subscribe(confirmed => {
+      if (!confirmed) return;
+      this.api.deleteCard(card.id).subscribe({
+        next: () => {
+          this.cards.update(list => list.filter(c => c.id !== card.id));
+          this.sets.update(list => list
+            .map(s => s.language === card.language && s.setId === card.setId
+              ? { ...s, cardCount: s.cardCount - 1, quotedCount: s.quotedCount - (card.quote !== null ? 1 : 0) } : s)
+            .filter(s => s.cardCount > 0));
+          this.notify.success(`${card.name} supprimée du catalogue.`);
+        },
+        error: err => this.notify.error(err)
+      });
+    });
+  }
+
+  /** Supprime toute la série affichée, après confirmation. */
+  deleteSet(set: CatalogSet): void {
+    this.notify.confirm({
+      title: 'Supprimer cette série ?',
+      message: `Les ${set.cardCount} carte(s) de « ${set.setName} » (${languageShort(set.language)}) et leurs ${set.quotedCount} cote(s) `
+        + `seront retirées du catalogue. Les cartes en stock liées restent dans l'inventaire, en « Hors catégorie ». `
+        + `Vous pourrez réimporter la série plus tard.`
+    }).subscribe(confirmed => {
+      if (!confirmed) return;
+      this.api.deleteSet(set.setId, set.language).subscribe({
+        next: r => {
+          this.notify.success(`${r.deletedCards} carte(s) supprimée(s)`
+            + (r.unlinkedItems ? `, ${r.unlinkedItems} article(s) en stock passé(s) en « Hors catégorie ».` : '.'));
+          this.setId.set('');
+          this.cards.set([]);
+          this.loadSets(true);
+        },
+        error: err => this.notify.error(err)
+      });
+    });
+  }
+
   /** Entrée : enregistre et passe au champ de la carte suivante. */
   saveAndNext(card: CatalogCard, event: Event): void {
     event.preventDefault();

@@ -282,6 +282,40 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
         return (await ToDtosAsync([card], ct))[0];
     }
 
+    /// <summary>Supprime une carte du catalogue.</summary>
+    public Task<CatalogDeleteResultDto> DeleteCardAsync(int id, CancellationToken ct) =>
+        DeleteAsync(db.CatalogCards.Where(c => c.Id == id), ct);
+
+    /// <summary>Supprime toutes les cartes d'une série (dans une langue).</summary>
+    public Task<CatalogDeleteResultDto> DeleteSetAsync(string setId, string language, CancellationToken ct)
+    {
+        var lang = CheckLanguage(language);
+        return DeleteAsync(db.CatalogCards.Where(c => c.Language == lang && c.SetId == setId), ct);
+    }
+
+    /// <summary>
+    /// Supprime des cartes du catalogue. Les articles d'inventaire liés ne sont pas supprimés : ils sont déliés
+    /// et passent en « Hors catégorie » (ils gardent leur valeur de marché).
+    /// </summary>
+    private async Task<CatalogDeleteResultDto> DeleteAsync(IQueryable<CatalogCard> query, CancellationToken ct)
+    {
+        var cards = await query.ToListAsync(ct);
+        if (cards.Count == 0) throw BusinessException.NotFound("Carte introuvable dans le catalogue.");
+
+        var ids = cards.Select(c => c.Id).ToList();
+        var linked = await db.InventoryItems.Where(i => i.CatalogCardId != null && ids.Contains(i.CatalogCardId.Value))
+            .ToListAsync(ct);
+        foreach (var item in linked)
+        {
+            item.CatalogCardId = null;
+            if (item.Type is ItemType.RawCard or ItemType.GradedCard) item.Category = Uncategorized;
+        }
+
+        db.CatalogCards.RemoveRange(cards);
+        await db.SaveChangesAsync(ct);
+        return new CatalogDeleteResultDto(cards.Count, linked.Count);
+    }
+
     // ---------------------------------------------------------------- Outils
 
     private async Task<List<CatalogCardDto>> ToDtosAsync(List<CatalogCard> cards, CancellationToken ct)
