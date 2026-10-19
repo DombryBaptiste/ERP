@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 namespace PokeStock.Api.Services;
 
 /// <summary>
-/// Noms anglais des cartes et des séries asiatiques (japonais, coréen, chinois), affichés sous la forme
-/// « Mega Charizard X ex (メガリザードンXex) » : la recherche marche en anglais et le nom d'origine reste visible.
+/// Noms anglais des cartes et des séries asiatiques (japonais, coréen, chinois), sans l'écriture d'origine :
+/// « Mega Charizard X ex », « Inferno X ». La recherche se fait en anglais.
 /// Données embarquées : Data/Catalog/pokemon-names.json (noms officiels des Pokémon, PokéAPI)
 /// et Data/Catalog/set-names.json (noms des séries, par identifiant TCGdex).
 /// </summary>
@@ -32,7 +32,13 @@ public static class CatalogTranslations
         (["かがやく", "빛나는", "光輝", "光辉"], "Radiant")
     ];
 
-    /// <summary>Nom affiché d'une série : « nom anglais (nom d'origine) » hors français.</summary>
+    /// <summary>Écritures asiatiques (kana, idéogrammes, hangeul, ponctuation pleine chasse), retirées des noms affichés.</summary>
+    private static readonly Regex AsianText = new(
+        @"[\p{IsHiragana}\p{IsKatakana}\p{IsKatakanaPhoneticExtensions}\p{IsCJKUnifiedIdeographs}" +
+        @"\p{IsCJKSymbolsandPunctuation}\p{IsHangulSyllables}\p{IsHangulJamo}\p{IsHangulCompatibilityJamo}" +
+        @"\p{IsHalfwidthandFullwidthForms}]+");
+
+    /// <summary>Nom affiché d'une série hors français : nom anglais uniquement (ex. « Inferno X »).</summary>
     public static string SetName(string language, string setId, string original)
     {
         if (language == "fr") return original;
@@ -41,47 +47,47 @@ public static class CatalogTranslations
         var english = (t.LanguageSets.TryGetValue(language, out var own) ? own.GetValueOrDefault(setId) : null)
                       ?? t.Sets.GetValueOrDefault(setId)
                       ?? t.SetNames.GetValueOrDefault(original.Trim());
-        return Combine(english, original);
+        return english ?? Latin(original, fallback: setId);
     }
 
-    /// <summary>Nom affiché d'un bloc (série TCGdex), ex. « Scarlet & Violet (スカーレット&バイオレット) ».</summary>
+    /// <summary>Nom affiché d'un bloc (série TCGdex) hors français, ex. « Scarlet & Violet ».</summary>
     public static string? SerieName(string language, string? serieId, string? original)
     {
         if (language == "fr" || original is null) return original;
-        return Combine(serieId is null ? null : Data.Value.Series.GetValueOrDefault(serieId), original);
+        return (serieId is null ? null : Data.Value.Series.GetValueOrDefault(serieId)) ?? Latin(original, fallback: serieId ?? "");
     }
 
     /// <summary>
-    /// Nom affiché d'une carte : les noms de Pokémon et les préfixes (Méga, formes régionales) sont traduits,
-    /// les suffixes latins (ex, V, VMAX, GX, X…) gardés. Sans Pokémon reconnu (dresseur, objet), le nom reste tel quel.
+    /// Nom affiché d'une carte hors français, en anglais uniquement : les noms de Pokémon et les préfixes
+    /// (Méga, formes régionales, Radiant) sont traduits, les suffixes latins (ex, V, VMAX, GX, X…) gardés,
+    /// le reste en écriture asiatique retiré (« リーリエのピッピex » -> « Clefairy ex »).
+    /// Sans rien de lisible (dresseur, objet…), on affiche <paramref name="fallback"/> (ex. « Trainer 112 »).
     /// </summary>
-    public static string CardName(string language, string original)
+    public static string CardName(string language, string original, string fallback)
     {
         if (language == "fr" || string.IsNullOrWhiteSpace(original)) return original;
-        if (!Data.Value.Pokemon.TryGetValue(language, out var names)) return original;
-
         var work = original;
-        var found = false;
-        foreach (var (local, english) in names)
-        {
-            if (!work.Contains(local, StringComparison.Ordinal)) continue;
-            work = work.Replace(local, $" {english} ", StringComparison.Ordinal);
-            found = true;
-        }
-        if (!found) return original;
+        if (Data.Value.Pokemon.TryGetValue(language, out var names))
+            foreach (var (local, english) in names)
+                if (work.Contains(local, StringComparison.Ordinal))
+                    work = work.Replace(local, $" {english} ", StringComparison.Ordinal);
 
         foreach (var (words, english) in Prefixes)
             foreach (var word in words)
                 work = work.Replace(word, $" {english} ", StringComparison.Ordinal);
 
         work = Regex.Replace(work, @"(?<=\b[XY])(?=(ex|EX|GX|V)\b)", " ");  // « Xex » -> « X ex »
-        work = Regex.Replace(work, @"\s*[&＆]\s*", " & ");
-        work = Regex.Replace(work, @"\s+", " ").Trim();
-        return Combine(work, original);
+        return Latin(work, fallback);
     }
 
-    private static string Combine(string? english, string original) =>
-        string.IsNullOrWhiteSpace(english) || english == original.Trim() ? original : $"{english} ({original.Trim()})";
+    /// <summary>Retire l'écriture asiatique ; s'il ne reste rien de lisible, renvoie <paramref name="fallback"/>.</summary>
+    private static string Latin(string text, string fallback)
+    {
+        var latin = AsianText.Replace(text, " ");
+        latin = Regex.Replace(latin, @"\s*[&＆]\s*", " & ");
+        latin = Regex.Replace(latin, @"\s+", " ").Trim(' ', '&', '-', '・');
+        return latin.Any(char.IsLetter) ? latin : fallback;
+    }
 
     private static Tables Load()
     {

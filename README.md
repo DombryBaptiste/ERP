@@ -177,9 +177,9 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - **Langues** : français, japonais, coréen, chinois traditionnel et chinois simplifié (choix dans la boîte d'import,
   filtre « Langue » sur les pages Cotes et Estimation). Chaque langue a ses propres séries et ses propres cotes.
   Les fiches asiatiques de TCGdex sont parfois incomplètes (image ou rareté manquante : la carte est alors gardée).
-  Les noms asiatiques sont affichés **en anglais suivis du nom d'origine**, ex. « Mega Charizard X ex (メガリザードンXex) »,
-  « Inferno X (インフェルノX) » : noms des Pokémon d'après PokéAPI (`backend/Data/Catalog/pokemon-names.json`), noms des
-  séries d'après `backend/Data/Catalog/set-names.json`. Les dresseurs et objets restent dans leur langue d'origine.
+  Les noms asiatiques sont affichés **en anglais uniquement**, ex. « Mega Charizard X ex », « Inferno X » : noms des
+  Pokémon d'après PokéAPI (`backend/Data/Catalog/pokemon-names.json`), noms des séries d'après
+  `backend/Data/Catalog/set-names.json`. Une carte sans nom traduisible (dresseur, objet) s'appelle « Trainer 112 ».
   Pour traduire des cartes déjà importées, réimportez leur série.
 - La boîte d'import affiche le **code** de chaque série (BWP, PFL…) et permet de le chercher. En français, les séries
   qui n'ont qu'une fiche anglaise chez TCGdex (ex. Legendary Treasures) sont aussi proposées.
@@ -198,7 +198,7 @@ La documentation interactive de l'API (Swagger) est disponible en développement
   séries ne propose que les séries importées dans Cotes. Les articles existants gardent leur catégorie jusqu'à leur
   prochaine modification.
 - **Dans un achat**, pour une carte (brute ou gradée), le champ Nom cherche aussi dans le catalogue (nom ou code,
-  ex. `PFL 95`) : choisir une carte remplit le nom, la langue, la série, propose le prix d'achat (si le prix est à 0)
+  ex. `PFL 95`), dans la langue choisie sur la ligne (50 propositions au plus) : choisir une carte remplit le nom, la langue, la série, propose le prix d'achat (si le prix est à 0)
   et **lie l'article à la carte**. Une carte saisie à la main est signalée « Hors catalogue ».
 - **Créer l'achat** ouvre un nouvel achat pré-rempli avec ces cartes (langue de la carte, prix d'achat proposé).
   Chaque article reste **lié à sa carte du catalogue** : il reprend la cote comme valeur de marché, et toute nouvelle
