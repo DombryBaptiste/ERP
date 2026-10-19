@@ -204,7 +204,7 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
         var set = local ?? en ?? throw BusinessException.NotFound($"Série « {setId} » introuvable chez TCGdex.");
         var lang = local is not null ? wanted : "en";
 
-        // Langues asiatiques : « nom anglais (nom d'origine) » pour la série, le bloc et les cartes.
+        // Langues asiatiques : noms anglais pour la série, le bloc et les cartes.
         var setName = CatalogTranslations.SetName(wanted, setId, Str(set, "name") ?? setId);
         var serieName = set.TryGetProperty("serie", out var serie)
             ? CatalogTranslations.SerieName(wanted, Str(serie, "id"), Str(serie, "name")) : null;
@@ -250,7 +250,13 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
             card.ReleaseDate = releaseDate;
             card.Number = number;
             card.SortOrder = i;
-            card.Name = CatalogTranslations.CardName(wanted, Str(brief, "name") ?? (detail is { } dn ? Str(dn, "name") : null) ?? number);
+            // Hors français : nom anglais ; carte sans nom lisible (dresseur, objet…) -> « Trainer 112 ».
+            var kind = (detail is { } dk ? Str(dk, "category") : null) switch
+            {
+                "Trainer" => "Trainer", "Energy" => "Energy", "Pokemon" => "Pokémon", _ => "Card"
+            };
+            card.Name = CatalogTranslations.CardName(wanted, Str(brief, "name") ?? (detail is { } dn ? Str(dn, "name") : null) ?? number,
+                fallback: $"{kind} {number}");
             card.Rarity = rarity;
             card.ImageUrl = Str(brief, "image") ?? (detail is { } di ? Str(di, "image") : null) ?? SubsetImage(setId, number, lang);
             card.CardmarketId = detail is { } dc ? CardmarketId(dc) : null;

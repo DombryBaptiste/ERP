@@ -14,11 +14,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, debounceTime, distinctUntilChanged, of, Subject, switchMap } from 'rxjs';
-import { cardCode, cardThumbnail, catalogCategory, languageLabel, languageShort, UNCATEGORIZED } from '../../core/catalog';
+import { CARD_LANGUAGES, cardCode, cardThumbnail, catalogCategory, languageLabel, languageShort, UNCATEGORIZED } from '../../core/catalog';
 import { BuybackService } from '../../core/services/buyback.service';
 import { CONDITIONS, ITEM_TYPES, PAYMENT_METHODS, PURCHASE_PLATFORMS } from '../../core/labels';
 import { isCard } from '../../core/labels';
-import { AppPreferences, CardSeriesEntry, CatalogCard, CatalogSet, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchaseLineInput, PurchasePlatform, PurchaseSource } from '../../core/models';
+import { AppPreferences, CardLanguage, CardSeriesEntry, CatalogCard, CatalogSet, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchaseLineInput, PurchasePlatform, PurchaseSource } from '../../core/models';
 import { AttachmentsComponent } from '../../shared/attachments.component';
 import { LabelPipe } from '../../shared/label.pipe';
 import { groupProducts, normalizeText, ProductGroup, productKey } from '../../core/products';
@@ -83,7 +83,7 @@ export class PurchaseFormComponent implements OnInit {
   readonly catalogResults = signal<CatalogCard[]>([]);
   /** Cartes du catalogue choisies dans ce formulaire, par id (aperçu sous le nom). */
   readonly linkedCards = signal(new Map<number, CatalogCard>());
-  private readonly catalogSearch$ = new Subject<string>();
+  private readonly catalogSearch$ = new Subject<{ term: string; language?: CardLanguage }>();
   readonly cardCode = cardCode;
   readonly cardThumbnail = cardThumbnail;
   readonly languageShort = languageShort;
@@ -141,9 +141,9 @@ export class PurchaseFormComponent implements OnInit {
     // Recherche dans le catalogue des cartes pendant la saisie du nom.
     this.catalogSearch$.pipe(
       debounceTime(250),
-      distinctUntilChanged(),
-      switchMap(term => term.trim().length < 2 ? of([])
-        : this.catalogApi.cards({ search: term.trim(), take: 50 }).pipe(catchError(() => of([]))))
+      distinctUntilChanged((a, b) => a.term === b.term && a.language === b.language),
+      switchMap(({ term, language }) => term.trim().length < 2 ? of([])
+        : this.catalogApi.cards({ search: term.trim(), language, take: 50 }).pipe(catchError(() => of([]))))
     ).subscribe(cards => this.catalogResults.set(cards));
 
     // Le fournisseur n'est obligatoire que pour un vrai achat.
@@ -312,7 +312,13 @@ export class PurchaseFormComponent implements OnInit {
   }
 
   searchCatalog(line: LineForm, term: string): void {
-    if (this.usesCatalog(line)) this.catalogSearch$.next(term ?? '');
+    if (this.usesCatalog(line)) this.catalogSearch$.next({ term: term ?? '', language: this.catalogLanguage(line) });
+  }
+
+  /** Langue du catalogue correspondant à la langue choisie sur la ligne (« Japonais » -> ja) ; sans langue, toutes. */
+  private catalogLanguage(line: LineForm): CardLanguage | undefined {
+    const label = line.controls.language.value;
+    return CARD_LANGUAGES.find(l => l.label === label)?.value;
   }
 
   /**
@@ -381,6 +387,7 @@ export class PurchaseFormComponent implements OnInit {
 
   onLanguageChange(line: LineForm): void {
     line.controls.category.setValue('');
+    this.searchCatalog(line, line.controls.name.value);  // propositions dans la nouvelle langue
   }
 
   onTypeChange(line: LineForm): void {
