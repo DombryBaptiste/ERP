@@ -143,7 +143,7 @@ export class PurchaseFormComponent implements OnInit {
       debounceTime(250),
       distinctUntilChanged(),
       switchMap(term => term.trim().length < 2 ? of([])
-        : this.catalogApi.cards({ search: term.trim(), take: 15 }).pipe(catchError(() => of([]))))
+        : this.catalogApi.cards({ search: term.trim(), take: 50 }).pipe(catchError(() => of([]))))
     ).subscribe(cards => this.catalogResults.set(cards));
 
     // Le fournisseur n'est obligatoire que pour un vrai achat.
