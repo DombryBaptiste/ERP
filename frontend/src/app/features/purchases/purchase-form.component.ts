@@ -36,6 +36,8 @@ type LineForm = FormGroup<{
   condition: FormControl<ItemCondition>;
   quantity: FormControl<number>;
   unitPrice: FormControl<number>;
+  /** Bulk uniquement : prix payé pour tout le lot, le prix unitaire en est déduit. */
+  totalPrice: FormControl<number>;
   location: FormControl<string>;
   soldQuantity: FormControl<number>;
   /** Carte du catalogue liée (ligne venant de l'estimation). */
@@ -43,6 +45,8 @@ type LineForm = FormGroup<{
 }>;
 
 type LineValues = ReturnType<LineForm['getRawValue']>;
+
+const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 
 @Component({
   selector: 'app-purchase-form',
@@ -207,7 +211,7 @@ export class PurchaseFormComponent implements OnInit {
 
   private createLine(line?: PurchaseLine | PurchaseLineInput): LineForm {
     const sold = line && 'soldQuantity' in line ? line.soldQuantity : 0;
-    return this.fb.group({
+    const form: LineForm = this.fb.group({
       itemId: this.fb.control<number | null>(line?.itemId ?? null),
       name: this.fb.control(line?.name ?? '', [Validators.required, Validators.maxLength(200)]),
       category: this.fb.control(line?.category ?? ''),
@@ -220,10 +224,29 @@ export class PurchaseFormComponent implements OnInit {
         Validators.required, Validators.min(Math.max(1, sold)), Validators.pattern(/^\d+$/)
       ]),
       unitPrice: this.fb.control(line?.unitPrice ?? 0, [Validators.required, Validators.min(0)]),
+      totalPrice: this.fb.control(roundMoney((line?.quantity ?? 1) * (line?.unitPrice ?? 0)), Validators.min(0)),
       location: this.fb.control(line?.location ?? ''),
       soldQuantity: this.fb.control(sold),
       catalogCardId: this.fb.control<number | null>(line?.catalogCardId ?? null)
     });
+
+    // Bulk : on saisit le nombre de cartes et le prix total du lot, le prix unitaire (6 décimales) en découle.
+    const c = form.controls;
+    const syncBulkUnitPrice = () => {
+      if (c.type.value !== 'Bulk') return;
+      const qty = c.quantity.value || 0;
+      c.unitPrice.setValue(qty > 0 ? Math.round((c.totalPrice.value || 0) / qty * 1e6) / 1e6 : 0);
+    };
+    c.quantity.valueChanges.subscribe(syncBulkUnitPrice);
+    c.totalPrice.valueChanges.subscribe(syncBulkUnitPrice);
+    c.type.valueChanges.subscribe(type => {
+      if (type === 'Bulk') c.totalPrice.setValue(roundMoney((c.quantity.value || 0) * (c.unitPrice.value || 0)), { emitEvent: false });
+    });
+    return form;
+  }
+
+  isBulk(line: LineForm): boolean {
+    return line.controls.type.value === 'Bulk';
   }
 
   addLine(): void {
@@ -333,7 +356,7 @@ export class PurchaseFormComponent implements OnInit {
       category: catalogCategory(card),
       catalogCardId: card.id
     });
-    if (!line.controls.unitPrice.value && card.quote !== null && !this.isCollection) {
+    if (!line.controls.unitPrice.value && card.quote !== null && !this.isCollection && !this.isBulk(line)) {
       line.controls.unitPrice.setValue(this.buyback.price(this.buyback.value(card.quote, line.controls.condition.value)) ?? 0);
     }
     this.linkedCards.update(cards => new Map(cards).set(card.id, card));
@@ -426,6 +449,7 @@ export class PurchaseFormComponent implements OnInit {
 
   lineTotal(line: LineForm): number {
     const v = line.getRawValue();
+    if (v.type === 'Bulk') return v.totalPrice || 0;
     return (v.quantity || 0) * (v.unitPrice || 0);
   }
 
