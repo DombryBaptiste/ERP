@@ -40,6 +40,8 @@ type SaleLineForm = FormGroup<{
   search: FormControl<string>;
   quantity: FormControl<number>;
   salePrice: FormControl<number>;
+  /** Bulk uniquement : prix du lot vendu, le prix par carte en est déduit. */
+  totalPrice: FormControl<number>;
 }>;
 
 /** Part d'une ligne prélevée sur un lot. */
@@ -342,12 +344,33 @@ export class SalesFormComponent implements OnInit {
   // ----- Lignes -----
 
   private createLine(key: string | null = null, search = '', quantity = 1, salePrice = 0): SaleLineForm {
-    return this.fb.group({
+    const line: SaleLineForm = this.fb.group({
       productKey: this.fb.control<string | null>(key, Validators.required),
       search: this.fb.control(search),
       quantity: this.fb.control(quantity, [Validators.required, Validators.min(1)]),
-      salePrice: this.fb.control(salePrice, [Validators.required, Validators.min(0)])
+      salePrice: this.fb.control(salePrice, [Validators.required, Validators.min(0)]),
+      totalPrice: this.fb.control(Math.round(quantity * salePrice * 100) / 100, Validators.min(0))
     });
+
+    // Bulk : on saisit le nombre de cartes et le prix du lot, le prix par carte (6 décimales) en découle.
+    const c = line.controls;
+    const syncBulkPrice = () => {
+      if (!this.isBulk(line)) return;
+      const qty = c.quantity.value || 0;
+      c.salePrice.setValue(qty > 0 ? Math.round((c.totalPrice.value || 0) / qty * 1e6) / 1e6 : 0);
+    };
+    c.quantity.valueChanges.subscribe(syncBulkPrice);
+    c.totalPrice.valueChanges.subscribe(syncBulkPrice);
+    c.productKey.valueChanges.subscribe(() => {
+      if (this.isBulk(line)) {
+        c.totalPrice.setValue(Math.round((c.quantity.value || 0) * (c.salePrice.value || 0) * 100) / 100, { emitEvent: false });
+      }
+    });
+    return line;
+  }
+
+  isBulk(line: SaleLineForm): boolean {
+    return this.selectedProduct(line)?.type === 'Bulk';
   }
 
   addLine(): void {
@@ -577,6 +600,7 @@ export class SalesFormComponent implements OnInit {
 
   lineTotal(line: SaleLineForm): number {
     const v = line.getRawValue();
+    if (this.isBulk(line)) return v.totalPrice || 0;
     return (v.quantity || 0) * (v.salePrice || 0);
   }
 
