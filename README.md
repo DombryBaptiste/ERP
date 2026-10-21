@@ -243,8 +243,8 @@ Onglet **Bulk** : les communes, peu communes, reverses, etc. se gèrent **au nom
 - **Catégories** réglables (communes / peu communes, reverses, holos, V / ex / GX, dresseurs, énergies…), chacune avec
   un **prix conseillé par carte**. Chaque catégorie est un produit de type « Bulk » dans l'inventaire.
 - **Ajouter du bulk** : nombre de cartes **ou poids** (≈ 1,8 g par carte, réglable) et coût total.
-- **Depuis un achat** : une ligne de type « Bulk » se saisit avec le **nombre de cartes et le prix total du lot** ; le prix par carte est calculé automatiquement.
   Cela crée un achat (A…) ou un transfert de collection (C…, 0 €), avec un coût par carte (ex. 30 € / 3 000 = 0,01 €).
+- **Depuis un achat** : une ligne de type « Bulk » se saisit avec le **nombre de cartes et le prix total du lot** ; le prix par carte est calculé automatiquement.
 - **Vendre un lot** : catégorie, nombre de cartes (ou poids), prix du lot proposé d'après le prix conseillé.
   Les cartes les plus anciennes partent en premier (FIFO) ; coût réel, bénéfice et marge sont affichés avant de valider.
   C'est une vente normale : CA, URSSAF, livre des recettes et statistiques sont à jour.
