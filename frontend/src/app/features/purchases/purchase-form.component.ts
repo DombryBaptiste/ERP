@@ -4,6 +4,7 @@ import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Va
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -53,7 +54,7 @@ const roundMoney = (value: number): number => Math.round(value * 100) / 100;
   imports: [
     ReactiveFormsModule, RouterLink, CurrencyPipe, DatePipe, AttachmentsComponent, LabelPipe,
     MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule,
-    MatAutocompleteModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatTooltipModule, MatProgressBarModule
+    MatAutocompleteModule, MatButtonModule, MatButtonToggleModule, MatCheckboxModule, MatIconModule, MatTooltipModule, MatProgressBarModule
   ],
   templateUrl: './purchase-form.component.html'
 })
@@ -112,6 +113,14 @@ export class PurchaseFormComponent implements OnInit {
     paymentMethod: this.fb.control<PaymentMethod | null>('Cash'),
     comment: ['', Validators.maxLength(1000)],
     items: this.fb.array<LineForm>([])
+  });
+
+  /** Prix global d'un lot : réparti à parts égales sur toutes les unités des lignes. */
+  readonly globalPriceOpen = signal(false);
+  readonly globalPrice = this.fb.group({
+    amount: this.fb.control(0, [Validators.required, Validators.min(0)]),
+    /** Le montant saisi comprend déjà les frais de plateforme et de port. */
+    includesFees: this.fb.control(false)
   });
 
   readonly payments = PAYMENT_METHODS;
@@ -243,6 +252,42 @@ export class PurchaseFormComponent implements OnInit {
       if (type === 'Bulk') c.totalPrice.setValue(roundMoney((c.quantity.value || 0) * (c.unitPrice.value || 0)), { emitEvent: false });
     });
     return form;
+  }
+
+  toggleGlobalPrice(): void {
+    if (!this.globalPriceOpen()) this.globalPrice.controls.amount.setValue(roundMoney(this.itemsTotal()));
+    this.globalPriceOpen.update(open => !open);
+  }
+
+  /** Montant à répartir sur les articles (frais retirés s'ils sont inclus dans le prix global). */
+  globalItemsAmount(): number {
+    const v = this.globalPrice.getRawValue();
+    const fees = v.includesFees && !this.isCollection
+      ? this.form.controls.platformFees.value + this.form.controls.shippingFees.value
+      : 0;
+    return roundMoney((v.amount || 0) - fees);
+  }
+
+  globalUnitPrice(): number {
+    const qty = this.totalQuantity();
+    return qty > 0 ? Math.round(this.globalItemsAmount() / qty * 1e6) / 1e6 : 0;
+  }
+
+  /** Applique le même prix unitaire à toutes les lignes : prix global ÷ nombre total d'unités. */
+  applyGlobalPrice(): void {
+    const amount = this.globalItemsAmount();
+    if (this.globalPrice.invalid || amount < 0) {
+      this.notify.error(null, 'Le prix global doit couvrir au moins les frais de plateforme et de port.');
+      return;
+    }
+    if (this.totalQuantity() <= 0) return;
+    const unit = this.globalUnitPrice();
+    for (const line of this.items.controls) {
+      line.controls.unitPrice.setValue(unit);
+      line.controls.totalPrice.setValue(roundMoney((line.controls.quantity.value || 0) * unit), { emitEvent: false });
+    }
+    this.globalPriceOpen.set(false);
+    this.notify.success(`${this.totalQuantity()} unité(s) à ${unit.toLocaleString('fr-FR', { maximumFractionDigits: 4 })} € chacune.`);
   }
 
   isBulk(line: LineForm): boolean {

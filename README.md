@@ -141,6 +141,9 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - Numéro généré automatiquement : `A` + année + séquence (`A2026001`, `A2026002`…), remis à zéro chaque année.
 - Un achat contient plusieurs lignes (nom, catégorie/série, type, état, quantité, prix unitaire, localisation).
   **Chaque ligne crée un article dans l'inventaire.** Le montant total est calculé automatiquement.
+- **Prix global** : pour un gros lot dont seul le prix total est connu, le bouton « Prix global » répartit ce montant
+  à parts égales sur toutes les unités (frais de plateforme et de port déduits s'ils sont inclus). Chaque prix reste modifiable ensuite.
+- La liste des achats affiche le nombre d'articles achetés par achat (colonne « Qté ») et au total.
 - Modification : on ne peut pas retirer une ligne déjà vendue, ni descendre sous la quantité vendue.
 - Suppression impossible si un article de l'achat a déjà été vendu.
 

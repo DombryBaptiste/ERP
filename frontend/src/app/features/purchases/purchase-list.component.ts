@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { Component, inject, signal, ViewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -18,7 +18,7 @@ import { NotifyService } from '../../core/services/notify.service';
 @Component({
   selector: 'app-purchase-list',
   imports: [
-    RouterLink, CurrencyPipe, DatePipe,
+    RouterLink, CurrencyPipe, DatePipe, DecimalPipe,
     MatTableModule, MatSortModule, MatPaginatorModule, MatFormFieldModule, MatInputModule,
     MatIconModule, MatButtonModule, MatTooltipModule, MatProgressBarModule
   ],
@@ -75,6 +75,11 @@ export class PurchaseListComponent {
   /** Lignes de cartes (brutes ou gradées) qui ne sont liées à aucune carte du catalogue (« Hors catégorie »). */
   unlinkedCards(p: Purchase): number {
     return p.items.filter(i => (i.type === 'RawCard' || i.type === 'GradedCard') && i.catalogCardId === null).length;
+  }
+
+  /** Nombre d'articles achetés (unités) dans les achats affichés. */
+  filteredItemCount(): number {
+    return this.dataSource.filteredData.reduce((sum, p) => sum + p.itemCount, 0);
   }
 
   filteredTotal(): number {
