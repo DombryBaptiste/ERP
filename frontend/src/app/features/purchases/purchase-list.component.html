@@ -1,7 +1,7 @@
 <div class="page-header">
   <div>
     <h1>Achats</h1>
-    <p class="subtitle">{{ dataSource.filteredData.length }} entrée(s) · total des achats {{ filteredTotal() | currency }} (hors transferts de collection)</p>
+    <p class="subtitle">{{ dataSource.filteredData.length }} entrée(s) · {{ filteredItemCount() | number }} article(s) · total des achats {{ filteredTotal() | currency }} (hors transferts de collection)</p>
   </div>
   <div class="page-actions">
     <a mat-stroked-button routerLink="/books"><mat-icon>menu_book</mat-icon> Registre des achats</a>

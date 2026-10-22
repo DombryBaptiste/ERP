@@ -127,9 +127,33 @@
       <mat-card-subtitle>{{ items.length }} ligne(s) · {{ totalQuantity() }} unité(s)</mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
-      <button mat-stroked-button type="button" (click)="addLine()" class="add-line">
-        <mat-icon>add</mat-icon> Ajouter un article
-      </button>
+      <div class="add-line line-toolbar">
+        <button mat-stroked-button type="button" (click)="addLine()">
+          <mat-icon>add</mat-icon> Ajouter un article
+        </button>
+        <button mat-stroked-button type="button" (click)="toggleGlobalPrice()"
+                matTooltip="Répartir un prix payé pour tout le lot à parts égales sur chaque unité">
+          <mat-icon>calculate</mat-icon> Prix global
+        </button>
+      </div>
+      @if (globalPriceOpen()) {
+        <div [formGroup]="globalPrice" class="global-price">
+          <mat-form-field>
+            <mat-label>{{ isCollection ? 'Valeur globale du lot' : 'Prix payé pour tout le lot' }}</mat-label>
+            <input matInput type="number" min="0" step="0.01" formControlName="amount" (keydown.enter)="$event.preventDefault(); applyGlobalPrice()">
+            <span matTextSuffix>€</span>
+            <mat-hint>
+              {{ globalItemsAmount() | currency }} ÷ {{ totalQuantity() }} unité(s) =
+              {{ globalUnitPrice() | currency:'EUR':'symbol':'1.2-4' }} par unité
+            </mat-hint>
+          </mat-form-field>
+          @if (!isCollection) {
+            <mat-checkbox formControlName="includesFees">Frais de plateforme et de port inclus</mat-checkbox>
+          }
+          <button mat-flat-button type="button" [disabled]="totalQuantity() <= 0" (click)="applyGlobalPrice()">Répartir sur toutes les lignes</button>
+          <button mat-button type="button" (click)="globalPriceOpen.set(false)">Annuler</button>
+        </div>
+      }
       <div #purchaseLines class="lines purchase-lines">
         @for (line of visibleReversedItems; track line; let i = $index) {
           <div class="line purchase-line" [class.card-line]="usesCardSeries(line.controls.type.value)"
