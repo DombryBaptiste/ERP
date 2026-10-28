@@ -94,6 +94,7 @@ export class SalesFormComponent implements OnInit {
   readonly payments = PAYMENT_METHODS;
   readonly isEdit = computed(() => !!this.id());
   readonly sale = signal<Sale | null>(null);
+  readonly customers = signal<string[]>([]);
   readonly inventory = signal<InventoryItem[]>([]);
   readonly itemsById = computed(() => new Map(this.inventory().map(i => [i.id, i])));
   /** Produits (lots regroupés), lots triés du plus ancien au plus récent. */
@@ -170,6 +171,20 @@ export class SalesFormComponent implements OnInit {
     const id = this.id();
     const sale$: Observable<Sale | null> = id ? this.api.get(+id) : of(null);
 
+    this.api.getAll().subscribe({
+      next: sales => {
+        const customers = new Map<string, string>();
+        for (const sale of [...sales].sort((a, b) => b.saleDate.localeCompare(a.saleDate))) {
+          const customer = sale.customer?.trim();
+          if (customer && !customers.has(customer.toLowerCase())) {
+            customers.set(customer.toLowerCase(), customer);
+          }
+        }
+        this.customers.set([...customers.values()]);
+      },
+      error: err => this.notify.error(err)
+    });
+
     forkJoin({ inventory: this.inventoryApi.getAll(), sale: sale$, supplies: this.shippingApi.supplies() }).subscribe({
       next: ({ inventory, sale, supplies }) => {
         this.inventory.set(inventory);
@@ -193,6 +208,11 @@ export class SalesFormComponent implements OnInit {
         this.router.navigate(['/sales']);
       }
     });
+  }
+
+  filterCustomers(term: string | null): string[] {
+    const query = (term ?? '').trim().toLowerCase();
+    return this.customers().filter(customer => customer.toLowerCase().includes(query));
   }
 
   private loadSale(sale: Sale): void {

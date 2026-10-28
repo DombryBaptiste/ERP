@@ -44,7 +44,14 @@
 
         <mat-form-field>
           <mat-label>Client</mat-label>
-          <input matInput formControlName="customer" placeholder="Pseudo ou nom (facultatif)">
+          <input matInput formControlName="customer" [matAutocomplete]="customerAuto"
+                 placeholder="Pseudo ou nom (facultatif)">
+          <mat-autocomplete #customerAuto="matAutocomplete">
+            @for (customer of filterCustomers(form.controls.customer.value); track customer) {
+              <mat-option [value]="customer">{{ customer }}</mat-option>
+            }
+          </mat-autocomplete>
+          <mat-hint>Choisissez un client déjà utilisé ou saisissez un nouveau nom</mat-hint>
         </mat-form-field>
 
         <mat-form-field>

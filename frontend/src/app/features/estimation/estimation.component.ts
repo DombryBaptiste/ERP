@@ -175,6 +175,35 @@ export class EstimationComponent {
     return this.buyback.price(this.value(line));
   }
 
+  copyEstimation(): void {
+    const lines = this.lines();
+    const formatPrice = (value: number): string =>
+      value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+    const text = [
+      ...lines.map(line => {
+        const unitBuyback = this.unitBuyback(line);
+        const condition = this.conditions.find(c => c.value === line.condition)?.label ?? line.condition;
+        const language = line.card.language === 'fr' ? '' : ` · ${languageShort(line.card.language)}`;
+        const quote = line.quote === null ? '—' : formatPrice(line.quote);
+        const buyback = unitBuyback === null ? '—' : formatPrice(unitBuyback);
+        const quantityTotal = line.quantity > 1 && unitBuyback !== null
+          ? ` × ${line.quantity} = ${formatPrice(unitBuyback * line.quantity)}`
+          : '';
+        return `${cardCode(line.card)} — ${line.card.name}${language} (${condition}, x${line.quantity}) : ${quote} => ${buyback}${quantityTotal}`;
+      }),
+      `Total : ${formatPrice(this.totals().buyback)}`
+    ].join('\n');
+
+    const clipboard = navigator.clipboard;
+    if (!clipboard) {
+      this.notify.error(null, 'Copie impossible.');
+      return;
+    }
+    clipboard.writeText(text).then(
+      () => this.notify.success('Estimation copiée dans le presse-papiers.'),
+      () => this.notify.error(null, 'Copie impossible.'));
+  }
+
   /** Ouvre un nouvel achat pré-rempli avec les cartes sélectionnées, au prix d'achat proposé. */
   createPurchase(): void {
     const items: PurchaseLineInput[] = this.lines().map(l => ({

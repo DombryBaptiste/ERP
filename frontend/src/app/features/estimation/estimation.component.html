@@ -138,6 +138,7 @@
     </mat-card-content>
     @if (lines().length) {
       <mat-card-actions align="end">
+        <button mat-button (click)="copyEstimation()"><mat-icon>content_copy</mat-icon> Copier l'estimation</button>
         <button mat-button (click)="reset()"><mat-icon>restart_alt</mat-icon> Réinitialiser</button>
         <button mat-flat-button (click)="createPurchase()"
                 matTooltip="Ouvre un nouvel achat pré-rempli avec ces cartes, au prix d'achat proposé">
