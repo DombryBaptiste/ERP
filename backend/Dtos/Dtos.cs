@@ -54,7 +54,19 @@ public record PurchaseDto(
     int Id, string PurchaseNumber, PurchaseSource Source, DateTime PurchaseDate, string Supplier,
     PurchasePlatform? Platform, PaymentMethod? PaymentMethod, string? Comment,
     decimal PlatformFees, decimal ShippingFees, string? TrackingNumber,
-    decimal TotalAmount, int ItemCount, List<PurchaseLineDto> Items);
+    decimal TotalAmount, int ItemCount, List<PurchaseLineDto> Items, PurchasePerformanceDto Performance);
+
+/// <summary>Vente contenant des articles d'un achat : part de la vente revenant à cet achat.</summary>
+public record PurchaseSaleDto(int SaleId, string SaleNumber, DateTime SaleDate, int Quantity, decimal Net);
+
+/// <summary>
+/// Rentabilité d'un achat d'après ses articles déjà vendus. « Récupéré » = part de l'encaissement net des ventes
+/// (après frais, remboursements et envoi) qui revient aux articles de l'achat.
+/// </summary>
+public record PurchasePerformanceDto(
+    int UnitsSold, int UnitsInStock, decimal Recovered, decimal CostOfSold, decimal RealizedProfit,
+    decimal Balance, decimal? RecoveredPercent, decimal StockCost, decimal? StockMarketValue, int UnitsWithoutMarketValue,
+    decimal? ProjectedBalance, DateTime? LastSaleDate, List<PurchaseSaleDto> Sales);
 
 // ----- Ventes -----
 public record SaleLineInput(int InventoryItemId, int Quantity, decimal SalePrice);

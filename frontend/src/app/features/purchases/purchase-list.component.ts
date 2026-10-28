@@ -29,7 +29,7 @@ export class PurchaseListComponent {
   private readonly notify = inject(NotifyService);
   private readonly router = inject(Router);
 
-  readonly columns = ['purchaseNumber', 'purchaseDate', 'supplier', 'items', 'itemCount', 'totalAmount', 'actions'];
+  readonly columns = ['purchaseNumber', 'purchaseDate', 'supplier', 'items', 'itemCount', 'totalAmount', 'performance', 'actions'];
   readonly platformLabels = PURCHASE_PLATFORM_LABELS;
   readonly dataSource = new MatTableDataSource<Purchase>([]);
   readonly loading = signal(true);
@@ -38,6 +38,13 @@ export class PurchaseListComponent {
   @ViewChild(MatPaginator) set paginator(paginator: MatPaginator) { this.dataSource.paginator = paginator; }
 
   constructor() {
+    // Tri « Rentabilité » sur le bilan ; les achats sans vente prennent la valeur minimale.
+    this.dataSource.sortingDataAccessor = (p, column) => {
+      switch (column) {
+        case 'performance': return p.performance.unitsSold > 0 ? p.performance.balance : Number.NEGATIVE_INFINITY;
+        default: return (p as unknown as Record<string, string | number>)[column];
+      }
+    };
     // Recherche instantanée sur numéro, fournisseur, commentaire et noms d'articles.
     this.dataSource.filterPredicate = (p, filter) =>
       [p.purchaseNumber, p.supplier, p.platform ? PURCHASE_PLATFORM_LABELS[p.platform] : '', p.comment ?? '', p.source === 'PersonalCollection' ? 'collection' : '', ...p.items.map(i => i.name)]
@@ -75,6 +82,34 @@ export class PurchaseListComponent {
   /** Lignes de cartes (brutes ou gradées) qui ne sont liées à aucune carte du catalogue (« Hors catégorie »). */
   unlinkedCards(p: Purchase): number {
     return p.items.filter(i => (i.type === 'RawCard' || i.type === 'GradedCard') && i.catalogCardId === null).length;
+  }
+
+  /** Largeur de la barre « récupéré » (plafonnée à 100 %). */
+  perfBarWidth(percent: number | null): number {
+    return Math.min(100, Math.max(0, percent ?? 0));
+  }
+
+  performanceTooltip(p: Purchase): string {
+    const perf = p.performance;
+    const lines = [
+      `Récupéré grâce aux ventes : ${this.money(perf.recovered)} sur ${this.money(p.totalAmount)}`,
+      `Bénéfice sur les ${perf.unitsSold} unité(s) vendue(s) : ${this.money(perf.realizedProfit)}`
+    ];
+    if (perf.unitsInStock > 0) {
+      lines.push(perf.stockMarketValue !== null
+        ? `Reste ${perf.unitsInStock} unité(s), estimées ${this.money(perf.stockMarketValue)}`
+        : `Reste ${perf.unitsInStock} unité(s) en stock`);
+    }
+    return lines.join(' · ');
+  }
+
+  /** Bénéfice déjà réalisé sur les unités vendues des achats affichés. */
+  filteredRealizedProfit(): number {
+    return this.dataSource.filteredData.reduce((sum, p) => sum + p.performance.realizedProfit, 0);
+  }
+
+  private money(value: number): string {
+    return value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
   }
 
   /** Nombre d'articles achetés (unités) dans les achats affichés. */

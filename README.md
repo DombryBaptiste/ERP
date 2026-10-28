@@ -144,6 +144,10 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - **Prix global** : pour un gros lot dont seul le prix total est connu, le bouton « Prix global » répartit ce montant
   à parts égales sur toutes les unités (frais de plateforme et de port déduits s'ils sont inclus). Chaque prix reste modifiable ensuite.
 - La liste des achats affiche le nombre d'articles achetés par achat (colonne « Qté ») et au total.
+- **Rentabilité d'un achat** : colonne « Rentabilité » dans la liste et encadré en haut de chaque achat.
+  « Récupéré » = part de l'encaissement net des ventes (après commission, retours et envoi) qui revient aux articles
+  de l'achat (une vente mixte est répartie au prorata du prix de vente). Bilan = récupéré − coût de l'achat (frais inclus) ;
+  bénéfice sur les ventes = récupéré − coût des unités vendues ; projection avec la valeur de marché du stock restant.
 - Modification : on ne peut pas retirer une ligne déjà vendue, ni descendre sous la quantité vendue.
 - Suppression impossible si un article de l'achat a déjà été vendu.
 

@@ -22,6 +22,74 @@
   <mat-progress-bar mode="indeterminate" />
 }
 
+@if (purchase(); as p) {
+  @let perf = p.performance;
+  <mat-card class="card purchase-performance">
+    <mat-card-header>
+      <mat-card-title><mat-icon class="title-icon">trending_up</mat-icon> Rentabilité de {{ isCollection ? 'ce transfert' : 'cet achat' }}</mat-card-title>
+      <mat-card-subtitle>
+        @if (perf.unitsSold === 0) {
+          Aucun article vendu pour l'instant.
+        } @else {
+          {{ perf.unitsSold }} unité(s) vendue(s) sur {{ p.itemCount }}, dans {{ perf.sales.length }} vente(s)
+          @if (perf.lastSaleDate) { · dernière le {{ perf.lastSaleDate | date: 'dd/MM/yyyy' }} }
+        }
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="kpi-grid">
+        <app-kpi-card icon="payments" [label]="isCollection ? 'Valeur retenue' : 'Coût de l\'achat'" color="#6b7686"
+                      [value]="p.totalAmount | currency" [sub]="'frais inclus · ' + p.itemCount + ' unité(s)'" />
+        <app-kpi-card icon="savings" label="Récupéré par les ventes" color="#3949ab"
+                      [value]="perf.recovered | currency"
+                      [sub]="perf.recoveredPercent !== null ? perf.recoveredPercent + ' % du coût' : 'après frais, retours et envoi'" />
+        <app-kpi-card [icon]="perf.balance >= 0 ? 'check_circle' : 'hourglass_bottom'"
+                      [label]="perf.balance >= 0 ? 'Achat rentabilisé' : 'Reste à récupérer'"
+                      [color]="perf.balance >= 0 ? '#2e7d32' : '#ef6c00'"
+                      [value]="(perf.balance >= 0 ? '+' : '') + (perf.balance | currency)" [negative]="perf.balance < 0"
+                      [sub]="perf.balance >= 0 ? 'déjà en poche' : 'avant d\'être remboursé'" />
+        <app-kpi-card icon="trending_up" label="Bénéfice sur les ventes" color="#2e7d32"
+                      [value]="perf.realizedProfit | currency" [negative]="perf.realizedProfit < 0"
+                      [sub]="'coût des unités vendues ' + (perf.costOfSold | currency)" />
+        @if (perf.unitsInStock > 0) {
+          <app-kpi-card icon="inventory_2" label="Encore en stock" color="#00838f"
+                        [value]="perf.unitsInStock + ' unité(s)'"
+                        [sub]="perf.stockMarketValue !== null
+                          ? 'estimées ' + (perf.stockMarketValue | currency) + (perf.unitsWithoutMarketValue ? ' (' + perf.unitsWithoutMarketValue + ' sans cote)' : '')
+                          : 'coût ' + (perf.stockCost | currency) + ' · pas de valeur de marché'" />
+        }
+        @if (perf.projectedBalance !== null && perf.unitsInStock > 0) {
+          <app-kpi-card icon="auto_graph" label="Si tout le reste se vend à sa cote" color="#6a1b9a"
+                        [value]="(perf.projectedBalance >= 0 ? '+' : '') + (perf.projectedBalance | currency)"
+                        [negative]="perf.projectedBalance < 0" sub="bénéfice final estimé (avant frais de vente)" />
+        }
+      </div>
+
+      @if (p.totalAmount > 0) {
+        <div class="recovery">
+          <div class="recovery-bar" [class.done]="perf.balance >= 0">
+            <span [style.width.%]="recoveryWidth(perf.recoveredPercent)"></span>
+          </div>
+          <span class="muted small">{{ perf.recoveredPercent ?? 0 }} % du coût récupéré</span>
+        </div>
+      }
+
+      @if (perf.sales.length) {
+        <div class="perf-sales">
+          @for (s of perf.sales; track s.saleId) {
+            <a class="perf-sale" [routerLink]="['/sales', s.saleId]">
+              <span class="ref">{{ s.saleNumber }}</span>
+              <span class="muted">{{ s.saleDate | date: 'dd/MM/yyyy' }}</span>
+              <span class="muted">{{ s.quantity }} unité(s)</span>
+              <span class="strong" [class.negative]="s.net < 0">{{ s.net | currency }}</span>
+            </a>
+          }
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+}
+
 <form [formGroup]="form" (ngSubmit)="save()">
   <div class="source-switch">
     <mat-button-toggle-group formControlName="source" aria-label="Origine des articles">

@@ -91,6 +91,40 @@ export interface Purchase {
   totalAmount: number;
   itemCount: number;
   items: PurchaseLine[];
+  performance: PurchasePerformance;
+}
+
+/** Vente contenant des articles d'un achat : part de la vente revenant à cet achat. */
+export interface PurchaseSale {
+  saleId: number;
+  saleNumber: string;
+  saleDate: string;
+  quantity: number;
+  /** Encaissement net (après frais, remboursements et envoi) revenant aux articles de l'achat. */
+  net: number;
+}
+
+/** Rentabilité d'un achat d'après ses articles déjà vendus. */
+export interface PurchasePerformance {
+  unitsSold: number;
+  unitsInStock: number;
+  /** Encaissement net des ventes revenant à cet achat. */
+  recovered: number;
+  /** Coût d'achat des unités vendues (frais de l'achat inclus au prorata). */
+  costOfSold: number;
+  /** Bénéfice sur les unités déjà vendues : récupéré − coût des unités vendues. */
+  realizedProfit: number;
+  /** Récupéré − coût total de l'achat : négatif tant que l'achat n'est pas remboursé. */
+  balance: number;
+  recoveredPercent: number | null;
+  stockCost: number;
+  /** Valeur de marché des unités restantes (null si aucune n'est estimée). */
+  stockMarketValue: number | null;
+  unitsWithoutMarketValue: number;
+  /** Bilan si le stock restant se vend à sa valeur de marché. */
+  projectedBalance: number | null;
+  lastSaleDate: string | null;
+  sales: PurchaseSale[];
 }
 
 export interface PurchaseLineInput {
