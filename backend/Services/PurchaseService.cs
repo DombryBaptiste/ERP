@@ -13,9 +13,19 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
     private IQueryable<Purchase> WithDetails() =>
         db.Purchases.Include(p => p.Items).ThenInclude(i => i.Item);
 
+    /// <summary>Achats avec les ventes de leurs articles (calcul de la rentabilité), en lecture seule.</summary>
+    private IQueryable<Purchase> WithPerformance() =>
+        db.Purchases
+            .Include(p => p.Items).ThenInclude(i => i.Item).ThenInclude(it => it.SaleItems)
+                .ThenInclude(si => si.Sale).ThenInclude(s => s.Items)
+            .Include(p => p.Items).ThenInclude(i => i.Item).ThenInclude(it => it.SaleItems)
+                .ThenInclude(si => si.Sale).ThenInclude(s => s.Refunds).ThenInclude(r => r.Items)
+            .AsSplitQuery()
+            .AsNoTrackingWithIdentityResolution();
+
     public async Task<List<PurchaseDto>> GetAllAsync(string? search, DateTime? from, DateTime? to)
     {
-        var query = WithDetails().AsNoTracking();
+        var query = WithPerformance();
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim();
@@ -30,7 +40,7 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
     }
 
     public async Task<PurchaseDto?> GetByIdAsync(int id) =>
-        (await WithDetails().AsNoTracking().FirstOrDefaultAsync(p => p.Id == id))?.ToDto();
+        (await WithPerformance().FirstOrDefaultAsync(p => p.Id == id))?.ToDto();
 
     public async Task<PurchaseDto> CreateAsync(PurchaseInput input)
     {

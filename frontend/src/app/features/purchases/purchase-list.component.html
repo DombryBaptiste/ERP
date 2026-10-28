@@ -1,7 +1,7 @@
 <div class="page-header">
   <div>
     <h1>Achats</h1>
-    <p class="subtitle">{{ dataSource.filteredData.length }} entrée(s) · {{ filteredItemCount() | number }} article(s) · total des achats {{ filteredTotal() | currency }} (hors transferts de collection)</p>
+    <p class="subtitle">{{ dataSource.filteredData.length }} entrée(s) · {{ filteredItemCount() | number }} article(s) · total des achats {{ filteredTotal() | currency }} (hors transferts de collection) · bénéfice déjà réalisé <span [class.positive]="filteredRealizedProfit() >= 0" [class.negative]="filteredRealizedProfit() < 0">{{ filteredRealizedProfit() | currency }}</span></p>
   </div>
   <div class="page-actions">
     <a mat-stroked-button routerLink="/books"><mat-icon>menu_book</mat-icon> Registre des achats</a>
@@ -75,6 +75,29 @@
       <ng-container matColumnDef="totalAmount">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Montant</th>
         <td mat-cell *matCellDef="let p" class="num strong">{{ p.totalAmount | currency }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="performance">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="num"
+            matTooltip="Ce que les ventes des articles ont rapporté, comparé au coût de l'achat">Rentabilité</th>
+        <td mat-cell *matCellDef="let p" class="num">
+          @let perf = p.performance;
+          @if (perf.unitsSold === 0) {
+            <span class="muted small">Rien de vendu</span>
+          } @else {
+            <div class="perf-cell" [matTooltip]="performanceTooltip(p)">
+              <div class="strong" [class.positive]="perf.balance >= 0" [class.negative]="perf.balance < 0">
+                {{ perf.balance >= 0 ? '+' : '' }}{{ perf.balance | currency }}
+              </div>
+              <div class="perf-bar" [class.done]="perf.balance >= 0">
+                <span [style.width.%]="perfBarWidth(perf.recoveredPercent)"></span>
+              </div>
+              <div class="muted small">
+                {{ perf.balance >= 0 ? 'Rentabilisé' : (perf.recoveredPercent ?? 0) + ' % récupéré' }} · {{ perf.unitsSold }}/{{ p.itemCount }} vendu(s)
+              </div>
+            </div>
+          }
+        </td>
       </ng-container>
 
       <ng-container matColumnDef="actions">

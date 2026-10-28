@@ -21,6 +21,7 @@ import { CONDITIONS, ITEM_TYPES, PAYMENT_METHODS, PURCHASE_PLATFORMS } from '../
 import { isCard } from '../../core/labels';
 import { AppPreferences, CardLanguage, CardSeriesEntry, CatalogCard, CatalogSet, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchaseLineInput, PurchasePlatform, PurchaseSource } from '../../core/models';
 import { AttachmentsComponent } from '../../shared/attachments.component';
+import { KpiCardComponent } from '../../shared/kpi-card.component';
 import { LabelPipe } from '../../shared/label.pipe';
 import { groupProducts, normalizeText, ProductGroup, productKey } from '../../core/products';
 import { CatalogService, InventoryService, PurchaseService, ToolsService } from '../../core/services/api.services';
@@ -52,7 +53,7 @@ const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 @Component({
   selector: 'app-purchase-form',
   imports: [
-    ReactiveFormsModule, RouterLink, CurrencyPipe, DatePipe, AttachmentsComponent, LabelPipe,
+    ReactiveFormsModule, RouterLink, CurrencyPipe, DatePipe, AttachmentsComponent, KpiCardComponent, LabelPipe,
     MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule,
     MatAutocompleteModule, MatButtonModule, MatButtonToggleModule, MatCheckboxModule, MatIconModule, MatTooltipModule, MatProgressBarModule
   ],
@@ -252,6 +253,11 @@ export class PurchaseFormComponent implements OnInit {
       if (type === 'Bulk') c.totalPrice.setValue(roundMoney((c.quantity.value || 0) * (c.unitPrice.value || 0)), { emitEvent: false });
     });
     return form;
+  }
+
+  /** Largeur de la barre « coût récupéré » (plafonnée à 100 %). */
+  recoveryWidth(percent: number | null): number {
+    return Math.min(100, Math.max(0, percent ?? 0));
   }
 
   toggleGlobalPrice(): void {
@@ -555,6 +561,7 @@ export class PurchaseFormComponent implements OnInit {
         const kind = p.source === 'PersonalCollection' ? 'Transfert' : 'Achat';
         this.notify.success(`${kind} ${p.purchaseNumber} enregistré (${p.itemCount} article(s) en stock).`);
         this.saving.set(false);
+        this.purchase.set(p);
         this.items.controls.forEach(line => this.savedLineValues.set(line, line.getRawValue()));
         this.router.navigate(['/purchases', p.id]);
       },
