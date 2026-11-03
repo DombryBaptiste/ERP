@@ -147,6 +147,7 @@ public class AttachmentService(AppDbContext db, IConfiguration config, IWebHostE
             AttachmentOwner.Purchase => await db.Purchases.AnyAsync(p => p.Id == id),
             AttachmentOwner.Sale => await db.Sales.AnyAsync(s => s.Id == id),
             AttachmentOwner.ShippingSupply => await db.ShippingSupplies.AnyAsync(s => s.Id == id),
+            AttachmentOwner.PlatformFeeInvoice => await db.PlatformFeeInvoices.AnyAsync(f => f.Id == id),
             _ => false
         };
         if (!exists) throw BusinessException.NotFound("Élément introuvable : enregistrez-le avant d'ajouter des fichiers.");

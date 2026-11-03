@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import {
   Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkSettings, CatalogCard, CatalogImportResult,
   CardLanguage, CatalogDeleteResult, CatalogSet, Dashboard, RarityGroup, InventoryItem, InventoryItemInput,
+  PlatformFeeInvoice, PlatformFeeInvoiceInput, PlatformFeeMonth,
   Purchase, PurchaseInput, RefundInput, Sale, SaleInput, ShippingSummary, ShippingSupply, ShippingSupplyInput, Statistics,
   TaxSettings, TaxSummary
 } from '../models';
@@ -84,6 +85,24 @@ export class ShippingService {
     return this.http.put<ShippingSupply>(`${this.url}/supplies/${id}`, input);
   }
   delete(id: number): Observable<void> { return this.http.delete<void>(`${this.url}/supplies/${id}`); }
+}
+
+/** Factures mensuelles des frais Cardmarket (/api/platform-fees) */
+@Injectable({ providedIn: 'root' })
+export class PlatformFeeService {
+  private readonly http = inject(HttpClient);
+  private readonly url = '/api/platform-fees';
+
+  months(year: number): Observable<PlatformFeeMonth[]> {
+    return this.http.get<PlatformFeeMonth[]>(this.url, { params: new HttpParams().set('year', year) });
+  }
+  create(input: PlatformFeeInvoiceInput): Observable<PlatformFeeInvoice> {
+    return this.http.post<PlatformFeeInvoice>(`${this.url}/invoices`, input);
+  }
+  update(id: number, input: PlatformFeeInvoiceInput): Observable<PlatformFeeInvoice> {
+    return this.http.put<PlatformFeeInvoice>(`${this.url}/invoices/${id}`, input);
+  }
+  delete(id: number): Observable<void> { return this.http.delete<void>(`${this.url}/invoices/${id}`); }
 }
 
 /** Réglages du bulk (/api/bulk/settings) */

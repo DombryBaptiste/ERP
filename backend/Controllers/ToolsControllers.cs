@@ -129,3 +129,26 @@ public class ShippingController(ShippingService service) : ControllerBase
         return NoContent();
     }
 }
+
+/// <summary>Factures mensuelles des frais Cardmarket, réparties sur les ventes du mois.</summary>
+[ApiController]
+[Route("api/platform-fees")]
+public class PlatformFeesController(PlatformFeeService service) : ControllerBase
+{
+    [HttpGet]
+    public Task<List<PlatformFeeMonthDto>> GetMonths([FromQuery] int? year) =>
+        service.GetMonthsAsync(year ?? DateTime.Today.Year);
+
+    [HttpPost("invoices")]
+    public Task<PlatformFeeInvoiceDto> Create(PlatformFeeInvoiceInput input) => service.CreateAsync(input);
+
+    [HttpPut("invoices/{id:int}")]
+    public Task<PlatformFeeInvoiceDto> Update(int id, PlatformFeeInvoiceInput input) => service.UpdateAsync(id, input);
+
+    [HttpDelete("invoices/{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await service.DeleteAsync(id);
+        return NoContent();
+    }
+}

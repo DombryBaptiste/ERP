@@ -289,6 +289,12 @@ Onglet **Bulk** : les communes, peu communes, reverses, etc. se gèrent **au nom
 - Calculs automatiques : **montant total**, **bénéfice** = total − coût d'achat − frais, **marge** = bénéfice / total.
 - **Le stock est décrémenté automatiquement.** Modifier une vente réajuste le stock ; supprimer une vente remet les articles en stock.
 - Historique avec filtres par période, plateforme et client, et totaux des lignes filtrées.
+- **Frais Cardmarket facturés au mois** : dans une vente Cardmarket, le champ des frais est grisé (explication au survol).
+  En attendant la facture, ils sont **estimés à 5 %** par article (min. 0,01 €, max. 100 €). Bouton **« Frais Cardmarket »**
+  de la page Ventes : on saisit le total de la facture du mois (n°, date, PDF joint) ; il est **réparti sur les ventes
+  Cardmarket du mois au prorata de leur montant** et remplace l'estimation. Bénéfice des ventes, statistiques et rentabilité
+  des achats en tiennent compte ; ajouter, modifier ou supprimer une vente du mois relance la répartition.
+  Une alerte signale les mois terminés dont la facture n'est pas encore saisie. Le CA à déclarer ne change pas (il est brut).
 
 ### Tableau de bord et statistiques
 - Tableau de bord : articles en stock, valeur du stock, ventes / CA / bénéfice du mois, total des achats,
@@ -349,6 +355,8 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 | GET | `/api/shipping/summary?year=2026` | Synthèse des frais d'envoi (stock, coût réel, port payé, transporteurs) |
 | GET / POST | `/api/shipping/supplies` | Achats de fournitures d'envoi (`?year=&kind=`) / création |
 | GET / PUT / DELETE | `/api/shipping/supplies/:id` | Détail / modification / suppression |
+| GET | `/api/platform-fees?year=2026` | Mois de ventes Cardmarket : estimation des frais, frais appliqués, facture saisie |
+| POST / PUT / DELETE | `/api/platform-fees/invoices[/:id]` | Facture mensuelle Cardmarket (répartie sur les ventes du mois) |
 | GET | `/api/catalog/sets` | Séries du catalogue (nombre de cartes, de cartes cotées) |
 | GET | `/api/catalog/available-sets?language=fr\|ja\|ko\|zh-tw\|zh-cn` | Séries disponibles chez TCGdex dans une langue |
 | POST | `/api/catalog/sets/:setId/import?language=fr&groups=Other&groups=Holo` | Importe ou met à jour une série (`groups` : `Common`, `Uncommon`, `Rare`, `Holo`, `ClassicEx`, `NoRarity`, `Unknown`, `Other` ; par défaut `Other` + `Unknown`) |

@@ -73,12 +73,26 @@
           <mat-hint>Obligatoire dans le livre des recettes</mat-hint>
         </mat-form-field>
 
-        <mat-form-field>
-          <mat-label>Frais (commission, envoi…)</mat-label>
-          <input matInput type="number" min="0" step="0.01" formControlName="fees">
-          <span matTextSuffix>€</span>
-          <mat-hint>Cardmarket : 5 % par carte/article, arrondi supérieur (min. 0,01 €, max. 100 € par article).</mat-hint>
-        </mat-form-field>
+        @if (form.controls.platform.value === 'Cardmarket') {
+          <div class="fees-locked"
+               [matTooltip]="feesFromInvoice()
+                 ? 'Part de la facture mensuelle Cardmarket, répartie au prorata du montant des ventes du mois. Elle est recalculée à chaque modification.'
+                 : 'Cardmarket facture ses frais au mois. En attendant la facture, ils sont estimés à 5 % par article (min. 0,01 €, max. 100 €). Saisissez la facture dans Ventes → Frais Cardmarket : le montant réel remplacera l\'estimation.'">
+            <mat-form-field>
+              <mat-label>Frais Cardmarket</mat-label>
+              <input matInput type="number" formControlName="fees">
+              <span matTextSuffix>€</span>
+              <mat-icon matIconSuffix class="fees-info">info_outline</mat-icon>
+              <mat-hint>{{ feesFromInvoice() ? 'Part de la facture mensuelle' : 'Estimés (5 %) en attendant la facture du mois' }}</mat-hint>
+            </mat-form-field>
+          </div>
+        } @else {
+          <mat-form-field>
+            <mat-label>Frais (commission, envoi…)</mat-label>
+            <input matInput type="number" min="0" step="0.01" formControlName="fees">
+            <span matTextSuffix>€</span>
+          </mat-form-field>
+        }
 
         <mat-form-field>
           <mat-label>Frais payé par l’acheteur</mat-label>

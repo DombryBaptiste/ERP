@@ -637,6 +637,11 @@ a.link:hover { text-decoration: underline; }
 }
 .global-price mat-form-field { flex: 1 1 260px; }
 
+/* Frais Cardmarket calculés (champ grisé, explication au survol) */
+.fees-locked { min-width: 0; cursor: help; }
+.fees-locked mat-form-field { width: 100%; }
+.fees-info { color: var(--app-muted); }
+
 /* Rentabilité d'un achat (liste et fiche) */
 .perf-cell { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 130px; }
 .perf-bar, .recovery-bar {

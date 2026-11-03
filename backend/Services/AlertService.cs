@@ -60,7 +60,25 @@ public class AlertService(AppDbContext db, PreferencesService preferences, Attac
             ItemsWithoutMarketValue: items.Count(i => !i.MarketValue.HasValue),
             MarketAlerts: marketAlerts.OrderByDescending(a => a.RisePercent ?? 0).ThenByDescending(a => a.LatentGain).ToList(),
             Dormant: dormant,
-            LowShippingStock: (await shipping.GetStockAsync(DateTime.Today.Year, settings.LowShippingStock)).Where(s => s.Low).ToList());
+            LowShippingStock: (await shipping.GetStockAsync(DateTime.Today.Year, settings.LowShippingStock)).Where(s => s.Low).ToList(),
+            MissingFeeInvoices: await MissingFeeInvoicesAsync());
+    }
+
+    /// <summary>Mois terminés (12 derniers) dont les ventes Cardmarket n'ont encore que des frais estimés.</summary>
+    private async Task<List<MissingFeeInvoiceDto>> MissingFeeInvoicesAsync()
+    {
+        var monthStart = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        var since = monthStart.AddMonths(-12);
+        var sales = await db.Sales.AsNoTracking()
+            .Where(s => s.Platform == SalePlatform.Cardmarket && !s.FeesFromInvoice
+                        && s.SaleDate >= since && s.SaleDate < monthStart)
+            .Select(s => new { s.SaleDate, s.Fees })
+            .ToListAsync();
+        return sales
+            .GroupBy(s => (s.SaleDate.Year, s.SaleDate.Month))
+            .OrderByDescending(g => g.Key)
+            .Select(g => new MissingFeeInvoiceDto(g.Key.Year, g.Key.Month, g.Count(), g.Sum(s => s.Fees)))
+            .ToList();
     }
 
     /// <summary>Conseil de prix pour un article qui ne se vend pas.</summary>

@@ -76,4 +76,9 @@ export class AlertsComponent {
   sell(item: InventoryItem): void {
     this.router.navigate(['/sales/new'], { queryParams: { item: item.id } });
   }
+
+  /** « octobre 2026 » */
+  monthLabel(year: number, month: number): string {
+    return new Date(year, month - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  }
 }

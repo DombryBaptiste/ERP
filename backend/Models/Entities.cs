@@ -95,6 +95,11 @@ public class Sale
     public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Platform;
     /// <summary>Frais de la vente (commission plateforme, envoi...). Déduits du bénéfice.</summary>
     public decimal Fees { get; set; }
+    /// <summary>
+    /// Cardmarket : vrai si Fees est la part de la facture mensuelle de frais, faux si c'est l'estimation (5 %)
+    /// en attendant cette facture.
+    /// </summary>
+    public bool FeesFromInvoice { get; set; }
     public string? Comment { get; set; }
     /// <summary>Montant effectivement reçu du client, avant éventuels remboursements.</summary>
     public decimal AmountPaid { get; set; }
@@ -233,4 +238,21 @@ public class Attachment
     public long Size { get; set; }
     public int SortOrder { get; set; }
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Facture mensuelle des frais de vente d'une plateforme (table platform_fee_invoices), ex. commissions Cardmarket.
+/// Son montant est réparti sur les ventes de la plateforme du mois, au prorata de leur montant.
+/// </summary>
+public class PlatformFeeInvoice
+{
+    public int Id { get; set; }
+    public SalePlatform Platform { get; set; } = SalePlatform.Cardmarket;
+    public int Year { get; set; }
+    public int Month { get; set; }
+    public decimal Amount { get; set; }
+    public string? InvoiceNumber { get; set; }
+    public DateTime? InvoiceDate { get; set; }
+    public string? Comment { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

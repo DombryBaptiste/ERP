@@ -87,7 +87,7 @@ public record SaleRefundDto(int Id, DateTime RefundDate, decimal Amount, string?
 
 public record SaleDto(
     int Id, string SaleNumber, DateTime SaleDate, string? Customer, SalePlatform Platform, PaymentMethod PaymentMethod,
-    decimal Fees, string? Comment, decimal AmountPaid, string? TrackingNumber,
+    decimal Fees, bool FeesFromInvoice, string? Comment, decimal AmountPaid, string? TrackingNumber,
     ShippingCarrier? Carrier, decimal ShippingCost, List<ShippingUsageDto> Shipping,
     // Montant initial, total remboursé et montant net (encaissé définitivement).
     decimal TotalAmount, decimal RefundedAmount, decimal NetAmount,
@@ -143,7 +143,11 @@ public record AlertsDto(
     int ItemsWithMarketValue, int ItemsWithoutMarketValue,
     List<MarketAlertDto> MarketAlerts, List<DormantItemDto> Dormant,
     // Fournitures d'envoi (timbres, enveloppes...) presque épuisées.
-    List<ShippingStockDto> LowShippingStock);
+    List<ShippingStockDto> LowShippingStock,
+    // Mois passés avec des ventes Cardmarket dont la facture de frais n'est pas encore saisie.
+    List<MissingFeeInvoiceDto> MissingFeeInvoices);
+
+public record MissingFeeInvoiceDto(int Year, int Month, int SalesCount, decimal EstimatedFees);
 
 // ----- Fichiers joints -----
 public record AttachmentDto(
@@ -160,3 +164,16 @@ public class UploadAttachmentForm
     public AttachmentKind Kind { get; set; }
     public IFormFile File { get; set; } = null!;
 }
+
+// ----- Frais de plateforme facturés au mois (Cardmarket) -----
+public record PlatformFeeInvoiceInput(
+    int Year, int Month, decimal Amount, string? InvoiceNumber = null, DateTime? InvoiceDate = null, string? Comment = null);
+
+public record PlatformFeeInvoiceDto(
+    int Id, SalePlatform Platform, int Year, int Month, decimal Amount,
+    string? InvoiceNumber, DateTime? InvoiceDate, string? Comment);
+
+/// <summary>Un mois de ventes Cardmarket : estimation des frais, frais appliqués aux ventes et facture saisie.</summary>
+public record PlatformFeeMonthDto(
+    int Year, int Month, int SalesCount, decimal SalesTotal, decimal EstimatedFees, decimal AppliedFees,
+    PlatformFeeInvoiceDto? Invoice);

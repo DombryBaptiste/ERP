@@ -193,6 +193,24 @@ public static class DbInitializer
                 "ADD UNIQUE KEY IX_card_catalog_language_tcgdex_id (language, tcgdex_id), " +
                 "ADD KEY IX_card_catalog_language_set_id (language, set_id)");
         await EnsureColumnAsync(db, "inventory_items", "catalog_card_id", "INT NULL AFTER market_value_updated_at");
+
+        // Frais Cardmarket facturés au mois : la facture est répartie sur les ventes du mois.
+        await EnsureColumnAsync(db, "sales", "fees_from_invoice", "TINYINT(1) NOT NULL DEFAULT 0 AFTER fees");
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS platform_fee_invoices (
+              id             INT           NOT NULL AUTO_INCREMENT,
+              platform       VARCHAR(30)   NOT NULL,
+              year           INT           NOT NULL,
+              month          INT           NOT NULL,
+              amount         DECIMAL(10,2) NOT NULL,
+              invoice_number VARCHAR(50)   NULL,
+              invoice_date   DATE          NULL,
+              comment        VARCHAR(1000) NULL,
+              created_at     DATETIME(6)   NOT NULL,
+              PRIMARY KEY (id),
+              UNIQUE KEY IX_platform_fee_invoices_platform_year_month (platform, year, month)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """);
     }
 
     /// <summary>Élargit une colonne décimale à 6 décimales si elle en a moins (les valeurs sont conservées).</summary>
