@@ -73,7 +73,7 @@ export interface ShippingSupplyDialogData {
       <div class="two-cols">
         <mat-form-field>
           <mat-label>Quantité</mat-label>
-          <input matInput type="number" min="1" step="1" [ngModel]="quantity()" (ngModelChange)="quantity.set(+$event)">
+          <input matInput type="number" min="1" step="1" [ngModel]="quantity()" (ngModelChange)="quantity.set($event)">
           @if (data.supply && data.supply.usedQuantity > 0) {
             <mat-hint>{{ data.supply.usedQuantity }} déjà utilisé(s)</mat-hint>
           } @else {
@@ -82,7 +82,7 @@ export interface ShippingSupplyDialogData {
         </mat-form-field>
         <mat-form-field>
           <mat-label>Prix payé (total)</mat-label>
-          <input matInput type="number" min="0" step="0.01" [ngModel]="total()" (ngModelChange)="total.set(+$event)">
+          <input matInput type="number" min="0" step="0.01" [ngModel]="total()" (ngModelChange)="total.set($event)">
           <span matTextSuffix>€</span>
           <mat-hint>soit {{ unitCost() | currency: 'EUR' : 'symbol' : '1.2-4' }} l'unité</mat-hint>
         </mat-form-field>
@@ -154,11 +154,14 @@ export class ShippingSupplyDialogComponent {
   supplier = this.source.supplier ?? '';
   paymentMethod: PaymentMethod | null = this.source.paymentMethod ?? 'Card';
   comment = this.source.comment ?? '';
-  readonly quantity = signal(this.source.quantity ?? 1);
-  readonly total = signal(this.source.totalAmount ?? 0);
+  readonly quantity = signal<number | null>(this.source.quantity ?? 1);
+  readonly total = signal<number | null>(this.source.totalAmount ?? 0);
   readonly saving = signal(false);
 
-  readonly unitCost = computed(() => (this.quantity() > 0 ? (this.total() || 0) / this.quantity() : 0));
+  readonly unitCost = computed(() => {
+    const quantity = this.quantity() ?? 0;
+    return quantity > 0 ? (this.total() || 0) / quantity : 0;
+  });
 
   /** Désignations connues puis préréglages, filtrées par la saisie. */
   suggestions(): SupplyName[] {
@@ -188,7 +191,8 @@ export class ShippingSupplyDialogComponent {
       this.notify.error(null, 'Indiquez la désignation.');
       return;
     }
-    if (!(this.quantity() >= 1)) {
+    const quantity = this.quantity() ?? 0;
+    if (!(quantity >= 1)) {
       this.notify.error(null, 'La quantité doit être d\'au moins 1.');
       return;
     }
@@ -197,7 +201,7 @@ export class ShippingSupplyDialogComponent {
       kind: this.kind,
       carrier: this.carrier,
       name: this.name.trim(),
-      quantity: Math.floor(this.quantity()),
+      quantity: Math.floor(quantity),
       totalAmount: this.total() || 0,
       supplier: this.supplier.trim() || null,
       paymentMethod: this.paymentMethod,

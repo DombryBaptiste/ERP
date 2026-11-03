@@ -94,7 +94,7 @@
         <div class="calc">
           <mat-form-field>
             <mat-label>Poids des cartes</mat-label>
-            <input matInput type="number" min="0" step="10" [ngModel]="calcGrams()" (ngModelChange)="calcGrams.set(+$event)">
+            <input matInput type="number" min="0" step="10" [ngModel]="calcGrams()" (ngModelChange)="calcGrams.set($event)">
             <span matTextSuffix>g</span>
           </mat-form-field>
           <div class="calc-result">≈ <strong>{{ calcCards() | number }}</strong> cartes</div>

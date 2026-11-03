@@ -60,12 +60,12 @@ export interface BulkAddDialogData {
         @if (mode() === 'count') {
           <mat-form-field>
             <mat-label>Cartes</mat-label>
-            <input matInput type="number" min="1" step="1" [ngModel]="count()" (ngModelChange)="count.set(+$event)">
+            <input matInput type="number" min="1" step="1" [ngModel]="count()" (ngModelChange)="count.set($event)">
           </mat-form-field>
         } @else {
           <mat-form-field>
             <mat-label>Poids</mat-label>
-            <input matInput type="number" min="0" step="10" [ngModel]="grams()" (ngModelChange)="grams.set(+$event)">
+            <input matInput type="number" min="0" step="10" [ngModel]="grams()" (ngModelChange)="grams.set($event)">
             <span matTextSuffix>g</span>
             <mat-hint>≈ {{ cards() | number }} cartes ({{ data.settings.gramsPerCard }} g/carte)</mat-hint>
           </mat-form-field>
@@ -75,7 +75,7 @@ export interface BulkAddDialogData {
       <div class="two-cols">
         <mat-form-field>
           <mat-label>{{ source === 'PersonalCollection' ? 'Valeur retenue (facultatif)' : 'Prix payé (total)' }}</mat-label>
-          <input matInput type="number" min="0" step="0.5" [ngModel]="total()" (ngModelChange)="total.set(+$event)">
+          <input matInput type="number" min="0" step="0.5" [ngModel]="total()" (ngModelChange)="total.set($event)">
           <span matTextSuffix>€</span>
           <mat-hint>soit {{ costPerCard() | currency: 'EUR' : 'symbol' : '1.2-4' }} par carte</mat-hint>
         </mat-form-field>
@@ -147,9 +147,9 @@ export class BulkAddDialogComponent {
   comment = '';
 
   readonly mode = signal<CountMode>('count');
-  readonly count = signal(1000);
-  readonly grams = signal(0);
-  readonly total = signal(0);
+  readonly count = signal<number | null>(1000);
+  readonly grams = signal<number | null>(0);
+  readonly total = signal<number | null>(0);
   readonly saving = signal(false);
 
   readonly cards = computed(() => countedCards(this.mode(), this.count(), this.grams(), this.data.settings.gramsPerCard));
