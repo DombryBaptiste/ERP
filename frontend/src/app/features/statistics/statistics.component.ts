@@ -2,7 +2,6 @@ import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -12,7 +11,7 @@ import { ReportingService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 import { monthLabel, truncate } from '../../core/utils';
 import { ChartComponent } from '../../shared/chart.component';
-import { barChart, COLORS } from '../../shared/charts';
+import { barChart, COLORS, profitColors } from '../../shared/charts';
 import { KpiCardComponent } from '../../shared/kpi-card.component';
 import { LabelPipe } from '../../shared/label.pipe';
 
@@ -20,7 +19,7 @@ import { LabelPipe } from '../../shared/label.pipe';
   selector: 'app-statistics',
   imports: [
     RouterLink, CurrencyPipe, DatePipe, DecimalPipe, LabelPipe,
-    MatCardModule, MatFormFieldModule, MatSelectModule, MatIconModule, MatProgressBarModule, MatSlideToggleModule,
+    MatCardModule, MatFormFieldModule, MatSelectModule, MatProgressBarModule, MatSlideToggleModule,
     KpiCardComponent, ChartComponent
   ],
   templateUrl: './statistics.component.html'
@@ -42,7 +41,7 @@ export class StatisticsComponent {
 
   readonly profitChart = computed(() => {
     const values = (this.stats()?.monthly ?? []).map(m => m.profit);
-    return barChart(this.monthLabels(), 'Bénéfice', values, values.map(v => (v < 0 ? COLORS.loss : COLORS.profit)));
+    return barChart(this.monthLabels(), 'Bénéfice', values, profitColors(values));
   });
 
   readonly bestSellersChart = computed(() => {
@@ -52,8 +51,8 @@ export class StatisticsComponent {
 
   readonly mostProfitableChart = computed(() => {
     const products = this.stats()?.topProductsByProfit ?? [];
-    return barChart(products.map(p => truncate(p.name)), 'Bénéfice brut', products.map(p => p.profit),
-      products.map(p => (p.profit < 0 ? COLORS.loss : COLORS.profit)), true);
+    const values = products.map(p => p.profit);
+    return barChart(products.map(p => truncate(p.name)), 'Bénéfice brut', values, profitColors(values), true);
   });
 
   constructor() {

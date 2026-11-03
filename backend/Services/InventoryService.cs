@@ -120,8 +120,7 @@ public class InventoryService(AppDbContext db, AttachmentService attachments)
             pi.Quantity = item.Quantity;
             pi.UnitPrice = item.PurchasePrice;
             item.PurchaseDate = pi.Purchase.PurchaseDate;
-            pi.Purchase.TotalAmount = Math.Round(
-                pi.Purchase.Items.Sum(x => x.Quantity * x.UnitPrice) + pi.Purchase.PlatformFees + pi.Purchase.ShippingFees, 2);
+            pi.Purchase.TotalAmount = PurchaseService.ComputeTotal(pi.Purchase);
         }
 
         await db.SaveChangesAsync();
@@ -142,8 +141,7 @@ public class InventoryService(AppDbContext db, AttachmentService attachments)
         {
             pi.Purchase.Items.Remove(pi);
             db.PurchaseItems.Remove(pi);
-            pi.Purchase.TotalAmount = Math.Round(
-                pi.Purchase.Items.Sum(x => x.Quantity * x.UnitPrice) + pi.Purchase.PlatformFees + pi.Purchase.ShippingFees, 2);
+            pi.Purchase.TotalAmount = PurchaseService.ComputeTotal(pi.Purchase);
         }
 
         db.InventoryItems.Remove(item);
@@ -156,12 +154,12 @@ public class InventoryService(AppDbContext db, AttachmentService attachments)
     private static void Apply(InventoryItem item, InventoryItemInput input)
     {
         item.Name = input.Name.Trim();
-        item.Category = string.IsNullOrWhiteSpace(input.Category) ? null : input.Category.Trim();
+        item.Category = input.Category.TrimOrNull();
         item.Type = input.Type;
         item.Condition = input.Condition;
         item.PurchasePrice = Math.Round(input.PurchasePrice, 2);
         item.Quantity = input.Quantity;
-        item.Location = string.IsNullOrWhiteSpace(input.Location) ? null : input.Location.Trim();
+        item.Location = input.Location.TrimOrNull();
         item.PurchaseDate = input.PurchaseDate.Date;
     }
 

@@ -119,7 +119,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments, Platfor
             throw BusinessException.Conflict($"Une facture ({sale.InvoiceNumber}) a été émise pour cette vente : enregistrez plutôt un remboursement.");
 
         foreach (var line in sale.Items)
-            line.InventoryItem.RemainingQuantity += line.Quantity - RestockedQuantity(sale, line.Id);
+            line.InventoryItem.RemainingQuantity += line.Quantity - sale.RestockedQuantity(line.Id);
         ReleaseShipping(sale);
         db.Sales.Remove(sale);
         await db.SaveChangesAsync();
@@ -145,8 +145,9 @@ public class SaleService(AppDbContext db, AttachmentService attachments, Platfor
             throw new BusinessException("La date du remboursement ne peut pas précéder la date de la vente.");
         var amount = Math.Round(input.Amount, 2);
         // On peut rembourser jusqu'au montant payé par l'acheteur (articles + port).
-        if (sale.RefundedAmount + amount > sale.TotalAmount + sale.AmountPaid)
-            throw new BusinessException($"Remboursement trop élevé : il reste au maximum {sale.TotalAmount + sale.AmountPaid - sale.RefundedAmount:0.00} € à rembourser.");
+        var refundable = Mappings.SaleRevenue(sale) - sale.RefundedAmount;
+        if (amount > refundable)
+            throw new BusinessException($"Remboursement trop élevé : il reste au maximum {refundable:0.00} € à rembourser.");
 
         var lines = (input.Items ?? new List<RefundLineInput>()).Where(l => l.Quantity > 0).ToList();
         if (amount == 0 && lines.Count == 0)
@@ -156,7 +157,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments, Platfor
         {
             RefundDate = input.RefundDate.Date,
             Amount = amount,
-            Reason = string.IsNullOrWhiteSpace(input.Reason) ? null : input.Reason.Trim()
+            Reason = input.Reason.TrimOrNull()
         };
 
         foreach (var line in lines)
@@ -229,18 +230,15 @@ public class SaleService(AppDbContext db, AttachmentService attachments, Platfor
 
     // ---------------------------------------------------------------
 
-    private static int RestockedQuantity(Sale sale, int saleItemId) =>
-        sale.Refunds.SelectMany(r => r.Items).Where(i => i.SaleItemId == saleItemId && i.Restocked).Sum(i => i.Quantity);
-
     /// <summary>
     /// Total = Σ quantité × prix. Bénéfice = total − remboursements − coût des articles qui ne sont pas
-    /// revenus en stock − frais.
+    /// revenus en stock − frais (+ port payé − coût réel de l'envoi quand des fournitures sont indiquées).
     /// </summary>
     internal static void Recalculate(Sale sale)
     {
         sale.TotalAmount = Math.Round(sale.Items.Sum(i => i.Quantity * i.SalePrice), 2);
         sale.RefundedAmount = Math.Round(sale.Refunds.Sum(r => r.Amount), 2);
-        var cost = sale.Items.Sum(i => (i.Quantity - RestockedQuantity(sale, i.Id)) * i.UnitCost);
+        var cost = sale.Items.Sum(i => (i.Quantity - sale.RestockedQuantity(i.Id)) * i.UnitCost);
         sale.ShippingCost = Math.Round(sale.ShippingUsages.Sum(u => u.Quantity * u.UnitCost), 2);
         // Envoi suivi (fournitures indiquées) : le port payé par l'acheteur et le coût réel de l'envoi entrent dans le bénéfice.
         // Sinon, le port payé est considéré comme couvrant exactement l'envoi (comportement précédent).
@@ -266,11 +264,15 @@ public class SaleService(AppDbContext db, AttachmentService attachments, Platfor
         sale.FeesFromInvoice = false;
         if (sale.Platform != SalePlatform.Cardmarket) return;
 
-        sale.Fees = Math.Round(sale.Items.Sum(item =>
-            item.Quantity * CardmarketSaleFeeForItem(item.SalePrice)), 2);
+        sale.Fees = Math.Round(EstimatedCardmarketFees(sale), 2);
     }
 
-    internal static decimal CardmarketSaleFeeForItem(decimal value)
+    /// <summary>Estimation des frais Cardmarket d'une vente (non arrondie).</summary>
+    internal static decimal EstimatedCardmarketFees(Sale sale) =>
+        sale.Items.Sum(item => item.Quantity * CardmarketSaleFeeForItem(item.SalePrice));
+
+    /// <summary>Frais Cardmarket d'une unité : 5 % du prix arrondis au centime supérieur, entre 0,01 € et 100 €.</summary>
+    private static decimal CardmarketSaleFeeForItem(decimal value)
     {
         var roundedUp = Math.Ceiling(Math.Max(0m, value) * 5m) / 100m;
         return Math.Min(100m, Math.Max(0.01m, roundedUp));
@@ -279,19 +281,17 @@ public class SaleService(AppDbContext db, AttachmentService attachments, Platfor
     private static void ApplyHeader(Sale sale, SaleInput input)
     {
         sale.SaleDate = input.SaleDate.Date;
-        sale.Customer = Clean(input.Customer);
+        sale.Customer = input.Customer.TrimOrNull();
         sale.Platform = input.Platform;
         sale.PaymentMethod = input.PaymentMethod;
         sale.Fees = input.Platform == SalePlatform.Cardmarket ? 0m : Math.Round(input.Fees, 2);
-        sale.Comment = Clean(input.Comment);
+        sale.Comment = input.Comment.TrimOrNull();
         sale.AmountPaid = Math.Round(input.AmountPaid, 2);
-        sale.TrackingNumber = Clean(input.TrackingNumber);
+        sale.TrackingNumber = input.TrackingNumber.TrimOrNull();
         sale.Carrier = input.Carrier;
-        sale.CustomerAddress = Clean(input.CustomerAddress);
-        sale.CustomerSiren = Clean(input.CustomerSiren);
+        sale.CustomerAddress = input.CustomerAddress.TrimOrNull();
+        sale.CustomerSiren = input.CustomerSiren.TrimOrNull();
     }
-
-    private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private async Task ApplyLinesAsync(Sale sale, List<SaleLineInput> lines, IReadOnlyDictionary<int, decimal> previousCosts)
     {

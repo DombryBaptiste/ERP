@@ -110,7 +110,7 @@ public class AttachmentService(AppDbContext db, IConfiguration config, IWebHostE
     {
         var a = await db.Attachments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
         if (a is null) return null;
-        var path = Path.Combine(Root, a.OwnerType.ToString(), a.StoredName);
+        var path = FilePath(a);
         return File.Exists(path) ? (path, a.ContentType, a.FileName) : null;
     }
 
@@ -123,7 +123,7 @@ public class AttachmentService(AppDbContext db, IConfiguration config, IWebHostE
         DeleteFile(a);
     }
 
-    /// <summary>Supprime les fichiers d'un élément supprimé (article, achat, vente).</summary>
+    /// <summary>Supprime les fichiers d'un élément supprimé (article, achat, vente, fourniture, facture de frais).</summary>
     public async Task DeleteForOwnerAsync(AttachmentOwner owner, params int[] ownerIds)
     {
         var rows = await db.Attachments.Where(a => a.OwnerType == owner && ownerIds.Contains(a.OwnerId)).ToListAsync();
@@ -135,9 +135,11 @@ public class AttachmentService(AppDbContext db, IConfiguration config, IWebHostE
 
     private void DeleteFile(Attachment a)
     {
-        var path = Path.Combine(Root, a.OwnerType.ToString(), a.StoredName);
+        var path = FilePath(a);
         if (File.Exists(path)) File.Delete(path);
     }
+
+    private string FilePath(Attachment a) => Path.Combine(Root, a.OwnerType.ToString(), a.StoredName);
 
     private async Task EnsureOwnerExistsAsync(AttachmentOwner owner, int id)
     {

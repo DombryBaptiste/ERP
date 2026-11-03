@@ -14,8 +14,8 @@ import { BulkSettings, PaymentMethod, Sale, SaleInput, SalePlatform } from '../.
 import { allocateFifo, ProductGroup } from '../../core/products';
 import { SaleService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
-import { toIsoDate } from '../../core/utils';
-import { cardsFromGrams, unitPrice } from './bulk';
+import { euro, roundMoney, toIsoDate, unitPrice } from '../../core/utils';
+import { CountMode, countedCards } from './bulk';
 
 export interface BulkSellDialogData {
   settings: BulkSettings;
@@ -122,7 +122,6 @@ export interface BulkSellDialogData {
         </mat-form-field>
       </div>
 
-
       <div class="summary" [class.negative-box]="r.profit < 0">
         @if (r.missing) {
           <span class="negative"><mat-icon>warning</mat-icon> Stock insuffisant : {{ product()?.remaining ?? 0 | number }} cartes disponibles.</span>
@@ -173,7 +172,7 @@ export class BulkSellDialogComponent {
   date = new Date();
 
   readonly category = signal(this.data.category ?? this.data.products[0]?.name ?? '');
-  readonly mode = signal<'count' | 'weight'>('count');
+  readonly mode = signal<CountMode>('count');
   readonly count = signal(100);
   readonly grams = signal(0);
   readonly fees = signal(0);
@@ -182,8 +181,7 @@ export class BulkSellDialogComponent {
   readonly saving = signal(false);
 
   readonly product = computed(() => this.data.products.find(p => p.name === this.category()));
-  readonly cards = computed(() =>
-    this.mode() === 'count' ? Math.max(0, Math.floor(this.count() || 0)) : cardsFromGrams(this.grams(), this.data.settings.gramsPerCard));
+  readonly cards = computed(() => countedCards(this.mode(), this.count(), this.grams(), this.data.settings.gramsPerCard));
 
   /** Prix conseillé : nombre de cartes × prix conseillé par carte de la catégorie. */
   readonly suggested = computed(() => {
@@ -216,7 +214,7 @@ export class BulkSellDialogComponent {
   updateAutomaticFees(): void {
     if (this.platform !== 'Cardmarket') return;
     const fees = this.cards() * cardmarketSaleFeeForItem(this.pricePerCard());
-    this.fees.set(Math.round(fees * 100) / 100);
+    this.fees.set(roundMoney(fees));
   }
 
   /** Nouvelle catégorie : on revient au prix conseillé de cette catégorie. */
@@ -236,7 +234,7 @@ export class BulkSellDialogComponent {
     }
     const perCard = this.pricePerCard();
     const fees = this.platform === 'Cardmarket'
-      ? this.cards() * cardmarketSaleFeeForItem(perCard)
+      ? quantity * cardmarketSaleFeeForItem(perCard)
       : (this.fees() || 0);
     const input: SaleInput = {
       saleDate: toIsoDate(this.date),
@@ -258,7 +256,7 @@ export class BulkSellDialogComponent {
     this.saving.set(true);
     this.api.create(input).subscribe({
       next: sale => {
-        this.notify.success(`Lot vendu (${sale.saleNumber}) — bénéfice ${sale.profit.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}.`);
+        this.notify.success(`Lot vendu (${sale.saleNumber}) — bénéfice ${euro(sale.profit, 2)}.`);
         this.ref.close(sale);
       },
       error: err => {

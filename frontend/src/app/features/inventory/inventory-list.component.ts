@@ -20,6 +20,7 @@ import { InventoryItem } from '../../core/models';
 import { groupProducts, ProductGroup } from '../../core/products';
 import { AttachmentService, InventoryService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
+import { toggledSet } from '../../core/utils';
 import { LabelPipe } from '../../shared/label.pipe';
 import { marketDataForLot, MarketValueDialogComponent, MarketValueDialogData } from '../../shared/market-value-dialog.component';
 
@@ -137,12 +138,13 @@ export class InventoryListComponent {
       if (!stored) return { ...DEFAULT_FILTERS };
 
       const parsed = JSON.parse(stored) as Partial<InventoryFilters>;
+      const text = (value: unknown, fallback: string): string => typeof value === 'string' ? value : fallback;
       return {
-        search: typeof parsed.search === 'string' ? parsed.search : DEFAULT_FILTERS.search,
-        category: typeof parsed.category === 'string' ? parsed.category : DEFAULT_FILTERS.category,
-        type: typeof parsed.type === 'string' ? parsed.type : DEFAULT_FILTERS.type,
-        condition: typeof parsed.condition === 'string' ? parsed.condition : DEFAULT_FILTERS.condition,
-        origin: typeof parsed.origin === 'string' ? parsed.origin : DEFAULT_FILTERS.origin,
+        search: text(parsed.search, DEFAULT_FILTERS.search),
+        category: text(parsed.category, DEFAULT_FILTERS.category),
+        type: text(parsed.type, DEFAULT_FILTERS.type),
+        condition: text(parsed.condition, DEFAULT_FILTERS.condition),
+        origin: text(parsed.origin, DEFAULT_FILTERS.origin),
         status: this.isStockStatus(parsed.status) ? parsed.status : DEFAULT_FILTERS.status,
         cardmarket: this.isCardmarketFilter(parsed.cardmarket) ? parsed.cardmarket : DEFAULT_FILTERS.cardmarket
       };
@@ -175,13 +177,9 @@ export class InventoryListComponent {
           || (f.status === 'sold' && item.remainingQuantity === 0));
     });
     const products = groupProducts(lots);
-    const filteredProducts = f.cardmarket === 'all'
+    this.dataSource.data = f.cardmarket === 'all'
       ? products
-      : products.filter(product =>
-          f.cardmarket === 'checked'
-            ? product.isListedOnCardmarket
-            : !product.isListedOnCardmarket);
-    this.dataSource.data = filteredProducts;
+      : products.filter(product => product.isListedOnCardmarket === (f.cardmarket === 'checked'));
     this.dataSource.paginator?.firstPage();
   }
 
@@ -192,16 +190,12 @@ export class InventoryListComponent {
   }
 
   toggle(p: ProductGroup): void {
-    this.expanded.update(set => {
-      const next = new Set(set);
-      if (next.has(p.key)) next.delete(p.key); else next.add(p.key);
-      return next;
-    });
+    this.expanded.update(set => toggledSet(set, p.key));
   }
 
   /** Clic sur un produit : un seul lot → sa fiche ; plusieurs lots → déplier. */
   open(p: ProductGroup): void {
-    if (p.lots.length === 1) this.router.navigate(['/inventory', p.lots[0].id]);
+    if (p.lots.length === 1) this.editLot(p.lots[0]);
     else this.toggle(p);
   }
 
@@ -218,11 +212,11 @@ export class InventoryListComponent {
   }
 
   languageFlag(language: string | null): string {
-    const value = language?.trim().toLowerCase();
-    if (['fr', 'french', 'france', 'français'].includes(value ?? '')) return '🇫🇷';
-    if (['jap', 'japanese', 'japon', 'japonaise'].includes(value ?? '')) return '🇯🇵';
-    if (['kr', 'korean', 'corée', 'coree', 'coréen'].includes(value ?? '')) return '🇰🇷';
-    if (['cn', 'chinese', 'chine', 'chinois'].includes(value ?? '')) return '🇨🇳';
+    const value = language?.trim().toLowerCase() ?? '';
+    if (['fr', 'french', 'france', 'français'].includes(value)) return '🇫🇷';
+    if (['jap', 'japanese', 'japon', 'japonaise'].includes(value)) return '🇯🇵';
+    if (['kr', 'korean', 'corée', 'coree', 'coréen'].includes(value)) return '🇰🇷';
+    if (['cn', 'chinese', 'chine', 'chinois'].includes(value)) return '🇨🇳';
     return '—';
   }
 

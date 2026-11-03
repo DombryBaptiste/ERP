@@ -11,6 +11,11 @@ export const COLORS = {
   accent: '#8e24aa'
 };
 
+/** Couleur de chaque barre d'un graphique de bénéfices : rouge pour une perte, vert sinon. */
+export function profitColors(values: number[]): string[] {
+  return values.map(v => (v < 0 ? COLORS.loss : COLORS.profit));
+}
+
 /** Courbe d'évolution en euros. */
 export function lineChart(labels: string[], label: string, data: number[], color: string): ChartConfiguration<'line'> {
   return {

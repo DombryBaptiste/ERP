@@ -17,16 +17,15 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, debounceTime, distinctUntilChanged, of, Subject, switchMap } from 'rxjs';
 import { CARD_LANGUAGES, cardCode, cardThumbnail, catalogCategory, languageLabel, languageShort, UNCATEGORIZED } from '../../core/catalog';
 import { BuybackService } from '../../core/services/buyback.service';
-import { CONDITIONS, ITEM_TYPES, PAYMENT_METHODS, PURCHASE_PLATFORMS } from '../../core/labels';
-import { isCard } from '../../core/labels';
-import { AppPreferences, CardLanguage, CardSeriesEntry, CatalogCard, CatalogSet, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchaseLineInput, PurchasePlatform, PurchaseSource } from '../../core/models';
+import { CONDITIONS, isCard, isCatalogCard, ITEM_TYPES, PAYMENT_METHODS, PURCHASE_PLATFORMS } from '../../core/labels';
+import { CardLanguage, CatalogCard, CatalogSet, ItemCondition, ItemType, PaymentMethod, Purchase, PurchaseInput, PurchaseLine, PurchaseLineInput, PurchasePlatform, PurchaseSource } from '../../core/models';
 import { AttachmentsComponent } from '../../shared/attachments.component';
 import { KpiCardComponent } from '../../shared/kpi-card.component';
 import { LabelPipe } from '../../shared/label.pipe';
 import { groupProducts, normalizeText, ProductGroup, productKey } from '../../core/products';
-import { CatalogService, InventoryService, PurchaseService, ToolsService } from '../../core/services/api.services';
+import { CatalogService, InventoryService, PurchaseService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
-import { parseApiDate, toIsoDate } from '../../core/utils';
+import { clampPercent, parseApiDate, roundMoney, toIsoDate, unitPrice } from '../../core/utils';
 
 /** Formulaire d'une ligne d'achat. */
 type LineForm = FormGroup<{
@@ -48,8 +47,6 @@ type LineForm = FormGroup<{
 
 type LineValues = ReturnType<LineForm['getRawValue']>;
 
-const roundMoney = (value: number): number => Math.round(value * 100) / 100;
-
 @Component({
   selector: 'app-purchase-form',
   imports: [
@@ -66,7 +63,6 @@ export class PurchaseFormComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly api = inject(PurchaseService);
   private readonly inventoryApi = inject(InventoryService);
-  private readonly toolsApi = inject(ToolsService);
   private readonly catalogApi = inject(CatalogService);
   private readonly buyback = inject(BuybackService);
   private readonly notify = inject(NotifyService);
@@ -75,13 +71,13 @@ export class PurchaseFormComponent implements OnInit {
 
   readonly types = ITEM_TYPES;
   readonly conditions = CONDITIONS;
+  readonly payments = PAYMENT_METHODS;
+  readonly purchasePlatforms = PURCHASE_PLATFORMS;
   readonly isEdit = computed(() => !!this.id());
   readonly purchase = signal<Purchase | null>(null);
   readonly categories = signal<string[]>([]);
-  readonly cardSeries = signal<CardSeriesEntry[]>([]);
   /** Séries importées dans le catalogue : seules catégories proposées pour les produits Pokémon. */
   readonly catalogSets = signal<CatalogSet[]>([]);
-  readonly uncategorized = UNCATEGORIZED;
   readonly knownProducts = signal<ProductGroup[]>([]);
   readonly loading = signal(false);
   readonly saving = signal(false);
@@ -123,9 +119,6 @@ export class PurchaseFormComponent implements OnInit {
     /** Le montant saisi comprend déjà les frais de plateforme et de port. */
     includesFees: this.fb.control(false)
   });
-
-  readonly payments = PAYMENT_METHODS;
-  readonly purchasePlatforms = PURCHASE_PLATFORMS;
 
   get items() {
     return this.form.controls.items;
@@ -169,10 +162,6 @@ export class PurchaseFormComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.toolsApi.preferences().subscribe({
-      next: (prefs: AppPreferences) => this.cardSeries.set(prefs.cardSeries ?? []),
-      error: err => this.notify.error(err)
-    });
     this.inventoryApi.categories().subscribe(c => this.categories.set(c));
     this.catalogApi.sets().subscribe({ next: sets => this.catalogSets.set(sets), error: err => this.notify.error(err) });
     // Produits déjà connus : proposés à la saisie du nom pour regrouper les lots sous le même produit.
@@ -243,9 +232,7 @@ export class PurchaseFormComponent implements OnInit {
     // Bulk : on saisit le nombre de cartes et le prix total du lot, le prix unitaire (6 décimales) en découle.
     const c = form.controls;
     const syncBulkUnitPrice = () => {
-      if (c.type.value !== 'Bulk') return;
-      const qty = c.quantity.value || 0;
-      c.unitPrice.setValue(qty > 0 ? Math.round((c.totalPrice.value || 0) / qty * 1e6) / 1e6 : 0);
+      if (c.type.value === 'Bulk') c.unitPrice.setValue(unitPrice(c.totalPrice.value || 0, c.quantity.value || 0));
     };
     c.quantity.valueChanges.subscribe(syncBulkUnitPrice);
     c.totalPrice.valueChanges.subscribe(syncBulkUnitPrice);
@@ -257,7 +244,7 @@ export class PurchaseFormComponent implements OnInit {
 
   /** Largeur de la barre « coût récupéré » (plafonnée à 100 %). */
   recoveryWidth(percent: number | null): number {
-    return Math.min(100, Math.max(0, percent ?? 0));
+    return clampPercent(percent);
   }
 
   toggleGlobalPrice(): void {
@@ -275,8 +262,7 @@ export class PurchaseFormComponent implements OnInit {
   }
 
   globalUnitPrice(): number {
-    const qty = this.totalQuantity();
-    return qty > 0 ? Math.round(this.globalItemsAmount() / qty * 1e6) / 1e6 : 0;
+    return unitPrice(this.globalItemsAmount(), this.totalQuantity());
   }
 
   /** Applique le même prix unitaire à toutes les lignes : prix global ÷ nombre total d'unités. */
@@ -303,9 +289,7 @@ export class PurchaseFormComponent implements OnInit {
   addLine(): void {
     this.items.push(this.createLine());
     this.linePage.set(0);
-    if (typeof window !== 'undefined') {
-      window.requestAnimationFrame(() => this.purchaseLines?.nativeElement.scrollTo({ top: 0, behavior: 'smooth' }));
-    }
+    if (typeof window !== 'undefined') window.requestAnimationFrame(() => this.scrollLinesToTop());
   }
 
   /** Duplique une ligne (pratique pour saisir plusieurs produits proches). */
@@ -379,10 +363,8 @@ export class PurchaseFormComponent implements OnInit {
     return this.knownProducts().find(p => p.key === key);
   }
 
-  /** Carte (brute ou gradée) : le nom se cherche dans le catalogue. */
   usesCatalog(line: LineForm): boolean {
-    const type = line.controls.type.value;
-    return type === 'RawCard' || type === 'GradedCard';
+    return isCatalogCard(line.controls.type.value);
   }
 
   searchCatalog(line: LineForm, term: string): void {
@@ -444,7 +426,7 @@ export class PurchaseFormComponent implements OnInit {
     return [...new Set(this.catalogSets().map(s => languageLabel(s.language)))].sort((a, b) => a.localeCompare(b));
   }
 
-  /** Langues des Paramètres, plus celle de la ligne (ex. « Japonais » reprise du catalogue). */
+  /** Langues des séries du catalogue, plus celle de la ligne si elle n'y figure pas. */
   languagesFor(line: LineForm): string[] {
     const current = line.controls.language.value;
     const languages = this.languages();
@@ -468,7 +450,7 @@ export class PurchaseFormComponent implements OnInit {
         line.controls.category.setValue(catalogCategory(card));
         return;
       }
-      line.patchValue({ catalogCardId: null, category: UNCATEGORIZED });
+      this.unlinkCatalogCard(line);
     } else {
       line.controls.category.setValue(this.usesCatalog(line) ? UNCATEGORIZED : '');
     }
@@ -488,8 +470,7 @@ export class PurchaseFormComponent implements OnInit {
 
   private updateAutomaticPlatformFees(): void {
     if (!this.automaticPlatformFees) return;
-    const fees = Math.round((this.itemsTotal() * 0.05 + 0.7) * 100) / 100;
-    this.setAutomaticPlatformFees(fees);
+    this.setAutomaticPlatformFees(roundMoney(this.itemsTotal() * 0.05 + 0.7));
   }
 
   private setAutomaticPlatformFees(fees: number): void {
@@ -506,8 +487,7 @@ export class PurchaseFormComponent implements OnInit {
 
   /** Calcul automatique du montant total de l'achat. */
   total(): number {
-    const itemTotal = this.items.controls.reduce((sum, line) => sum + this.lineTotal(line), 0);
-    return itemTotal + (this.isCollection ? 0 : this.form.controls.platformFees.value + this.form.controls.shippingFees.value);
+    return this.itemsTotal() + (this.isCollection ? 0 : this.form.controls.platformFees.value + this.form.controls.shippingFees.value);
   }
 
   itemsTotal(): number {
@@ -540,7 +520,7 @@ export class PurchaseFormComponent implements OnInit {
         itemId: l.itemId,
         name: l.name.trim(),
         // Carte (brute ou gradée) : catégorie de la carte liée, sinon « Hors catégorie » (règle aussi appliquée par l'API).
-        category: (l.type === 'RawCard' || l.type === 'GradedCard')
+        category: isCatalogCard(l.type)
           ? (l.catalogCardId !== null ? l.category.trim() : UNCATEGORIZED)
           : l.category.trim() || null,
         language: l.language.trim() || null,

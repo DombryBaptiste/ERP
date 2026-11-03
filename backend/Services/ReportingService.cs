@@ -84,8 +84,7 @@ public class ReportingService(AppDbContext db)
     {
         var today = DateTime.Today;
         var year = requestedYear ?? today.Year;
-        var start = new DateTime(year, 1, 1);
-        var end = start.AddYears(1);
+        var (start, end) = ServiceHelpers.YearRange(year);
 
         List<Sale> sales;
         List<SaleStatistic> salesForStatistics;
@@ -154,7 +153,6 @@ public class ReportingService(AppDbContext db)
                 si.SalePrice,
                 si.UnitCost,
                 si.Sale.TotalAmount,
-                si.Sale.Fees,
                 si.Sale.AmountPaid
             })
             .ToListAsync();
@@ -178,10 +176,7 @@ public class ReportingService(AppDbContext db)
         var annualShippingSpent = await db.ShippingSupplies
             .Where(s => s.PurchaseDate >= start && s.PurchaseDate < end)
             .SumAsync(s => (decimal?)s.TotalAmount) ?? 0m;
-        var shipped = salesForStatistics
-            .Where(s => s.Sale.ShippingCost > 0
-                || (s.Sale.Carrier.HasValue && s.Sale.Carrier != ShippingCarrier.HandDelivery))
-            .ToList();
+        var shipped = salesForStatistics.Where(s => ShippingService.IsShipped(s.Sale.ShippingCost, s.Sale.Carrier)).ToList();
 
         var saleYearsQuery = db.Sales.AsQueryable();
         if (!includePersonalCollection)
@@ -206,7 +201,7 @@ public class ReportingService(AppDbContext db)
                 inMonth.Sum(s => s.Profit), inMonth.Count);
         }).ToList();
 
-        // CA par produit : les frais sont répartis proportionnellement selon le montant de chaque ligne.
+        // CA et bénéfice par produit (lots de même nom et même type regroupés).
         var products = lines
             .GroupBy(l => new { l.Name, l.Type })
             .Select(g =>
@@ -216,9 +211,7 @@ public class ReportingService(AppDbContext db)
                     // CA de la ligne + sa part du port payé par l'acheteur (au prorata du montant).
                     // La commission n'est pas retirée : c'est une charge, pas une baisse du CA.
                     var lineAmount = x.Quantity * x.SalePrice;
-                    var saleAmount = x.TotalAmount;
-                    var amountPaid = saleAmount > 0 ? lineAmount * x.AmountPaid / saleAmount : 0m;
-                    return lineAmount + amountPaid;
+                    return lineAmount + (x.TotalAmount > 0 ? lineAmount * x.AmountPaid / x.TotalAmount : 0m);
                 });
                 var profit = g.Sum(x => x.Quantity * (x.SalePrice - x.UnitCost));
                 return new ProductStatDto(g.Key.Name, g.Key.Type, g.Sum(x => x.Quantity), revenue, profit, Mappings.Margin(profit, revenue));

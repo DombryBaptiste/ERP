@@ -110,7 +110,7 @@ const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet'
 
       @if (editing(); as e) {
         <div class="editor">
-          <h3>{{ e.id ? 'Facture de ' : 'Nouvelle facture — ' }}{{ e.id ? monthLabel(e.month) + ' ' + e.year : '' }}</h3>
+          <h3>{{ e.id ? 'Facture de ' + monthLabel(e.month) + ' ' + e.year : 'Nouvelle facture — ' }}</h3>
           <div class="three-cols">
             @if (!e.id) {
               <mat-form-field>

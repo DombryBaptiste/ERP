@@ -18,7 +18,7 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
     public const string ApiBaseUrl = "https://api.tcgdex.net/v2/";
 
     /// <summary>Langues gérées : code TCGdex -> identifiant de la langue sur Cardmarket (filtre des offres).</summary>
-    public static readonly IReadOnlyDictionary<string, int> Languages = new Dictionary<string, int>
+    private static readonly IReadOnlyDictionary<string, int> Languages = new Dictionary<string, int>
     {
         ["fr"] = 2,      // français
         ["ja"] = 7,      // japonais
@@ -28,17 +28,17 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
     };
 
     /// <summary>Catégorie d'une carte (brute ou gradée) qui n'est liée à aucune carte du catalogue.</summary>
-    public const string Uncategorized = "Hors catégorie";
+    private const string Uncategorized = "Hors catégorie";
 
     /// <summary>Langue de l'article acheté, selon la langue de la carte du catalogue.</summary>
-    public static readonly IReadOnlyDictionary<string, string> LanguageLabels = new Dictionary<string, string>
+    private static readonly IReadOnlyDictionary<string, string> LanguageLabels = new Dictionary<string, string>
     {
         ["fr"] = "Français", ["ja"] = "Japonais", ["ko"] = "Coréen",
         ["zh-tw"] = "Chinois traditionnel", ["zh-cn"] = "Chinois simplifié"
     };
 
     /// <summary>Catégorie d'une carte du catalogue : « code + nom de la série », ex. « PFL Flammes Fantasmagoriques ».</summary>
-    public static string CategoryOf(CatalogCard card)
+    private static string CategoryOf(CatalogCard card)
     {
         var category = $"{card.SetCode ?? card.SetId} {card.SetName}";
         return category.Length <= 100 ? category : category[..100];  // inventory_items.category : 100 caractères
@@ -94,7 +94,7 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
     /// Groupe de rareté d'une carte. TCGdex classe les holos des anciennes séries en simple « Rare »
     /// (ex. Dracaufeu du Set de Base) : une rare qui n'existe qu'en version holo est donc rangée dans « Holo ».
     /// </summary>
-    public static RarityGroup GroupOf(string? rarity, JsonElement? card = null)
+    private static RarityGroup GroupOf(string? rarity, JsonElement? card)
     {
         if (string.IsNullOrWhiteSpace(rarity)) return RarityGroup.Unknown;
         var group = RarityGroups.GetValueOrDefault(rarity, RarityGroup.Other);

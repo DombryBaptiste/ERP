@@ -94,10 +94,8 @@ public static class Mappings
     /// </summary>
     public static decimal LineNet(this Sale s, SaleItem line)
     {
-        var restocked = (int saleItemId) => s.Refunds.SelectMany(r => r.Items)
-            .Where(ri => ri.SaleItemId == saleItemId && ri.Restocked).Sum(ri => ri.Quantity);
         // Bénéfice + coût des articles vendus = ce qu'il reste de la vente avant coût d'achat.
-        var net = s.Profit + s.Items.Sum(i => (i.Quantity - restocked(i.Id)) * i.UnitCost);
+        var net = s.Profit + s.Items.Sum(i => (i.Quantity - s.RestockedQuantity(i.Id)) * i.UnitCost);
         var gross = s.Items.Sum(i => i.Quantity * i.SalePrice);
         var share = gross > 0
             ? line.Quantity * line.SalePrice / gross
@@ -108,6 +106,10 @@ public static class Mappings
     /// <summary>Quantité retournée pour une ligne de vente (nécessite Refunds.Items chargés).</summary>
     public static int ReturnedQuantity(this Sale s, int saleItemId) =>
         s.Refunds.SelectMany(r => r.Items).Where(ri => ri.SaleItemId == saleItemId).Sum(ri => ri.Quantity);
+
+    /// <summary>Quantité retournée ET remise en stock pour une ligne de vente (nécessite Refunds.Items chargés).</summary>
+    public static int RestockedQuantity(this Sale s, int saleItemId) =>
+        s.Refunds.SelectMany(r => r.Items).Where(ri => ri.SaleItemId == saleItemId && ri.Restocked).Sum(ri => ri.Quantity);
 
     public static SaleDto ToDto(this Sale s)
     {
@@ -140,12 +142,14 @@ public static class Mappings
     /// <summary>Marge en pourcentage du chiffre d'affaires.</summary>
     public static decimal Margin(decimal profit, decimal revenue) =>
         revenue > 0 ? Math.Round(profit / revenue * 100, 1) : 0;
+
     /// <summary>
     /// Chiffre d'affaires d'une vente (avant remboursements) : prix des articles + port payé par l'acheteur.
     /// C'est le montant payé par l'acheteur, AVANT la commission de la plateforme : la commission est une charge
     /// (déduite du bénéfice), elle ne réduit pas le CA déclaré à l'URSSAF.
     /// </summary>
     public static decimal SaleRevenue(Sale sale) => sale.TotalAmount + sale.AmountPaid;
+
     public static string Label(this PaymentMethod method) => method switch
     {
         PaymentMethod.Platform => "Plateforme",

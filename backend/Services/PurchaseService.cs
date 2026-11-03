@@ -10,6 +10,8 @@ namespace PokeStock.Api.Services;
 /// </summary>
 public class PurchaseService(AppDbContext db, AttachmentService attachments)
 {
+    private const string CollectionSupplier = "Collection personnelle";
+
     private IQueryable<Purchase> WithDetails() =>
         db.Purchases.Include(p => p.Items).ThenInclude(i => i.Item);
 
@@ -57,9 +59,9 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
             Platform = PlatformOf(input),
             PlatformFees = FeesOf(input.PlatformFees, input.Source),
             ShippingFees = FeesOf(input.ShippingFees, input.Source),
-            TrackingNumber = Clean(input.TrackingNumber),
+            TrackingNumber = input.TrackingNumber.TrimOrNull(),
             PaymentMethod = PaymentOf(input),
-            Comment = Clean(input.Comment)
+            Comment = input.Comment.TrimOrNull()
         };
 
         foreach (var line in input.Items)
@@ -87,9 +89,9 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
         purchase.Platform = PlatformOf(input);
         purchase.PlatformFees = FeesOf(input.PlatformFees, input.Source);
         purchase.ShippingFees = FeesOf(input.ShippingFees, input.Source);
-        purchase.TrackingNumber = Clean(input.TrackingNumber);
+        purchase.TrackingNumber = input.TrackingNumber.TrimOrNull();
         purchase.PaymentMethod = PaymentOf(input);
-        purchase.Comment = Clean(input.Comment);
+        purchase.Comment = input.Comment.TrimOrNull();
 
         // 1. Lignes supprimées : autorisé seulement si rien n'a été vendu.
         var keptItemIds = input.Items.Where(l => l.ItemId.HasValue).Select(l => l.ItemId!.Value).ToHashSet();
@@ -165,24 +167,20 @@ public class PurchaseService(AppDbContext db, AttachmentService attachments)
     private static void ApplyLine(InventoryItem item, PurchaseLineInput line, DateTime purchaseDate)
     {
         item.Name = line.Name.Trim();
-        item.Category = Clean(line.Category);
-        item.Language = Clean(line.Language);
+        item.Category = line.Category.TrimOrNull();
+        item.Language = line.Language.TrimOrNull();
         item.Type = line.Type;
         item.Condition = line.Condition;
         item.Quantity = line.Quantity;
         item.PurchasePrice = Math.Round(line.UnitPrice, 6);
-        item.Location = Clean(line.Location);
+        item.Location = line.Location.TrimOrNull();
         item.PurchaseDate = purchaseDate;
         item.CatalogCardId = line.CatalogCardId;
     }
 
-
-    private static decimal ComputeTotal(Purchase p) => Math.Round(
+    /// <summary>Total de l'achat : lignes + frais de plateforme + frais de port.</summary>
+    internal static decimal ComputeTotal(Purchase p) => Math.Round(
         p.Items.Sum(i => i.Quantity * i.UnitPrice) + p.PlatformFees + p.ShippingFees, 2);
-
-    private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private const string CollectionSupplier = "Collection personnelle";
 
     /// <summary>Un transfert de collection n'a pas de règlement.</summary>
     private static PaymentMethod? PaymentOf(PurchaseInput input) =>

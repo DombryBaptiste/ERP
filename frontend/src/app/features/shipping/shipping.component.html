@@ -109,8 +109,8 @@
     <mat-card-content>
       <div class="kind-filter">
         <button mat-button [class.active]="kindFilter() === ''" (click)="kindFilter.set('')">Tout</button>
-        @for (k of ['Stamp', 'Label', 'Envelope', 'Protection', 'Box', 'Other']; track k) {
-          <button mat-button [class.active]="kindFilter() === k" (click)="kindFilter.set($any(k))">{{ k | label: 'shippingKind' }}</button>
+        @for (k of kinds; track k.value) {
+          <button mat-button [class.active]="kindFilter() === k.value" (click)="kindFilter.set(k.value)">{{ k.label }}</button>
         }
       </div>
       @if (filteredSupplies().length === 0) {

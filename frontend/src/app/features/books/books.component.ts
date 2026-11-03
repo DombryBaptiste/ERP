@@ -16,8 +16,7 @@ import { ToolsService } from '../../core/services/api.services';
     .books-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
     .books-grid .card { margin-bottom: 0; }
     .book-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-    .tips li { margin-bottom: 6px; font-size: 14px; line-height: 1.5; }
-    .year-select { width: 140px; }
+    .tips li { margin-bottom: 6px; }
   `
 })
 export class BooksComponent {

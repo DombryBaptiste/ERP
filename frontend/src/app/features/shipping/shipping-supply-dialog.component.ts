@@ -6,7 +6,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { CARRIERS, PAYMENT_METHODS, SHIPPING_KINDS, SHIPPING_PRESETS } from '../../core/labels';
@@ -17,13 +16,16 @@ import { NotifyService } from '../../core/services/notify.service';
 import { parseApiDate, toIsoDate } from '../../core/utils';
 import { AttachmentsComponent } from '../../shared/attachments.component';
 
+/** Désignation proposée à la saisie, avec la nature et le transporteur associés. */
+export type SupplyName = { name: string; kind: ShippingSupplyKind; carrier: ShippingCarrier | null };
+
 export interface ShippingSupplyDialogData {
   /** Achat à modifier (absent en création). */
   supply?: ShippingSupply;
   /** Valeurs proposées en création (ex. « Racheter » ou bordereau pour une vente). */
   preset?: Partial<ShippingSupplyInput>;
   /** Désignations déjà utilisées, proposées à la saisie. */
-  knownNames?: { name: string; kind: ShippingSupplyKind; carrier: ShippingCarrier | null }[];
+  knownNames?: SupplyName[];
 }
 
 /** Achat de fournitures d'envoi : carnet de timbres, bordereaux, enveloppes, protections… */
@@ -31,7 +33,7 @@ export interface ShippingSupplyDialogData {
   selector: 'app-shipping-supply-dialog',
   imports: [
     FormsModule, CurrencyPipe, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatAutocompleteModule,
-    MatButtonModule, MatIconModule, MatDatepickerModule, AttachmentsComponent
+    MatButtonModule, MatDatepickerModule, AttachmentsComponent
   ],
   template: `
     <h2 mat-dialog-title>{{ data.supply ? 'Achat ' + data.supply.supplyNumber : 'Acheter des fournitures d\\'envoi' }}</h2>
@@ -159,7 +161,7 @@ export class ShippingSupplyDialogComponent {
   readonly unitCost = computed(() => (this.quantity() > 0 ? (this.total() || 0) / this.quantity() : 0));
 
   /** Désignations connues puis préréglages, filtrées par la saisie. */
-  suggestions(): { name: string; kind: ShippingSupplyKind; carrier: ShippingCarrier | null }[] {
+  suggestions(): SupplyName[] {
     const term = normalizeText(this.name);
     const all = [...(this.data.knownNames ?? []), ...SHIPPING_PRESETS];
     const seen = new Set<string>();
@@ -171,7 +173,7 @@ export class ShippingSupplyDialogComponent {
     }).slice(0, 12);
   }
 
-  usePreset(s: { name: string; kind: ShippingSupplyKind; carrier: ShippingCarrier | null }): void {
+  usePreset(s: SupplyName): void {
     this.name = s.name;
     this.kind = s.kind;
     this.carrier = s.carrier;

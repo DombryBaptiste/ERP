@@ -2,12 +2,6 @@ using PokeStock.Api.Models;
 
 namespace PokeStock.Api.Dtos;
 
-public record LoginRequest(string Username, string Password);
-
-public record LoginResponse(string Token, string Username, DateTime ExpiresAt);
-
-public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
-
 // ----- Inventaire -----
 /// <param name="MarketValue">Valeur de marché unitaire estimée (facultative).</param>
 public record InventoryItemInput(

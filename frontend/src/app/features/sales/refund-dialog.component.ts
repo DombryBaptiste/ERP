@@ -11,7 +11,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Sale } from '../../core/models';
 import { SaleService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
-import { toIsoDate } from '../../core/utils';
+import { roundMoney, toIsoDate } from '../../core/utils';
 
 interface ReturnLine {
   saleItemId: number;
@@ -103,7 +103,7 @@ export class RefundDialogComponent {
   private readonly notify = inject(NotifyService);
   private readonly ref = inject(MatDialogRef<RefundDialogComponent, Sale>);
 
-  readonly maxAmount = Math.round((this.sale.totalAmount + this.sale.amountPaid - this.sale.refundedAmount) * 100) / 100;
+  readonly maxAmount = roundMoney(this.sale.totalAmount + this.sale.amountPaid - this.sale.refundedAmount);
   readonly lines: ReturnLine[] = this.sale.items
     .map(i => ({ saleItemId: i.id, name: i.itemName, salePrice: i.salePrice, max: i.quantity - i.returnedQuantity, quantity: 0 }))
     .filter(l => l.max > 0);
@@ -117,7 +117,7 @@ export class RefundDialogComponent {
   /** Propose un montant égal à la valeur des articles retournés. */
   suggestAmount(): void {
     const value = this.lines.reduce((sum, l) => sum + (Number(l.quantity) || 0) * l.salePrice, 0);
-    if (value > 0) this.amount = Math.min(this.maxAmount, Math.round(value * 100) / 100);
+    if (value > 0) this.amount = Math.min(this.maxAmount, roundMoney(value));
   }
 
   save(): void {

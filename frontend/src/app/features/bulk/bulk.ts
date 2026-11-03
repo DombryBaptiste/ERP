@@ -10,6 +10,12 @@ import { groupProducts, ProductGroup } from '../../core/products';
 /** État fixe des lots de bulk : il fait partie de la clé produit, il doit donc rester constant. */
 export const BULK_CONDITION: ItemCondition = 'EXC';
 
+/** Poids moyen d'une carte (g) tant que les réglages ne sont pas chargés ou si la valeur saisie est invalide. */
+export const DEFAULT_GRAMS_PER_CARD = 1.8;
+
+/** Saisie du nombre de cartes : directement, ou par pesée. */
+export type CountMode = 'count' | 'weight';
+
 export const isBulk = (item: InventoryItem): boolean => item.type === 'Bulk';
 
 /** Nombre de cartes estimé à partir d'un poids. */
@@ -17,9 +23,9 @@ export function cardsFromGrams(grams: number, gramsPerCard: number): number {
   return gramsPerCard > 0 ? Math.round((grams || 0) / gramsPerCard) : 0;
 }
 
-/** Prix unitaire à 6 décimales (comme en base) : 10 € pour 75 cartes = 0,133333 €. */
-export function unitPrice(total: number, quantity: number): number {
-  return quantity > 0 ? Math.round((total / quantity) * 1_000_000) / 1_000_000 : 0;
+/** Nombre de cartes saisi, selon le mode (nombre entier positif ou estimation au poids). */
+export function countedCards(mode: CountMode, count: number, grams: number, gramsPerCard: number): number {
+  return mode === 'count' ? Math.max(0, Math.floor(count || 0)) : cardsFromGrams(grams, gramsPerCard);
 }
 
 /** Produits de bulk de l'inventaire, indexés par nom. */

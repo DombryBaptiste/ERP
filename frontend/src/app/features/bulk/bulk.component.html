@@ -99,7 +99,7 @@
           </mat-form-field>
           <div class="calc-result">≈ <strong>{{ calcCards() | number }}</strong> cartes</div>
         </div>
-        <p class="muted small">Repères : 100 cartes ≈ {{ (settings()?.gramsPerCard ?? 1.8) * 100 | number: '1.0-0' }} g · 1 kg ≈ {{ 1000 / (settings()?.gramsPerCard ?? 1.8) | number: '1.0-0' }} cartes.</p>
+        <p class="muted small">Repères : 100 cartes ≈ {{ gramsPerCard() * 100 | number: '1.0-0' }} g · 1 kg ≈ {{ 1000 / gramsPerCard() | number: '1.0-0' }} cartes.</p>
       </mat-card-content>
     </mat-card>
 

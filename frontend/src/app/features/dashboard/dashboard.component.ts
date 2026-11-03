@@ -10,7 +10,7 @@ import { ReportingService, TaxService, ToolsService } from '../../core/services/
 import { NotifyService } from '../../core/services/notify.service';
 import { monthLabel } from '../../core/utils';
 import { ChartComponent } from '../../shared/chart.component';
-import { barChart, COLORS, doughnutChart, lineChart } from '../../shared/charts';
+import { barChart, COLORS, doughnutChart, lineChart, profitColors } from '../../shared/charts';
 import { KpiCardComponent } from '../../shared/kpi-card.component';
 import { LabelPipe } from '../../shared/label.pipe';
 
@@ -25,14 +25,14 @@ import { LabelPipe } from '../../shared/label.pipe';
 })
 export class DashboardComponent {
   private readonly reporting = inject(ReportingService);
+  private readonly taxApi = inject(TaxService);
+  private readonly toolsApi = inject(ToolsService);
   private readonly notify = inject(NotifyService);
 
   readonly today = new Date();
   readonly loading = signal(true);
   readonly data = signal<Dashboard | null>(null);
   readonly tax = signal<TaxSummary | null>(null);
-  private readonly taxApi = inject(TaxService);
-  private readonly toolsApi = inject(ToolsService);
   readonly alerts = signal<Alerts | null>(null);
 
   private readonly labels = computed(() =>
@@ -43,7 +43,7 @@ export class DashboardComponent {
 
   readonly profitChart = computed(() => {
     const values = (this.data()?.last12Months ?? []).map(p => p.profit);
-    return barChart(this.labels(), 'Bénéfice', values, values.map(v => (v < 0 ? COLORS.loss : COLORS.profit)));
+    return barChart(this.labels(), 'Bénéfice', values, profitColors(values));
   });
 
   readonly distributionChart = computed(() => {
@@ -52,7 +52,7 @@ export class DashboardComponent {
   });
 
   constructor() {
-    // Prochaine échéance URSSAF (facultatif : le tableau de bord s'affiche même en cas d'erreur).
+    // Prochaine échéance URSSAF et alertes (facultatifs : le tableau de bord s'affiche même en cas d'erreur).
     this.taxApi.summary().subscribe({ next: s => this.tax.set(s), error: () => this.tax.set(null) });
     this.toolsApi.alerts().subscribe({ next: a => this.alerts.set(a), error: () => this.alerts.set(null) });
 

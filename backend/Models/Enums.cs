@@ -132,6 +132,6 @@ public enum AttachmentKind
 
 public static class ItemTypeExtensions
 {
-    /// <summary>Vrai pour les cartes (brutes ou gradées), faux pour les produits scellés.</summary>
+    /// <summary>Vrai pour les cartes (brutes, gradées ou en vrac), faux pour les produits scellés.</summary>
     public static bool IsCard(this ItemType type) => type is ItemType.RawCard or ItemType.GradedCard or ItemType.Bulk;
 }

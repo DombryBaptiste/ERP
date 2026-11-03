@@ -1,7 +1,6 @@
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -21,7 +20,7 @@ import { marketDataForLot, MarketValueDialogComponent } from '../../shared/marke
   selector: 'app-alerts',
   imports: [
     RouterLink, CurrencyPipe, DecimalPipe, LabelPipe,
-    MatCardModule, MatTabsModule, MatIconModule, MatButtonModule, MatTooltipModule, MatProgressBarModule, KpiCardComponent
+    MatTabsModule, MatIconModule, MatButtonModule, MatTooltipModule, MatProgressBarModule, KpiCardComponent
   ],
   templateUrl: './alerts.component.html',
   styleUrl: './alerts.component.scss'

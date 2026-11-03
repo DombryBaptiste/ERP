@@ -146,7 +146,6 @@ export const PLATFORMS = toOptions(PLATFORM_LABELS);
 export const PURCHASE_PLATFORMS = toOptions(PURCHASE_PLATFORM_LABELS);
 export const ORIGINS = toOptions(ORIGIN_LABELS);
 export const PAYMENT_METHODS = toOptions(PAYMENT_LABELS);
-export const ATTACHMENT_KINDS = toOptions(ATTACHMENT_KIND_LABELS);
 export const SHIPPING_KINDS = toOptions(SHIPPING_KIND_LABELS);
 export const CARRIERS = toOptions(CARRIER_LABELS);
 
@@ -164,3 +163,6 @@ export function cardmarketSaleFeeForItem(value: number): number {
 
 /** Vrai pour les cartes (brutes ou gradées), faux pour les produits scellés. */
 export const isCard = (type: ItemType): boolean => type === 'RawCard' || type === 'GradedCard' || type === 'Bulk';
+
+/** Cartes brutes ou gradées : leur catégorie vient de la carte du catalogue liée. */
+export const isCatalogCard = (type: ItemType): boolean => type === 'RawCard' || type === 'GradedCard';
