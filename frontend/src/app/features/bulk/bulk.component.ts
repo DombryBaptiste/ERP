@@ -76,7 +76,7 @@ export class BulkComponent {
   readonly savingSettings = signal(false);
 
   /** Calculatrice de poids. */
-  readonly calcGrams = signal(1000);
+  readonly calcGrams = signal<number | null>(1000);
 
   readonly pools = computed<BulkPool[]>(() => {
     const settings = this.settings();

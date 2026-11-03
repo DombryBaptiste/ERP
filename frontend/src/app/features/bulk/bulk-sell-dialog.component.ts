@@ -56,13 +56,13 @@ export interface BulkSellDialogData {
         @if (mode() === 'count') {
           <mat-form-field>
             <mat-label>Cartes</mat-label>
-            <input matInput type="number" min="1" step="1" [ngModel]="count()" (ngModelChange)="count.set(+$event); updateAutomaticFees()">
+            <input matInput type="number" min="1" step="1" [ngModel]="count()" (ngModelChange)="count.set($event); updateAutomaticFees()">
             <mat-hint>{{ product()?.remaining ?? 0 | number }} en stock</mat-hint>
           </mat-form-field>
         } @else {
           <mat-form-field>
             <mat-label>Poids</mat-label>
-            <input matInput type="number" min="0" step="10" [ngModel]="grams()" (ngModelChange)="grams.set(+$event); updateAutomaticFees()">
+            <input matInput type="number" min="0" step="10" [ngModel]="grams()" (ngModelChange)="grams.set($event); updateAutomaticFees()">
             <span matTextSuffix>g</span>
             <mat-hint>≈ {{ cards() | number }} cartes</mat-hint>
           </mat-form-field>
@@ -78,14 +78,14 @@ export interface BulkSellDialogData {
       <div class="two-cols">
         <mat-form-field>
           <mat-label>Prix du lot</mat-label>
-          <input matInput type="number" min="0" step="0.5" [ngModel]="lotPrice()" (ngModelChange)="setPrice(+$event)">
+          <input matInput type="number" min="0" step="0.5" [ngModel]="priceField()" (ngModelChange)="setPrice($event)">
           <span matTextSuffix>€</span>
           <mat-hint>{{ pricePerCard() | currency: 'EUR' : 'symbol' : '1.2-4' }} par carte
             @if (suggested() > 0) { · conseillé {{ suggested() | currency }} }</mat-hint>
         </mat-form-field>
         <mat-form-field>
           <mat-label>Frais (commission, envoi)</mat-label>
-          <input matInput type="number" min="0" step="0.5" [ngModel]="fees()" (ngModelChange)="fees.set(+$event)">
+          <input matInput type="number" min="0" step="0.5" [ngModel]="fees()" (ngModelChange)="fees.set($event)">
           <span matTextSuffix>€</span>
         </mat-form-field>
       </div>
@@ -173,11 +173,11 @@ export class BulkSellDialogComponent {
 
   readonly category = signal(this.data.category ?? this.data.products[0]?.name ?? '');
   readonly mode = signal<CountMode>('count');
-  readonly count = signal(100);
-  readonly grams = signal(0);
-  readonly fees = signal(0);
-  /** Prix saisi à la main ; null = prix conseillé, recalculé avec le nombre de cartes. */
-  private readonly manualPrice = signal<number | null>(null);
+  readonly count = signal<number | null>(100);
+  readonly grams = signal<number | null>(0);
+  readonly fees = signal<number | null>(0);
+  /** Prix saisi à la main (null = champ vidé) ; undefined = prix conseillé, recalculé avec le nombre de cartes. */
+  private readonly manualPrice = signal<number | null | undefined>(undefined);
   readonly saving = signal(false);
 
   readonly product = computed(() => this.data.products.find(p => p.name === this.category()));
@@ -189,7 +189,8 @@ export class BulkSellDialogComponent {
     return Math.round(this.cards() * perCard * 100) / 100;
   });
 
-  readonly lotPrice = computed(() => this.manualPrice() ?? this.suggested());
+  readonly priceField = computed(() => (this.manualPrice() === undefined ? this.suggested() : this.manualPrice()));
+  readonly lotPrice = computed(() => this.priceField() ?? 0);
   readonly pricePerCard = computed(() => unitPrice(this.lotPrice(), this.cards()));
 
   /** Coût FIFO réel des cartes vendues, bénéfice et marge. */
@@ -206,8 +207,8 @@ export class BulkSellDialogComponent {
     return defaultPaymentFor(platform);
   }
 
-  setPrice(value: number): void {
-    this.manualPrice.set(isNaN(value) ? 0 : value);
+  setPrice(value: number | null): void {
+    this.manualPrice.set(value);
     this.updateAutomaticFees();
   }
 
@@ -220,7 +221,7 @@ export class BulkSellDialogComponent {
   /** Nouvelle catégorie : on revient au prix conseillé de cette catégorie. */
   changeCategory(name: string): void {
     this.category.set(name);
-    this.manualPrice.set(null);
+    this.manualPrice.set(undefined);
     this.updateAutomaticFees();
   }
 

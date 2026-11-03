@@ -19,12 +19,12 @@ export type CountMode = 'count' | 'weight';
 export const isBulk = (item: InventoryItem): boolean => item.type === 'Bulk';
 
 /** Nombre de cartes estimé à partir d'un poids. */
-export function cardsFromGrams(grams: number, gramsPerCard: number): number {
+export function cardsFromGrams(grams: number | null, gramsPerCard: number): number {
   return gramsPerCard > 0 ? Math.round((grams || 0) / gramsPerCard) : 0;
 }
 
 /** Nombre de cartes saisi, selon le mode (nombre entier positif ou estimation au poids). */
-export function countedCards(mode: CountMode, count: number, grams: number, gramsPerCard: number): number {
+export function countedCards(mode: CountMode, count: number | null, grams: number | null, gramsPerCard: number): number {
   return mode === 'count' ? Math.max(0, Math.floor(count || 0)) : cardsFromGrams(grams, gramsPerCard);
 }
 
