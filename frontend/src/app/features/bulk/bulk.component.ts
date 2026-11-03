@@ -18,7 +18,7 @@ import { NotifyService } from '../../core/services/notify.service';
 import { KpiCardComponent } from '../../shared/kpi-card.component';
 import { BulkAddDialogComponent, BulkAddDialogData } from './bulk-add-dialog.component';
 import { BulkSellDialogComponent, BulkSellDialogData } from './bulk-sell-dialog.component';
-import { bulkProducts, cardsFromGrams, isBulk } from './bulk';
+import { bulkProducts, cardsFromGrams, DEFAULT_GRAMS_PER_CARD, isBulk } from './bulk';
 
 /** Une catégorie de bulk avec son stock. */
 interface BulkPool {
@@ -70,7 +70,7 @@ export class BulkComponent {
   private readonly sales = signal<Sale[]>([]);
 
   /** Copie modifiable des réglages (panneau « Réglages »). */
-  editGrams = 1.8;
+  editGrams = DEFAULT_GRAMS_PER_CARD;
   editCategories: BulkCategory[] = [];
   readonly showSettings = signal(false);
   readonly savingSettings = signal(false);
@@ -129,7 +129,8 @@ export class BulkComponent {
     .sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate) || b.id - a.id)
     .slice(0, 20));
 
-  readonly calcCards = computed(() => cardsFromGrams(this.calcGrams(), this.settings()?.gramsPerCard ?? 1.8));
+  readonly gramsPerCard = computed(() => this.settings()?.gramsPerCard ?? DEFAULT_GRAMS_PER_CARD);
+  readonly calcCards = computed(() => cardsFromGrams(this.calcGrams(), this.gramsPerCard()));
 
   constructor() {
     this.load();
@@ -179,7 +180,7 @@ export class BulkComponent {
 
   resetSettingsForm(): void {
     const s = this.settings();
-    this.editGrams = s?.gramsPerCard ?? 1.8;
+    this.editGrams = s?.gramsPerCard ?? DEFAULT_GRAMS_PER_CARD;
     this.editCategories = (s?.categories ?? []).map(c => ({ ...c }));
   }
 
@@ -208,7 +209,7 @@ export class BulkComponent {
     }
     this.savingSettings.set(true);
     this.bulkApi.saveSettings({
-      gramsPerCard: Number(this.editGrams) || 1.8,
+      gramsPerCard: Number(this.editGrams) || DEFAULT_GRAMS_PER_CARD,
       categories: this.editCategories.map(c => ({ name: c.name.trim(), suggestedPricePerCard: Number(c.suggestedPricePerCard) || 0 }))
     }).subscribe({
       next: saved => {

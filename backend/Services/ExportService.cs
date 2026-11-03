@@ -29,9 +29,9 @@ public class ExportService(AppDbContext db, PreferencesService preferences)
     // Données
     // ---------------------------------------------------------------
 
-    public async Task<List<BookLine>> ReceiptsAsync(int year)
+    private async Task<List<BookLine>> ReceiptsAsync(int year)
     {
-        var (start, end) = Range(year);
+        var (start, end) = ServiceHelpers.YearRange(year);
         var sales = await db.Sales.AsNoTracking()
             .Include(s => s.Items).ThenInclude(i => i.InventoryItem)
             .Where(s => s.SaleDate >= start && s.SaleDate < end)
@@ -47,7 +47,7 @@ public class ExportService(AppDbContext db, PreferencesService preferences)
             s.Customer ?? "Client particulier",
             $"Vente ({s.Platform.Label()}) : {Describe(s.Items.Select(i => (i.InventoryItem.Name, i.Quantity)))}",
             s.PaymentMethod.Label(),
-            s.TotalAmount + s.AmountPaid));
+            Mappings.SaleRevenue(s)));
 
         var refundLines = refunds.Select(r => new BookLine(
             r.RefundDate,
@@ -60,9 +60,9 @@ public class ExportService(AppDbContext db, PreferencesService preferences)
         return lines.Concat(refundLines).OrderBy(l => l.Date).ThenBy(l => l.Reference).ToList();
     }
 
-    public async Task<(List<BookLine> Purchases, List<BookLine> Transfers)> PurchasesAsync(int year)
+    private async Task<(List<BookLine> Purchases, List<BookLine> Transfers)> PurchasesAsync(int year)
     {
-        var (start, end) = Range(year);
+        var (start, end) = ServiceHelpers.YearRange(year);
         var purchases = await db.Purchases.AsNoTracking()
             .Include(p => p.Items).ThenInclude(i => i.Item)
             .Where(p => p.PurchaseDate >= start && p.PurchaseDate < end)
@@ -80,6 +80,21 @@ public class ExportService(AppDbContext db, PreferencesService preferences)
             purchases.Where(p => p.Source == PurchaseSource.PersonalCollection).Select(ToLine).ToList());
     }
 
+    /// <summary>Achats de fournitures d'envoi de l'année (section à part du registre des achats).</summary>
+    private async Task<List<BookLine>> ShippingSuppliesAsync(int year)
+    {
+        var (start, end) = ServiceHelpers.YearRange(year);
+        var supplies = await db.ShippingSupplies.AsNoTracking()
+            .Where(s => s.PurchaseDate >= start && s.PurchaseDate < end)
+            .OrderBy(s => s.PurchaseDate).ThenBy(s => s.SupplyNumber)
+            .ToListAsync();
+        return supplies.Select(s => new BookLine(
+            s.PurchaseDate, s.SupplyNumber, s.Supplier ?? "—",
+            $"{s.Kind.Label()} : {s.Name}" + (s.Quantity > 1 ? $" ×{s.Quantity}" : "") + (s.Carrier is { } c ? $" ({c.Label()})" : ""),
+            s.PaymentMethod?.Label() ?? "Non renseigné",
+            s.TotalAmount)).ToList();
+    }
+
     // ---------------------------------------------------------------
     // Fichiers
     // ---------------------------------------------------------------
@@ -92,21 +107,6 @@ public class ExportService(AppDbContext db, PreferencesService preferences)
         return IsPdf(format)
             ? new ExportFile(await PdfAsync(title, [("Encaissements", lines)]), "application/pdf", name + ".pdf")
             : new ExportFile(Excel(title, [("Livre des recettes", lines)], "Client"), XlsxType, name + ".xlsx");
-    }
-
-    /// <summary>Achats de fournitures d'envoi de l'année (section à part du registre des achats).</summary>
-    public async Task<List<BookLine>> ShippingSuppliesAsync(int year)
-    {
-        var (start, end) = Range(year);
-        var supplies = await db.ShippingSupplies.AsNoTracking()
-            .Where(s => s.PurchaseDate >= start && s.PurchaseDate < end)
-            .OrderBy(s => s.PurchaseDate).ThenBy(s => s.SupplyNumber)
-            .ToListAsync();
-        return supplies.Select(s => new BookLine(
-            s.PurchaseDate, s.SupplyNumber, s.Supplier ?? "—",
-            $"{s.Kind.Label()} : {s.Name}" + (s.Quantity > 1 ? $" ×{s.Quantity}" : "") + (s.Carrier is { } c ? $" ({c.Label()})" : ""),
-            s.PaymentMethod?.Label() ?? "Non renseigné",
-            s.TotalAmount)).ToList();
     }
 
     public async Task<ExportFile> PurchasesFileAsync(int year, string format)
@@ -248,8 +248,6 @@ public class ExportService(AppDbContext db, PreferencesService preferences)
 
     private static string Describe(IEnumerable<(string Name, int Quantity)> items) =>
         string.Join(", ", items.Select(i => i.Quantity > 1 ? $"{i.Name} ×{i.Quantity}" : i.Name));
-
-    private static (DateTime Start, DateTime End) Range(int year) => (new DateTime(year, 1, 1), new DateTime(year + 1, 1, 1));
 
     private static bool IsPdf(string format) => string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase);
 }

@@ -22,7 +22,6 @@ public class TaxService(AppDbContext db, SettingsStore store)
     /// <summary>Abattement minimum pour le calcul de l'impôt au barème.</summary>
     private const decimal MinimumAllowance = 305m;
 
-
     // ---------------------------------------------------------------
     // Paramètres
     // ---------------------------------------------------------------
@@ -55,8 +54,7 @@ public class TaxService(AppDbContext db, SettingsStore store)
         var declared = await store.ReadAsync<HashSet<string>>(DeclaredKey) ?? new HashSet<string>();
         var today = DateTime.Today;
         var year = requestedYear ?? today.Year;
-        var start = new DateTime(year, 1, 1);
-        var end = start.AddYears(1);
+        var (start, end) = ServiceHelpers.YearRange(year);
 
         var sales = await db.Sales.AsNoTracking()
             .Where(s => s.SaleDate >= start && s.SaleDate < end)
@@ -64,7 +62,7 @@ public class TaxService(AppDbContext db, SettingsStore store)
             {
                 s.SaleDate,
                 // CA = montant payé par l'acheteur (articles + port), avant commission de la plateforme.
-                NetAmount = s.TotalAmount + s.AmountPaid,
+                Revenue = s.TotalAmount + s.AmountPaid,
                 s.Profit,
                 s.Platform
             })
@@ -92,9 +90,9 @@ public class TaxService(AppDbContext db, SettingsStore store)
             var inPeriod = sales.Where(s => s.SaleDate >= p.Start && s.SaleDate <= p.End).ToList();
             var refundsInPeriod = refunds.Where(r => r.RefundDate >= p.Start && r.RefundDate <= p.End).ToList();
             var refunded = refundsInPeriod.Sum(r => r.Amount);
-            var revenue = inPeriod.Sum(s => s.NetAmount) - refunded;
+            var revenue = inPeriod.Sum(s => s.Revenue) - refunded;
             // L'ACRE réduit uniquement les cotisations sociales, vente par vente selon sa date.
-            var social = inPeriod.Sum(s => s.NetAmount * SocialRateAt(settings, s.SaleDate) / 100m)
+            var social = inPeriod.Sum(s => s.Revenue * SocialRateAt(settings, s.SaleDate) / 100m)
                          - refundsInPeriod.Sum(r => r.Amount * SocialRateAt(settings, r.RefundDate) / 100m);
             // Un CA net négatif ne génère pas de cotisations (le solde s'impute sur la période suivante).
             var basis = Math.Max(0, revenue);
@@ -150,8 +148,8 @@ public class TaxService(AppDbContext db, SettingsStore store)
                        + settings.SafetyMarginRate;
 
         var platforms = sales.GroupBy(s => s.Platform)
-            .Select(g => new PlatformTaxReportDto(g.Key, g.Count(), g.Sum(s => s.NetAmount),
-                g.Count() >= Dac7SalesThreshold || g.Sum(s => s.NetAmount) >= Dac7RevenueThreshold))
+            .Select(g => new PlatformTaxReportDto(g.Key, g.Count(), g.Sum(s => s.Revenue),
+                g.Count() >= Dac7SalesThreshold || g.Sum(s => s.Revenue) >= Dac7RevenueThreshold))
             .OrderByDescending(p => p.Revenue)
             .ToList();
 

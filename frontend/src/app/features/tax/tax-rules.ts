@@ -1,4 +1,5 @@
 import { MicroActivity, TaxPeriodStatus, TaxSettings } from '../../core/models';
+import { parseApiDate } from '../../core/utils';
 
 /**
  * Barème micro-entreprise 2026 (sources : urssaf.fr, impots.gouv.fr — septembre 2026).
@@ -97,8 +98,7 @@ export function effectiveRates(s: TaxSettings, withAcre = false): EffectiveRates
 
 /** Jours restants avant une date (négatif si dépassée). */
 export function daysUntil(isoDate: string): number {
-  const [y, m, d] = isoDate.substring(0, 10).split('-').map(Number);
-  const target = new Date(y, m - 1, d).getTime();
+  const target = parseApiDate(isoDate).getTime();
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   return Math.round((target - start) / 86_400_000);

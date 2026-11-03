@@ -21,12 +21,12 @@ import {
   InventoryItem, PaymentMethod, Sale, SaleInput, SaleLineInput, SalePlatform, SaleRefund, ShippingCarrier, ShippingSupply,
   ShippingUsageInput
 } from '../../core/models';
-import { groupProducts, ProductGroup, productKey } from '../../core/products';
+import { groupProducts, LotAllocation, ProductGroup, productKey } from '../../core/products';
 import { groupSupplies, SupplyAllocation, SupplyGroup, supplyKey } from '../../core/shipping';
 import { InventoryService, SaleService, ShippingService } from '../../core/services/api.services';
 import { ShippingSupplyDialogComponent, ShippingSupplyDialogData } from '../shipping/shipping-supply-dialog.component';
 import { NotifyService } from '../../core/services/notify.service';
-import { parseApiDate, toIsoDate } from '../../core/utils';
+import { euro, parseApiDate, roundMoney, toIsoDate, unitPrice } from '../../core/utils';
 import { AttachmentsComponent } from '../../shared/attachments.component';
 import { LabelPipe } from '../../shared/label.pipe';
 import { RefundDialogComponent } from './refund-dialog.component';
@@ -43,12 +43,6 @@ type SaleLineForm = FormGroup<{
   /** Bulk uniquement : prix du lot vendu, le prix par carte en est déduit. */
   totalPrice: FormControl<number>;
 }>;
-
-/** Part d'une ligne prélevée sur un lot. */
-interface LotAllocation {
-  lot: InventoryItem;
-  quantity: number;
-}
 
 interface LineAllocation {
   lots: LotAllocation[];
@@ -67,6 +61,27 @@ type ShippingLineForm = FormGroup<{
 interface ShippingLineAllocation {
   lots: SupplyAllocation[];
   missing: number;
+}
+
+/**
+ * Prélève `wanted` unités sur les lots, dans l'ordre donné. `left` mémorise le stock restant de chaque lot
+ * d'une ligne à l'autre ; `stock` donne le stock initial d'un lot pas encore entamé.
+ */
+function takeFromLots<T extends { id: number }>(
+  lots: T[], wanted: number, left: Map<number, number>, stock: (lot: T) => number
+): { lots: { lot: T; quantity: number }[]; missing: number } {
+  const taken: { lot: T; quantity: number }[] = [];
+  for (const lot of lots) {
+    if (wanted <= 0) break;
+    const available = left.get(lot.id) ?? stock(lot);
+    const take = Math.min(available, wanted);
+    if (take > 0) {
+      taken.push({ lot, quantity: take });
+      left.set(lot.id, available - take);
+      wanted -= take;
+    }
+  }
+  return { lots: taken, missing: Math.max(0, wanted) };
 }
 
 @Component({
@@ -89,6 +104,7 @@ export class SalesFormComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly dialog = inject(MatDialog);
+  private readonly shippingApi = inject(ShippingService);
 
   readonly platforms = PLATFORMS;
   readonly payments = PAYMENT_METHODS;
@@ -110,7 +126,6 @@ export class SalesFormComponent implements OnInit {
   private originalLines: SaleLineInput[] = [];
 
   // ----- Expédition -----
-  private readonly shippingApi = inject(ShippingService);
   readonly carriers = CARRIERS;
   readonly kindIcons = SHIPPING_KIND_ICONS;
   readonly supplies = signal<ShippingSupply[]>([]);
@@ -142,7 +157,6 @@ export class SalesFormComponent implements OnInit {
   /** Les articles sont figés dès qu'un remboursement existe. */
   readonly locked = computed(() => (this.sale()?.refunds.length ?? 0) > 0);
   private automaticFees = false;
-  private settingAutomaticFees = false;
   /** Vente Cardmarket dont les frais sont la part de la facture mensuelle (et non l'estimation à 5 %). */
   readonly feesFromInvoice = signal(false);
 
@@ -202,9 +216,7 @@ export class SalesFormComponent implements OnInit {
           const product = lot ? this.productsByKey().get(productKey(lot)) : undefined;
           if (product) this.selectProduct(line, product);
           this.items.push(line);
-          this.automaticFees = this.form.controls.platform.value === 'Cardmarket';
-          this.toggleFeesInput();
-          if (this.automaticFees) this.updateAutomaticFees();
+          this.initFees(this.form.controls.platform.value, false);
         }
         this.loading.set(false);
       },
@@ -256,11 +268,7 @@ export class SalesFormComponent implements OnInit {
       usedByGroup.set(key, (usedByGroup.get(key) ?? 0) + u.quantity);
     }
     usedByGroup.forEach((quantity, key) => this.shipping.push(this.createShippingLine(key, quantity)));
-    this.automaticFees = sale.platform === 'Cardmarket';
-    this.toggleFeesInput();
-    // Frais déjà tirés de la facture mensuelle : on affiche la part enregistrée, recalculée par le serveur.
-    this.feesFromInvoice.set(sale.feesFromInvoice);
-    if (this.automaticFees && !sale.feesFromInvoice) this.updateAutomaticFees();
+    this.initFees(sale.platform, sale.feesFromInvoice);
 
     // Les lignes enregistrées par lot sont regroupées par produit (et par prix de vente).
     this.items.clear();
@@ -377,15 +385,13 @@ export class SalesFormComponent implements OnInit {
       search: this.fb.control(search),
       quantity: this.fb.control(quantity, [Validators.required, Validators.min(1)]),
       salePrice: this.fb.control(salePrice, [Validators.required, Validators.min(0)]),
-      totalPrice: this.fb.control(Math.round(quantity * salePrice * 100) / 100, Validators.min(0))
+      totalPrice: this.fb.control(roundMoney(quantity * salePrice), Validators.min(0))
     });
 
     // Bulk : on saisit le nombre de cartes et le prix du lot, le prix par carte (6 décimales) en découle.
     const c = line.controls;
     const syncBulkPrice = () => {
-      if (!this.isBulk(line)) return;
-      const qty = c.quantity.value || 0;
-      c.salePrice.setValue(qty > 0 ? Math.round((c.totalPrice.value || 0) / qty * 1e6) / 1e6 : 0);
+      if (this.isBulk(line)) c.salePrice.setValue(unitPrice(c.totalPrice.value || 0, c.quantity.value || 0));
     };
     c.quantity.valueChanges.subscribe(syncBulkPrice);
     c.totalPrice.valueChanges.subscribe(syncBulkPrice);
@@ -473,20 +479,8 @@ export class SalesFormComponent implements OnInit {
     const left = new Map<number, number>();
     const result = new Map<SaleLineForm, LineAllocation>();
     for (const line of this.items.controls) {
-      const product = this.selectedProduct(line);
-      let wanted = line.controls.quantity.value || 0;
-      const lots: LotAllocation[] = [];
-      for (const lot of product?.lots ?? []) {
-        if (wanted <= 0) break;
-        const available = left.get(lot.id) ?? this.lotStock(lot);
-        const take = Math.min(available, wanted);
-        if (take > 0) {
-          lots.push({ lot, quantity: take });
-          left.set(lot.id, available - take);
-          wanted -= take;
-        }
-      }
-      result.set(line, { lots, missing: Math.max(0, wanted) });
+      const lots = this.selectedProduct(line)?.lots ?? [];
+      result.set(line, takeFromLots(lots, line.controls.quantity.value || 0, left, lot => this.lotStock(lot)));
     }
     return result;
   }
@@ -498,7 +492,7 @@ export class SalesFormComponent implements OnInit {
   /** Résumé des lots utilisés, ex. « A2025001 ×2 à 4,50 € + A2026003 ×1 à 6,00 € ». */
   lotsSummary(line: SaleLineForm): string {
     return this.allocationFor(line).lots
-      .map(a => `${a.lot.purchaseNumber ?? '#' + a.lot.id} ×${a.quantity} à ${a.lot.purchasePrice.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`)
+      .map(a => `${a.lot.purchaseNumber ?? '#' + a.lot.id} ×${a.quantity} à ${euro(a.lot.purchasePrice, 2)}`)
       .join(' + ');
   }
 
@@ -550,23 +544,11 @@ export class SalesFormComponent implements OnInit {
     const left = new Map<number, number>();
     const result = new Map<ShippingLineForm, ShippingLineAllocation>();
     for (const line of this.shipping.controls) {
-      let wanted = line.controls.quantity.value || 0;
-      const lots: SupplyAllocation[] = [];
       // Achat précis (bordereau acheté pour cette vente) ou, sinon, les achats les plus anciens d'abord.
       const pinned = line.controls.supplyId.value;
       const groupLots = this.supplyGroupFor(line)?.lots ?? [];
       const candidates = pinned ? groupLots.filter(l => l.id === pinned) : groupLots;
-      for (const lot of candidates) {
-        if (wanted <= 0) break;
-        const available = left.get(lot.id) ?? this.supplyStock(lot);
-        const take = Math.min(available, wanted);
-        if (take > 0) {
-          lots.push({ lot, quantity: take });
-          left.set(lot.id, available - take);
-          wanted -= take;
-        }
-      }
-      result.set(line, { lots, missing: Math.max(0, wanted) });
+      result.set(line, takeFromLots(candidates, line.controls.quantity.value || 0, left, lot => this.supplyStock(lot)));
     }
     return result;
   }
@@ -576,14 +558,16 @@ export class SalesFormComponent implements OnInit {
   }
 
   shippingLineCost(line: ShippingLineForm): number {
-    return this.shippingAllocationFor(line).lots.reduce((sum, a) => sum + a.quantity * this.supplyCost(a.lot), 0);
+    return this.suppliesCost(this.shippingAllocationFor(line).lots);
   }
 
   /** Coût réel de l'envoi (toutes les fournitures utilisées). */
   shippingCost(): number {
-    let cost = 0;
-    this.allocateShipping().forEach(a => cost += a.lots.reduce((sum, l) => sum + l.quantity * this.supplyCost(l.lot), 0));
-    return cost;
+    return [...this.allocateShipping().values()].reduce((cost, a) => cost + this.suppliesCost(a.lots), 0);
+  }
+
+  private suppliesCost(lots: SupplyAllocation[]): number {
+    return lots.reduce((sum, a) => sum + a.quantity * this.supplyCost(a.lot), 0);
   }
 
   /**
@@ -591,11 +575,12 @@ export class SalesFormComponent implements OnInit {
    */
   newLabelForSale(): void {
     const carrier = this.form.controls.carrier.value;
+    const sale = this.sale();
     const data: ShippingSupplyDialogData = {
       preset: {
         kind: 'Label', carrier, quantity: 1, paymentMethod: 'Card',
         name: carrier === 'MondialRelay' ? 'Bordereau Mondial Relay' : carrier === 'Colissimo' ? 'Bordereau Colissimo' : 'Bordereau',
-        comment: this.sale() ? `Pour la vente ${this.sale()!.saleNumber}` : null
+        comment: sale ? `Pour la vente ${sale.saleNumber}` : null
       },
       knownNames: this.supplyGroups().map(g => ({ name: g.name, kind: g.kind, carrier: g.carrier }))
     };
@@ -610,6 +595,15 @@ export class SalesFormComponent implements OnInit {
   }
 
   // ----- Calculs automatiques -----
+
+  /** À l'ouverture : frais estimés automatiquement sur Cardmarket, sauf s'ils viennent déjà de la facture mensuelle. */
+  private initFees(platform: SalePlatform, feesFromInvoice: boolean): void {
+    this.automaticFees = platform === 'Cardmarket';
+    this.toggleFeesInput();
+    // Frais déjà tirés de la facture mensuelle : on affiche la part enregistrée, recalculée par le serveur.
+    this.feesFromInvoice.set(feesFromInvoice);
+    if (this.automaticFees && !feesFromInvoice) this.updateAutomaticFees();
+  }
 
   /** Cardmarket facture ses frais au mois : le champ est calculé automatiquement et grisé. */
   private toggleFeesInput(): void {
@@ -628,13 +622,11 @@ export class SalesFormComponent implements OnInit {
       const value = line.getRawValue();
       return sum + (value.quantity || 0) * cardmarketSaleFeeForItem(value.salePrice || 0);
     }, 0);
-    return Math.round(fees * 100) / 100;
+    return roundMoney(fees);
   }
 
   private setAutomaticFees(fees: number): void {
-    this.settingAutomaticFees = true;
-    this.form.controls.fees.setValue(Math.round(fees * 100) / 100, { emitEvent: false });
-    this.settingAutomaticFees = false;
+    this.form.controls.fees.setValue(roundMoney(fees), { emitEvent: false });
   }
 
   lineTotal(line: SaleLineForm): number {
@@ -645,7 +637,11 @@ export class SalesFormComponent implements OnInit {
 
   /** Coût d'achat réel de la ligne, lot par lot. */
   lineCost(line: SaleLineForm): number {
-    return this.allocationFor(line).lots.reduce((sum, a) => sum + a.quantity * this.lotCost(a.lot), 0);
+    return this.lotsCost(this.allocationFor(line).lots);
+  }
+
+  private lotsCost(lots: LotAllocation[]): number {
+    return lots.reduce((sum, a) => sum + a.quantity * this.lotCost(a.lot), 0);
   }
 
   lineProfit(line: SaleLineForm): number {
@@ -661,7 +657,7 @@ export class SalesFormComponent implements OnInit {
     let cost = 0;
     for (const line of this.items.controls) {
       total += this.lineTotal(line);
-      cost += (allocation.get(line)?.lots ?? []).reduce((sum, a) => sum + a.quantity * this.lotCost(a.lot), 0);
+      cost += this.lotsCost(allocation.get(line)?.lots ?? []);
     }
     const itemCount = this.items.controls.reduce((sum, line) => sum + (line.controls.quantity.value || 0), 0);
     const fees = this.form.controls.fees.value || 0;
@@ -758,7 +754,7 @@ export class SalesFormComponent implements OnInit {
     this.saving.set(true);
     request.subscribe({
       next: s => {
-        this.notify.success(`Vente ${s.saleNumber} enregistrée — bénéfice ${s.profit.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}.`);
+        this.notify.success(`Vente ${s.saleNumber} enregistrée — bénéfice ${euro(s.profit, 2)}.`);
         this.router.navigate(['/sales']);
       },
       error: err => {

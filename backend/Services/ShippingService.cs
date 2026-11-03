@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using PokeStock.Api.Data;
 using PokeStock.Api.Dtos;
@@ -21,8 +24,7 @@ public class ShippingService(AppDbContext db, AttachmentService attachments, Pre
         var query = db.ShippingSupplies.AsNoTracking();
         if (year.HasValue)
         {
-            var start = new DateTime(year.Value, 1, 1);
-            var end = start.AddYears(1);
+            var (start, end) = ServiceHelpers.YearRange(year.Value);
             query = query.Where(s => s.PurchaseDate >= start && s.PurchaseDate < end);
         }
         if (kind.HasValue) query = query.Where(s => s.Kind == kind.Value);
@@ -82,8 +84,7 @@ public class ShippingService(AppDbContext db, AttachmentService attachments, Pre
     /// </summary>
     public async Task<List<ShippingStockDto>> GetStockAsync(int year, int lowThreshold)
     {
-        var start = new DateTime(year, 1, 1);
-        var end = start.AddYears(1);
+        var (start, end) = ServiceHelpers.YearRange(year);
         var supplies = await db.ShippingSupplies.AsNoTracking().ToListAsync();
         var usedThisYear = await db.ShippingUsages.AsNoTracking()
             .Where(u => u.Sale.SaleDate >= start && u.Sale.SaleDate < end)
@@ -114,8 +115,7 @@ public class ShippingService(AppDbContext db, AttachmentService attachments, Pre
     {
         var today = DateTime.Today;
         var year = requestedYear ?? today.Year;
-        var start = new DateTime(year, 1, 1);
-        var end = start.AddYears(1);
+        var (start, end) = ServiceHelpers.YearRange(year);
         var threshold = (await preferences.GetAsync()).Alerts.LowShippingStock;
 
         var supplies = await db.ShippingSupplies.AsNoTracking()
@@ -125,8 +125,7 @@ public class ShippingService(AppDbContext db, AttachmentService attachments, Pre
             .Where(s => s.SaleDate >= start && s.SaleDate < end)
             .Select(s => new { s.SaleDate, s.ShippingCost, s.AmountPaid, s.Carrier })
             .ToListAsync();
-        // Vente « expédiée » : des fournitures ont été utilisées, ou un transporteur (autre que la main propre) est indiqué.
-        var shipped = sales.Where(s => s.ShippingCost > 0 || (s.Carrier.HasValue && s.Carrier != ShippingCarrier.HandDelivery)).ToList();
+        var shipped = sales.Where(s => IsShipped(s.ShippingCost, s.Carrier)).ToList();
 
         var saleYears = await db.Sales.Select(s => s.SaleDate.Year).Distinct().ToListAsync();
         var years = supplies.Select(s => s.PurchaseDate.Year).Concat(saleYears).Append(today.Year).Append(year)
@@ -161,17 +160,21 @@ public class ShippingService(AppDbContext db, AttachmentService attachments, Pre
 
     // ---------------------------------------------------------------
 
+    /// <summary>Vente « expédiée » : des fournitures ont été utilisées, ou un transporteur (autre que la main propre) est indiqué.</summary>
+    internal static bool IsShipped(decimal shippingCost, ShippingCarrier? carrier) =>
+        shippingCost > 0 || (carrier.HasValue && carrier != ShippingCarrier.HandDelivery);
+
     /// <summary>
     /// Nom comparable, comme côté interface (core/products.ts normalizeText) : sans accents, en minuscules,
     /// espaces normalisés. « Carton d'expédition » et « carton  d'expedition » sont la même fourniture.
     /// </summary>
     private static string NormalizeName(string name)
     {
-        var decomposed = name.Normalize(System.Text.NormalizationForm.FormD);
+        var decomposed = name.Normalize(NormalizationForm.FormD);
         var withoutAccents = new string(decomposed
-            .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
+            .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
             .ToArray());
-        return System.Text.RegularExpressions.Regex.Replace(withoutAccents.ToLowerInvariant(), @"\s+", " ").Trim();
+        return Regex.Replace(withoutAccents.ToLowerInvariant(), @"\s+", " ").Trim();
     }
 
     private static void Apply(ShippingSupply supply, ShippingSupplyInput input)
@@ -184,9 +187,9 @@ public class ShippingService(AppDbContext db, AttachmentService attachments, Pre
         supply.TotalAmount = Math.Round(input.TotalAmount, 2);
         // Le coût unitaire ne change pas le coût des envois déjà faits (figé dans shipping_usages).
         supply.UnitCost = Math.Round(input.TotalAmount / input.Quantity, 6);
-        supply.Supplier = string.IsNullOrWhiteSpace(input.Supplier) ? null : input.Supplier.Trim();
+        supply.Supplier = input.Supplier.TrimOrNull();
         supply.PaymentMethod = input.PaymentMethod;
-        supply.Comment = string.IsNullOrWhiteSpace(input.Comment) ? null : input.Comment.Trim();
+        supply.Comment = input.Comment.TrimOrNull();
     }
 
     private static void Validate(ShippingSupplyInput input)

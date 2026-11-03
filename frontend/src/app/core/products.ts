@@ -1,4 +1,5 @@
 import { InventoryItem, ItemCondition, ItemType } from './models';
+import { groupBy } from './utils';
 
 /**
  * Regroupement des articles en « produits ».
@@ -46,20 +47,13 @@ export function productKey(item: { name: string; type: ItemType; condition: Item
   return `${normalizeText(item.name)}|${item.type}|${item.condition}`;
 }
 
-/** Ordre FIFO : date d'achat puis identifiant. */
-export function byFifo(a: InventoryItem, b: InventoryItem): number {
+/** Ordre FIFO (lots d'articles ou de fournitures) : date d'achat puis identifiant. */
+export function byFifo(a: { purchaseDate: string; id: number }, b: { purchaseDate: string; id: number }): number {
   return a.purchaseDate.localeCompare(b.purchaseDate) || a.id - b.id;
 }
 
 export function groupProducts(items: InventoryItem[]): ProductGroup[] {
-  const map = new Map<string, InventoryItem[]>();
-  for (const item of items) {
-    const key = productKey(item);
-    const lots = map.get(key);
-    if (lots) lots.push(item);
-    else map.set(key, [item]);
-  }
-  return [...map.entries()].map(([key, lots]) => toGroup(key, lots.sort(byFifo)));
+  return [...groupBy(items, productKey).entries()].map(([key, lots]) => toGroup(key, lots.sort(byFifo)));
 }
 
 function toGroup(key: string, lots: InventoryItem[]): ProductGroup {

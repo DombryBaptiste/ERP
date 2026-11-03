@@ -42,10 +42,10 @@ export class QuotesComponent {
   private readonly notify = inject(NotifyService);
   private readonly dialog = inject(MatDialog);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly buybackService = inject(BuybackService);
 
   readonly code = cardCode;
   readonly thumbnail = cardThumbnail;
-  private readonly buybackService = inject(BuybackService);
   /** Prix de rachat d'une carte NM à sa cote. */
   readonly buyback = (quote: number | null) => this.buybackService.price(quote);
   readonly key = setKey;
@@ -158,13 +158,13 @@ export class QuotesComponent {
       next: updated => {
         this.cards.update(list => list.map(c => c.id === updated.id ? updated : c));
         this.clearDraft(card.id);
-        this.saving.update(s => { const n = new Set(s); n.delete(card.id); return n; });
+        this.stopSaving(card.id);
         this.sets.update(list => list.map(s => s.setId !== updated.setId ? s : {
           ...s, quotedCount: s.quotedCount + (card.quote === null && updated.quote !== null ? 1 : card.quote !== null && updated.quote === null ? -1 : 0)
         }));
       },
       error: err => {
-        this.saving.update(s => { const n = new Set(s); n.delete(card.id); return n; });
+        this.stopSaving(card.id);
         this.notify.error(err);
       }
     });
@@ -227,5 +227,9 @@ export class QuotesComponent {
 
   private clearDraft(id: number): void {
     this.drafts.update(m => { const n = new Map(m); n.delete(id); return n; });
+  }
+
+  private stopSaving(id: number): void {
+    this.saving.update(s => { const n = new Set(s); n.delete(id); return n; });
   }
 }

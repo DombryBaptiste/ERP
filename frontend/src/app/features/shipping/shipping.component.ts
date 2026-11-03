@@ -11,7 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { ChartConfiguration } from 'chart.js';
 import { forkJoin } from 'rxjs';
-import { SHIPPING_KIND_ICONS } from '../../core/labels';
+import { SHIPPING_KIND_ICONS, SHIPPING_KINDS } from '../../core/labels';
 import { ShippingStock, ShippingSummary, ShippingSupply, ShippingSupplyKind } from '../../core/models';
 import { ShippingService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
@@ -42,6 +42,7 @@ export class ShippingComponent {
   private readonly dialog = inject(MatDialog);
 
   readonly kindIcons = SHIPPING_KIND_ICONS;
+  readonly kinds = SHIPPING_KINDS;
   readonly currentYear = new Date().getFullYear();
   readonly year = signal(this.currentYear);
   readonly loading = signal(true);
@@ -114,16 +115,17 @@ export class ShippingComponent {
 
   /** Nouvel achat ; `stock` pré-remplit la fourniture à racheter. */
   openAdd(stock?: ShippingStock): void {
-    const data: ShippingSupplyDialogData = {
+    this.openDialog({
       preset: stock ? { name: stock.name, kind: stock.kind, carrier: stock.carrier } : undefined,
       knownNames: this.knownNames()
-    };
-    this.dialog.open(ShippingSupplyDialogComponent, { data, width: '640px' }).afterClosed()
-      .subscribe(result => { if (result) this.load(); });
+    });
   }
 
   edit(supply: ShippingSupply): void {
-    const data: ShippingSupplyDialogData = { supply, knownNames: this.knownNames() };
+    this.openDialog({ supply, knownNames: this.knownNames() });
+  }
+
+  private openDialog(data: ShippingSupplyDialogData): void {
     this.dialog.open(ShippingSupplyDialogComponent, { data, width: '640px' }).afterClosed()
       .subscribe(result => { if (result) this.load(); });
   }

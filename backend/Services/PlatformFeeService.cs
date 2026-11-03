@@ -17,8 +17,7 @@ public class PlatformFeeService(AppDbContext db, AttachmentService attachments)
     /// <summary>Mois de l'année ayant des ventes Cardmarket ou une facture, du plus récent au plus ancien.</summary>
     public async Task<List<PlatformFeeMonthDto>> GetMonthsAsync(int year)
     {
-        var start = new DateTime(year, 1, 1);
-        var end = start.AddYears(1);
+        var (start, end) = ServiceHelpers.YearRange(year);
         var sales = await db.Sales.AsNoTracking()
             .Include(s => s.Items)
             .Where(s => s.Platform == Platform && s.SaleDate >= start && s.SaleDate < end)
@@ -35,7 +34,7 @@ public class PlatformFeeService(AppDbContext db, AttachmentService attachments)
             return new PlatformFeeMonthDto(
                 year, month, monthSales.Count,
                 monthSales.Sum(s => s.TotalAmount),
-                Math.Round(monthSales.Sum(EstimatedFees), 2),
+                Math.Round(monthSales.Sum(SaleService.EstimatedCardmarketFees), 2),
                 monthSales.Sum(s => s.Fees),
                 invoice?.ToDto());
         }).ToList();
@@ -125,18 +124,14 @@ public class PlatformFeeService(AppDbContext db, AttachmentService attachments)
         await db.SaveChangesAsync();
     }
 
-    /// <summary>Estimation Cardmarket (5 % par article, plafonnée à 100 €) d'une vente.</summary>
-    private static decimal EstimatedFees(Sale sale) =>
-        sale.Items.Sum(i => i.Quantity * SaleService.CardmarketSaleFeeForItem(i.SalePrice));
-
     private static void Apply(PlatformFeeInvoice invoice, PlatformFeeInvoiceInput input)
     {
         invoice.Year = input.Year;
         invoice.Month = input.Month;
         invoice.Amount = Math.Round(input.Amount, 2);
-        invoice.InvoiceNumber = string.IsNullOrWhiteSpace(input.InvoiceNumber) ? null : input.InvoiceNumber.Trim();
+        invoice.InvoiceNumber = input.InvoiceNumber.TrimOrNull();
         invoice.InvoiceDate = input.InvoiceDate?.Date;
-        invoice.Comment = string.IsNullOrWhiteSpace(input.Comment) ? null : input.Comment.Trim();
+        invoice.Comment = input.Comment.TrimOrNull();
     }
 
     private static void Validate(PlatformFeeInvoiceInput input)

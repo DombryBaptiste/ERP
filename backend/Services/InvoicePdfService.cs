@@ -25,7 +25,7 @@ public class InvoicePdfService
             throw new BusinessException("Complétez « Mon entreprise » (nom, SIRET, adresse) dans Paramètres avant d'éditer une facture.");
 
         var isProfessional = !string.IsNullOrWhiteSpace(sale.CustomerSiren);
-        var invoiceTotal = sale.TotalAmount + sale.AmountPaid;
+        var invoiceTotal = Mappings.SaleRevenue(sale);
 
         return Document.Create(doc => doc.Page(page =>
         {
@@ -177,15 +177,15 @@ public class InvoicePdfService
     private static IEnumerable<string> Lines(string? text) =>
         (text ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    /// <summary>Montant au format français (espaces normales : la police n'a pas toujours l'espace fine).</summary>
     /// <summary>Prix unitaire : jusqu'à 4 décimales quand il le faut (cartes de bulk à 0,1333 €).</summary>
-    public static string UnitMoney(decimal value) =>
-        value == Math.Round(value, 2)
-            ? Money(value)
-            : Math.Round(value, 4).ToString("#,##0.00##", Fr).Replace(' ', ' ').Replace(' ', ' ') + " €";
+    private static string UnitMoney(decimal value) =>
+        value == Math.Round(value, 2) ? Money(value) : Format(Math.Round(value, 4), "#,##0.00##");
 
-    public static string Money(decimal value) =>
-        value.ToString("N2", Fr).Replace(' ', ' ').Replace(' ', ' ') + " €";
+    /// <summary>Montant au format français (espaces normales : la police n'a pas toujours l'espace fine).</summary>
+    public static string Money(decimal value) => Format(value, "N2");
+
+    private static string Format(decimal value, string format) =>
+        value.ToString(format, Fr).Replace(' ', ' ').Replace(' ', ' ') + " €";
 
     private static string FormatSiret(string siret) =>
         siret.Length == 14 ? $"{siret[..3]} {siret[3..6]} {siret[6..9]} {siret[9..]}" : siret;

@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS sale_refund_items (
 -- Fichiers joints (le contenu est stocké sur disque, dans backend/data/uploads)
 CREATE TABLE IF NOT EXISTS attachments (
   id           INT          NOT NULL AUTO_INCREMENT,
-  owner_type   VARCHAR(30)  NOT NULL,           -- InventoryItem, Purchase, Sale
+  owner_type   VARCHAR(30)  NOT NULL,           -- InventoryItem, Purchase, Sale, ShippingSupply, PlatformFeeInvoice
   owner_id     INT          NOT NULL,
   kind         VARCHAR(30)  NOT NULL,           -- Photo, Receipt, Listing, OriginProof, Other
   file_name    VARCHAR(255) NOT NULL,
@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS attachments (
   PRIMARY KEY (id),
   KEY IX_attachments_owner_type_owner_id (owner_type, owner_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Frais d'envoi : achats de fournitures (E2026001…), consommées en FIFO par les envois des ventes
 CREATE TABLE IF NOT EXISTS shipping_supplies (
   id                 INT           NOT NULL AUTO_INCREMENT,

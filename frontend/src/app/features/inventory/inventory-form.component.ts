@@ -11,7 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
-import { cardmarketSearchUrl, CONDITIONS, ITEM_TYPES } from '../../core/labels';
+import { cardmarketSearchUrl, CONDITIONS, isCatalogCard, ITEM_TYPES } from '../../core/labels';
 import { AttachmentsComponent } from '../../shared/attachments.component';
 import { InventoryItem, InventoryItemInput, ItemCondition, ItemType } from '../../core/models';
 import { CatalogService, InventoryService } from '../../core/services/api.services';
@@ -35,12 +35,12 @@ export class InventoryFormComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly api = inject(InventoryService);
   private readonly catalogApi = inject(CatalogService);
-  readonly uncategorized = UNCATEGORIZED;
   private readonly notify = inject(NotifyService);
   private readonly router = inject(Router);
 
   readonly types = ITEM_TYPES;
   readonly conditions = CONDITIONS;
+  readonly uncategorized = UNCATEGORIZED;
   readonly isEdit = computed(() => !!this.id());
   readonly item = signal<InventoryItem | null>(null);
   readonly categories = signal<string[]>([]);
@@ -59,17 +59,6 @@ export class InventoryFormComponent implements OnInit {
     /** Valeur de marché unitaire estimée (facultative). */
     marketValue: this.fb.control<number | null>(null, Validators.min(0))
   });
-
-  /** Lien de recherche Cardmarket pour l'article en cours de saisie. */
-  cardmarketUrl(): string {
-    return cardmarketSearchUrl(this.form.controls.name.value || '');
-  }
-
-  /** Rafraîchit la vignette après l'ajout ou la suppression d'une photo. */
-  reloadItem(): void {
-    const id = this.id();
-    if (id) this.api.get(+id).subscribe(item => this.item.set(item));
-  }
 
   ngOnInit(): void {
     // Catégories proposées : uniquement les séries importées dans le catalogue (page Cotes).
@@ -106,10 +95,20 @@ export class InventoryFormComponent implements OnInit {
     });
   }
 
+  /** Lien de recherche Cardmarket pour l'article en cours de saisie. */
+  cardmarketUrl(): string {
+    return cardmarketSearchUrl(this.form.controls.name.value || '');
+  }
+
+  /** Rafraîchit la vignette après l'ajout ou la suppression d'une photo. */
+  reloadItem(): void {
+    const id = this.id();
+    if (id) this.api.get(+id).subscribe(item => this.item.set(item));
+  }
+
   /** Carte brute ou gradée : sa catégorie vient de la carte du catalogue liée (sinon « Hors catégorie »). */
   isCatalogCard(): boolean {
-    const type = this.form.controls.type.value;
-    return type === 'RawCard' || type === 'GradedCard';
+    return isCatalogCard(this.form.controls.type.value);
   }
 
   filterCategories(term: string): string[] {

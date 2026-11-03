@@ -13,9 +13,9 @@ import { PAYMENT_METHODS } from '../../core/labels';
 import { BulkSettings, PaymentMethod, Purchase, PurchaseInput, PurchaseSource } from '../../core/models';
 import { PurchaseService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
-import { toIsoDate } from '../../core/utils';
+import { toIsoDate, unitPrice } from '../../core/utils';
 import { map, switchMap } from 'rxjs';
-import { BULK_CONDITION, cardsFromGrams, unitPrice } from './bulk';
+import { BULK_CONDITION, CountMode, countedCards } from './bulk';
 
 export interface BulkAddDialogData {
   settings: BulkSettings;
@@ -146,14 +146,13 @@ export class BulkAddDialogComponent {
   location = '';
   comment = '';
 
-  readonly mode = signal<'count' | 'weight'>('count');
+  readonly mode = signal<CountMode>('count');
   readonly count = signal(1000);
   readonly grams = signal(0);
   readonly total = signal(0);
   readonly saving = signal(false);
 
-  readonly cards = computed(() =>
-    this.mode() === 'count' ? Math.max(0, Math.floor(this.count() || 0)) : cardsFromGrams(this.grams(), this.data.settings.gramsPerCard));
+  readonly cards = computed(() => countedCards(this.mode(), this.count(), this.grams(), this.data.settings.gramsPerCard));
   readonly costPerCard = computed(() => unitPrice(this.total() || 0, this.cards()));
 
   save(): void {

@@ -13,7 +13,7 @@ import { ChartConfiguration } from 'chart.js';
 import { TaxPeriod, TaxSettings, TaxSummary } from '../../core/models';
 import { TaxService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
-import { euro } from '../../core/utils';
+import { euro, roundMoney } from '../../core/utils';
 import { ChartComponent } from '../../shared/chart.component';
 import { COLORS, doughnutChart } from '../../shared/charts';
 import { KpiCardComponent } from '../../shared/kpi-card.component';
@@ -90,7 +90,7 @@ export class TaxComponent {
     const net = Math.max(0, s?.netIncome ?? 0);
     return doughnutChart(
       ['Achats & frais de vente', 'URSSAF', 'Impôt & CFE', 'Reste pour vous'],
-      [costs, urssaf, taxes, net].map(v => Math.round(v * 100) / 100),
+      [costs, urssaf, taxes, net].map(roundMoney),
       ['#90a4ae', COLORS.revenue, COLORS.cards, COLORS.profit],
       v => euro(v, 2));
   });

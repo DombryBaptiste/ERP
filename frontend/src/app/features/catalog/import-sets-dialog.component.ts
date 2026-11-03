@@ -8,13 +8,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
-import { CARD_LANGUAGES, languageLabel, languageShort, RARITY_GROUPS } from '../../core/catalog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { concatMap, from } from 'rxjs';
-import { normalizeText } from '../../core/products';
+import { CARD_LANGUAGES, languageLabel, languageShort, RARITY_GROUPS } from '../../core/catalog';
 import { AvailableSet, CardLanguage, RarityGroup } from '../../core/models';
+import { normalizeText } from '../../core/products';
 import { CatalogService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
+import { toggledSet } from '../../core/utils';
 
 interface SerieGroup {
   name: string;
@@ -144,9 +145,6 @@ export class ImportSetsDialogComponent {
 
   readonly languages = CARD_LANGUAGES;
   readonly short = languageShort;
-  languageName(language: CardLanguage): string {
-    return languageLabel(language).toLowerCase();
-  }
   readonly language = signal<CardLanguage>('fr');
   readonly loading = signal(true);
   readonly running = signal(false);
@@ -177,6 +175,10 @@ export class ImportSetsDialogComponent {
     this.loadAvailable();
   }
 
+  languageName(language: CardLanguage): string {
+    return languageLabel(language).toLowerCase();
+  }
+
   changeLanguage(language: CardLanguage): void {
     this.language.set(language);
     this.selected.set(new Set());
@@ -193,11 +195,7 @@ export class ImportSetsDialogComponent {
   }
 
   toggleGroupRarity(group: RarityGroup): void {
-    this.rarities.update(current => {
-      const next = new Set(current);
-      if (next.has(group)) next.delete(group); else next.add(group);
-      return next;
-    });
+    this.rarities.update(current => toggledSet(current, group));
   }
 
   setGroups(preset: 'default' | 'all'): void {
@@ -205,11 +203,7 @@ export class ImportSetsDialogComponent {
   }
 
   toggle(setId: string): void {
-    this.selected.update(current => {
-      const next = new Set(current);
-      if (next.has(setId)) next.delete(setId); else next.add(setId);
-      return next;
-    });
+    this.selected.update(current => toggledSet(current, setId));
   }
 
   isGroupSelected(g: SerieGroup): boolean {

@@ -93,7 +93,3 @@ export function cardCode(card: Pick<CatalogCard, 'setCode' | 'setId' | 'number'>
 export function cardThumbnail(card: Pick<CatalogCard, 'imageUrl'>): string | null {
   return card.imageUrl ? `${card.imageUrl}/low.webp` : null;
 }
-
-export function cardImage(card: Pick<CatalogCard, 'imageUrl'>): string | null {
-  return card.imageUrl ? `${card.imageUrl}/high.webp` : null;
-}

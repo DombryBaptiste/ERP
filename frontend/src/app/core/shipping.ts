@@ -1,5 +1,6 @@
 import { ShippingCarrier, ShippingSupply, ShippingSupplyKind } from './models';
-import { normalizeText } from './products';
+import { byFifo, normalizeText } from './products';
+import { groupBy } from './utils';
 
 /**
  * Fournitures d'envoi regroupées : les achats de même nom et même nature (ex. plusieurs carnets de
@@ -24,16 +25,9 @@ export function supplyKey(s: { name: string; kind: ShippingSupplyKind }): string
 }
 
 export function groupSupplies(supplies: ShippingSupply[]): SupplyGroup[] {
-  const map = new Map<string, ShippingSupply[]>();
-  for (const s of supplies) {
-    const key = supplyKey(s);
-    const lots = map.get(key);
-    if (lots) lots.push(s);
-    else map.set(key, [s]);
-  }
-  return [...map.entries()]
+  return [...groupBy(supplies, supplyKey).entries()]
     .map(([key, lots]) => {
-      lots.sort((a, b) => a.purchaseDate.localeCompare(b.purchaseDate) || a.id - b.id);
+      lots.sort(byFifo);
       const latest = lots[lots.length - 1];
       return { key, name: latest.name, kind: latest.kind, carrier: latest.carrier, lots };
     })

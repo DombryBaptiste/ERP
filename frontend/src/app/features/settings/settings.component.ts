@@ -7,13 +7,19 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
+import { buybackPrice, DEFAULT_BUYBACK } from '../../core/catalog';
 import { AppPreferences, CardSeriesEntry } from '../../core/models';
 import { ToolsService } from '../../core/services/api.services';
 import { BuybackService } from '../../core/services/buyback.service';
-import { buybackPrice, DEFAULT_BUYBACK } from '../../core/catalog';
 import { NotifyService } from '../../core/services/notify.service';
 
-/** Paramètres : informations de l'entreprise (factures) et seuils d'alerte. */
+const DEFAULT_VAT_MENTION = 'TVA non applicable, art. 293 B du CGI';
+
+/** Tri des séries de cartes : par langue, puis par nom. */
+const bySeries = (a: CardSeriesEntry, b: CardSeriesEntry): number =>
+  a.language.localeCompare(b.language) || a.series.localeCompare(b.series);
+
+/** Paramètres : entreprise (factures), seuils d'alerte, prix de rachat et séries de cartes. */
 @Component({
   selector: 'app-settings',
   imports: [ReactiveFormsModule, RouterLink, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule],
@@ -45,7 +51,7 @@ export class SettingsComponent implements OnInit {
     email: ['', Validators.email],
     phone: [''],
     iban: [''],
-    vatMention: ['TVA non applicable, art. 293 B du CGI', Validators.required],
+    vatMention: [DEFAULT_VAT_MENTION, Validators.required],
     invoiceFooter: ['']
   });
 
@@ -84,12 +90,11 @@ export class SettingsComponent implements OnInit {
         this.company.patchValue({
           fullName: c.fullName ?? '', tradeName: c.tradeName ?? '', siret: c.siret ?? '', address: c.address ?? '',
           email: c.email ?? '', phone: c.phone ?? '', iban: c.iban ?? '',
-          vatMention: c.vatMention || 'TVA non applicable, art. 293 B du CGI', invoiceFooter: c.invoiceFooter ?? ''
+          vatMention: c.vatMention || DEFAULT_VAT_MENTION, invoiceFooter: c.invoiceFooter ?? ''
         });
         this.alerts.patchValue(prefs.alerts);
         this.buyback.patchValue({ ...DEFAULT_BUYBACK, ...(prefs.buyback ?? {}) });
-        this.cardSeries.set([...(prefs.cardSeries ?? [])].sort((a, b) =>
-          a.language.localeCompare(b.language) || a.series.localeCompare(b.series)));
+        this.cardSeries.set([...(prefs.cardSeries ?? [])].sort(bySeries));
         this.loading.set(false);
       },
       error: err => {
@@ -114,7 +119,7 @@ export class SettingsComponent implements OnInit {
     }
     this.cardSeries.update(entries => [...entries, {
       language: entry.language.trim(), series: entry.series.trim()
-    }].sort((a, b) => a.language.localeCompare(b.language) || a.series.localeCompare(b.series)));
+    }].sort(bySeries));
     this.seriesForm.reset();
   }
 
@@ -159,7 +164,7 @@ export class SettingsComponent implements OnInit {
     }
     this.cardSeries.update(entries => entries.map(x =>
       x.language === entry.language && x.series === entry.series ? { ...x, series } : x
-    ).sort((a, b) => a.language.localeCompare(b.language) || a.series.localeCompare(b.series)));
+    ).sort(bySeries));
     this.cancelSeriesEdit();
   }
 
