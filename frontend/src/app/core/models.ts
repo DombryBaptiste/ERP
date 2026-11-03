@@ -11,7 +11,7 @@ export type PurchaseSource = 'Supplier' | 'PersonalCollection';
 export type PurchasePlatform = 'Cardmarket' | 'Ebay' | 'Vinted' | 'Leboncoin' | 'FacebookMarketplace' | 'Amazon' | 'Store' | 'Other';
 export type ItemOrigin = 'Purchase' | 'PersonalCollection' | 'Manual';
 export type PaymentMethod = 'Platform' | 'BankTransfer' | 'PayPal' | 'Card' | 'Cash' | 'Check' | 'Other';
-export type AttachmentOwner = 'InventoryItem' | 'Purchase' | 'Sale' | 'ShippingSupply';
+export type AttachmentOwner = 'InventoryItem' | 'Purchase' | 'Sale' | 'ShippingSupply' | 'PlatformFeeInvoice';
 export type ShippingSupplyKind = 'Stamp' | 'Label' | 'Envelope' | 'Protection' | 'Box' | 'Other';
 export type ShippingCarrier = 'LaPoste' | 'Colissimo' | 'MondialRelay' | 'RelaisColis' | 'Chronopost' | 'VintedGo' | 'Ups' | 'HandDelivery' | 'Other';
 export type AttachmentKind = 'Photo' | 'Receipt' | 'Listing' | 'OriginProof' | 'Other';
@@ -190,6 +190,8 @@ export interface Sale {
   platform: SalePlatform;
   paymentMethod: PaymentMethod;
   fees: number;
+  /** Cardmarket : frais tirés de la facture mensuelle (sinon estimation à 5 %). */
+  feesFromInvoice: boolean;
   comment: string | null;
   /** Montant effectivement reçu du client, avant éventuels remboursements. */
   amountPaid: number;
@@ -436,6 +438,8 @@ export interface Alerts {
   marketAlerts: MarketAlert[];
   dormant: DormantItem[];
   lowShippingStock: ShippingStock[];
+  /** Mois passés avec des ventes Cardmarket sans facture de frais saisie. */
+  missingFeeInvoices: MissingFeeInvoice[];
 }
 
 // ----- Fichiers joints -----
@@ -661,4 +665,45 @@ export interface CatalogImportResult {
   total: number;
   /** Cartes ignorées (rareté non cochée). */
   skipped: number;
+}
+
+// ----- Frais Cardmarket facturés au mois -----
+export interface PlatformFeeInvoice {
+  id: number;
+  platform: SalePlatform;
+  year: number;
+  month: number;
+  amount: number;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
+  comment: string | null;
+}
+
+export interface PlatformFeeInvoiceInput {
+  year: number;
+  month: number;
+  amount: number;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
+  comment: string | null;
+}
+
+/** Un mois de ventes Cardmarket : estimation, frais appliqués aux ventes et facture saisie. */
+export interface PlatformFeeMonth {
+  year: number;
+  month: number;
+  salesCount: number;
+  salesTotal: number;
+  /** Frais estimés (5 % par article). */
+  estimatedFees: number;
+  /** Frais actuellement portés par les ventes (facture répartie ou estimation). */
+  appliedFees: number;
+  invoice: PlatformFeeInvoice | null;
+}
+
+export interface MissingFeeInvoice {
+  year: number;
+  month: number;
+  salesCount: number;
+  estimatedFees: number;
 }

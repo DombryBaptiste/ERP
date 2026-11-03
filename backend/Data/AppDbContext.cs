@@ -20,6 +20,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SaleRefundItem> SaleRefundItems => Set<SaleRefundItem>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<ShippingSupply> ShippingSupplies => Set<ShippingSupply>();
+    public DbSet<PlatformFeeInvoice> PlatformFeeInvoices => Set<PlatformFeeInvoice>();
     public DbSet<ShippingUsage> ShippingUsages => Set<ShippingUsage>();
     public DbSet<CatalogCard> CatalogCards => Set<CatalogCard>();
 
@@ -172,6 +173,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(30);
             e.Property(x => x.Comment).HasMaxLength(1000);
             e.HasIndex(x => x.SupplyNumber).IsUnique();
+        });
+
+        b.Entity<PlatformFeeInvoice>(e =>
+        {
+            e.ToTable("platform_fee_invoices");
+            e.Property(x => x.Platform).HasConversion<string>().HasMaxLength(30);
+            e.Property(x => x.Amount).HasPrecision(10, 2);
+            e.Property(x => x.InvoiceNumber).HasMaxLength(50);
+            e.Property(x => x.InvoiceDate).HasColumnType("date");
+            e.Property(x => x.Comment).HasMaxLength(1000);
+            // Une seule facture par plateforme et par mois.
+            e.HasIndex(x => new { x.Platform, x.Year, x.Month }).IsUnique();
         });
 
         b.Entity<ShippingUsage>(e =>

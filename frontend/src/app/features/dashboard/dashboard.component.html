@@ -14,13 +14,14 @@
 }
 
 @if (alerts(); as a) {
-  @if (a.marketAlerts.length || a.dormant.length || a.lowShippingStock.length) {
+  @if (a.marketAlerts.length || a.dormant.length || a.lowShippingStock.length || a.missingFeeInvoices.length) {
     <a class="info-banner alert-banner" routerLink="/alerts">
       <mat-icon>notifications_active</mat-icon>
       <span>
         @if (a.marketAlerts.length) { <strong>{{ a.marketAlerts.length }} carte(s)</strong> prennent de la valeur. }
         @if (a.dormant.length) { <strong>{{ a.dormant.length }} article(s)</strong> dorment en stock depuis plus de {{ a.settings.dormantWarningDays }} jours. }
         @if (a.lowShippingStock.length) { <strong>{{ a.lowShippingStock.length }} fourniture(s) d'envoi</strong> presque épuisée(s). }
+        @if (a.missingFeeInvoices.length) { <strong>{{ a.missingFeeInvoices.length }} facture(s) Cardmarket</strong> à saisir. }
         Voir les alertes →
       </span>
     </a>

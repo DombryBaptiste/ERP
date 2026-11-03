@@ -1,8 +1,9 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { Component, inject, signal, ViewChild } from '@angular/core';
+import { Component, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -12,13 +13,14 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSort, MatSortModule } from '@angular/material/sort';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PLATFORMS } from '../../core/labels';
 import { Sale, SalePlatform } from '../../core/models';
 import { SaleService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 import { toIsoDate } from '../../core/utils';
 import { LabelPipe } from '../../shared/label.pipe';
+import { PlatformFeesDialogComponent, PlatformFeesDialogData } from './platform-fees-dialog.component';
 
 /** Historique des ventes avec filtres (période, plateforme, client). */
 @Component({
@@ -30,11 +32,13 @@ import { LabelPipe } from '../../shared/label.pipe';
   ],
   templateUrl: './sales-list.component.html'
 })
-export class SalesListComponent {
+export class SalesListComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly api = inject(SaleService);
   private readonly notify = inject(NotifyService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly dialog = inject(MatDialog);
 
   readonly platforms = PLATFORMS;
   readonly columns = ['saleNumber', 'saleDate', 'customer', 'platform', 'items', 'totalAmount', 'profit', 'margin', 'actions'];
@@ -66,6 +70,23 @@ export class SalesListComponent {
     this.filterForm.valueChanges.subscribe(() => this.applyFilters());
     this.applyFilters();
     this.load();
+  }
+
+  ngOnInit(): void {
+    // /sales?fraisCardmarket=2026-10 (alerte « facture manquante ») : ouvre directement la saisie de ce mois.
+    const target = this.route.snapshot.queryParamMap.get('fraisCardmarket');
+    if (target) {
+      const [year, month] = target.split('-').map(Number);
+      // Le paramètre est retiré de l'URL pour ne pas rouvrir la fenêtre au retour sur la page.
+      this.router.navigate([], { queryParams: { fraisCardmarket: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      this.openPlatformFees({ year, month });
+    }
+  }
+
+  /** Factures mensuelles Cardmarket : les ventes sont rechargées à la fermeture (frais répartis). */
+  openPlatformFees(data: PlatformFeesDialogData = {}): void {
+    this.dialog.open(PlatformFeesDialogComponent, { data, maxWidth: '95vw' })
+      .afterClosed().subscribe(() => this.load());
   }
 
   load(): void {

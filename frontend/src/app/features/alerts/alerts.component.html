@@ -163,5 +163,38 @@
         }
       </div>
     </mat-tab>
+    <!-- ========== FACTURES CARDMARKET ========== -->
+    <mat-tab>
+      <ng-template mat-tab-label><mat-icon>receipt_long</mat-icon>&nbsp;Factures Cardmarket ({{ a.missingFeeInvoices.length }})</ng-template>
+      <div class="tab-body">
+        <p class="tab-intro">
+          Mois terminés dont les ventes Cardmarket n'ont que des frais <strong>estimés (5 %)</strong>.
+          Saisissez la facture mensuelle reçue de Cardmarket pour avoir le bénéfice réel.
+        </p>
+        @if (a.missingFeeInvoices.length === 0) {
+          <p class="empty">Toutes les factures Cardmarket sont saisies.</p>
+        } @else {
+          <div class="table-card">
+            <table class="simple-table">
+              <thead><tr><th>Mois</th><th class="num">Ventes</th><th class="num">Frais estimés</th><th></th></tr></thead>
+              <tbody>
+                @for (m of a.missingFeeInvoices; track m.year + '-' + m.month) {
+                  <tr>
+                    <td class="strong capitalize">{{ monthLabel(m.year, m.month) }}</td>
+                    <td class="num">{{ m.salesCount }}</td>
+                    <td class="num">{{ m.estimatedFees | currency }}</td>
+                    <td class="actions-cell">
+                      <a mat-button routerLink="/sales" [queryParams]="{ fraisCardmarket: m.year + '-' + m.month }">
+                        <mat-icon>receipt_long</mat-icon> Saisir la facture
+                      </a>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </mat-tab>
   </mat-tab-group>
 }

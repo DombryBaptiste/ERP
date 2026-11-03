@@ -143,6 +143,8 @@ export class SalesFormComponent implements OnInit {
   readonly locked = computed(() => (this.sale()?.refunds.length ?? 0) > 0);
   private automaticFees = false;
   private settingAutomaticFees = false;
+  /** Vente Cardmarket dont les frais sont la part de la facture mensuelle (et non l'estimation à 5 %). */
+  readonly feesFromInvoice = signal(false);
 
   get items() {
     return this.form.controls.items;
@@ -159,11 +161,13 @@ export class SalesFormComponent implements OnInit {
       if (payment.pristine) payment.setValue(defaultPaymentFor(platform));
       const wasAutomatic = this.automaticFees;
       this.automaticFees = platform === 'Cardmarket';
+      this.feesFromInvoice.set(false);
+      this.toggleFeesInput();
       if (this.automaticFees) this.updateAutomaticFees();
       else if (wasAutomatic) this.setAutomaticFees(0);
     });
     this.items.valueChanges.subscribe(() => {
-      if (this.automaticFees) this.updateAutomaticFees();
+      if (this.automaticFees && !this.feesFromInvoice()) this.updateAutomaticFees();
     });
   }
 
@@ -199,6 +203,7 @@ export class SalesFormComponent implements OnInit {
           if (product) this.selectProduct(line, product);
           this.items.push(line);
           this.automaticFees = this.form.controls.platform.value === 'Cardmarket';
+          this.toggleFeesInput();
           if (this.automaticFees) this.updateAutomaticFees();
         }
         this.loading.set(false);
@@ -252,7 +257,10 @@ export class SalesFormComponent implements OnInit {
     }
     usedByGroup.forEach((quantity, key) => this.shipping.push(this.createShippingLine(key, quantity)));
     this.automaticFees = sale.platform === 'Cardmarket';
-    if (this.automaticFees) this.updateAutomaticFees();
+    this.toggleFeesInput();
+    // Frais déjà tirés de la facture mensuelle : on affiche la part enregistrée, recalculée par le serveur.
+    this.feesFromInvoice.set(sale.feesFromInvoice);
+    if (this.automaticFees && !sale.feesFromInvoice) this.updateAutomaticFees();
 
     // Les lignes enregistrées par lot sont regroupées par produit (et par prix de vente).
     this.items.clear();
@@ -602,6 +610,13 @@ export class SalesFormComponent implements OnInit {
   }
 
   // ----- Calculs automatiques -----
+
+  /** Cardmarket facture ses frais au mois : le champ est calculé automatiquement et grisé. */
+  private toggleFeesInput(): void {
+    const fees = this.form.controls.fees;
+    if (this.automaticFees) fees.disable({ emitEvent: false });
+    else fees.enable({ emitEvent: false });
+  }
 
   private updateAutomaticFees(): void {
     if (!this.automaticFees || this.form.controls.platform.value !== 'Cardmarket') return;

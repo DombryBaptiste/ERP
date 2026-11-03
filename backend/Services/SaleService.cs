@@ -10,7 +10,7 @@ namespace PokeStock.Api.Services;
 /// remboursements (avec remise en stock) et numérotation des factures.
 /// Chaque opération est enregistrée en un seul SaveChanges (donc dans une transaction).
 /// </summary>
-public class SaleService(AppDbContext db, AttachmentService attachments)
+public class SaleService(AppDbContext db, AttachmentService attachments, PlatformFeeService platformFees)
 {
     private IQueryable<Sale> WithDetails() =>
         db.Sales
@@ -57,6 +57,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
 
         db.Sales.Add(sale);
         await db.SaveChangesAsync();
+        await ReallocateCardmarketAsync((sale.Platform, sale.SaleDate));
         return (await GetByIdAsync(sale.Id))!;
     }
 
@@ -65,6 +66,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         Validate(input);
         var sale = await WithDetails().FirstOrDefaultAsync(s => s.Id == id)
                    ?? throw BusinessException.NotFound("Vente introuvable.");
+        var before = (sale.Platform, sale.SaleDate);
 
         if (sale.Refunds.Count > 0)
         {
@@ -82,6 +84,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
             await ApplyShippingAsync(sale, input.Shipping, ReleaseShipping(sale));
             Recalculate(sale);
             await db.SaveChangesAsync();
+            await ReallocateCardmarketAsync(before, (sale.Platform, sale.SaleDate));
             return (await GetByIdAsync(id))!;
         }
 
@@ -103,6 +106,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         Recalculate(sale);
 
         await db.SaveChangesAsync();
+        await ReallocateCardmarketAsync(before, (sale.Platform, sale.SaleDate));
         return (await GetByIdAsync(id))!;
     }
 
@@ -119,6 +123,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         ReleaseShipping(sale);
         db.Sales.Remove(sale);
         await db.SaveChangesAsync();
+        await ReallocateCardmarketAsync((sale.Platform, sale.SaleDate));
         await attachments.DeleteForOwnerAsync(AttachmentOwner.Sale, id);
     }
 
@@ -231,7 +236,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
     /// Total = Σ quantité × prix. Bénéfice = total − remboursements − coût des articles qui ne sont pas
     /// revenus en stock − frais.
     /// </summary>
-    private static void Recalculate(Sale sale)
+    internal static void Recalculate(Sale sale)
     {
         sale.TotalAmount = Math.Round(sale.Items.Sum(i => i.Quantity * i.SalePrice), 2);
         sale.RefundedAmount = Math.Round(sale.Refunds.Sum(r => r.Amount), 2);
@@ -243,15 +248,29 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         sale.Profit = Math.Round(sale.TotalAmount - sale.RefundedAmount - cost - sale.Fees + shippingMargin, 2);
     }
 
-    private static void ApplyCardmarketFees(Sale sale)
+    /// <summary>
+    /// Vente Cardmarket ajoutée, modifiée ou supprimée : la facture mensuelle des mois concernés est
+    /// répartie à nouveau sur leurs ventes (sans facture, chaque vente garde son estimation).
+    /// </summary>
+    private async Task ReallocateCardmarketAsync(params (SalePlatform Platform, DateTime Date)[] states)
     {
+        var months = states.Where(s => s.Platform == SalePlatform.Cardmarket)
+            .Select(s => (s.Date.Year, s.Date.Month)).Distinct();
+        foreach (var (year, month) in months)
+            await platformFees.ReallocateAsync(year, month);
+    }
+
+    /// <summary>Frais Cardmarket estimés (5 % par article) en attendant la facture mensuelle.</summary>
+    internal static void ApplyCardmarketFees(Sale sale)
+    {
+        sale.FeesFromInvoice = false;
         if (sale.Platform != SalePlatform.Cardmarket) return;
 
         sale.Fees = Math.Round(sale.Items.Sum(item =>
             item.Quantity * CardmarketSaleFeeForItem(item.SalePrice)), 2);
     }
 
-    private static decimal CardmarketSaleFeeForItem(decimal value)
+    internal static decimal CardmarketSaleFeeForItem(decimal value)
     {
         var roundedUp = Math.Ceiling(Math.Max(0m, value) * 5m) / 100m;
         return Math.Min(100m, Math.Max(0.01m, roundedUp));

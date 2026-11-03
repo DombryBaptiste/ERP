@@ -114,7 +114,7 @@ public static class Mappings
         var net = SaleRevenue(s) - s.RefundedAmount;
         var names = s.Items.ToDictionary(i => i.Id, i => i.InventoryItem.Name);
         return new SaleDto(
-            s.Id, s.SaleNumber, s.SaleDate, s.Customer, s.Platform, s.PaymentMethod, s.Fees, s.Comment,
+            s.Id, s.SaleNumber, s.SaleDate, s.Customer, s.Platform, s.PaymentMethod, s.Fees, s.FeesFromInvoice, s.Comment,
             s.AmountPaid, s.TrackingNumber,
             s.Carrier, s.ShippingCost,
             s.ShippingUsages.OrderBy(u => u.Id).Select(u => new ShippingUsageDto(
@@ -165,6 +165,9 @@ public static class Mappings
         SalePlatform.Other => "Autre",
         _ => platform.ToString()
     };
+
+    public static PlatformFeeInvoiceDto ToDto(this PlatformFeeInvoice f) => new(
+        f.Id, f.Platform, f.Year, f.Month, f.Amount, f.InvoiceNumber, f.InvoiceDate, f.Comment);
 
     public static ShippingSupplyDto ToDto(this ShippingSupply s) => new(
         s.Id, s.SupplyNumber, s.PurchaseDate, s.Kind, s.Carrier, s.Name,

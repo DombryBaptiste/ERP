@@ -91,7 +91,8 @@ public enum AttachmentOwner
     InventoryItem,
     Purchase,
     Sale,
-    ShippingSupply   // Achat de fournitures d'envoi (ticket de La Poste, facture de bordereaux...)
+    ShippingSupply,  // Achat de fournitures d'envoi (ticket de La Poste, facture de bordereaux...)
+    PlatformFeeInvoice  // Facture mensuelle de frais de plateforme (Cardmarket)
 }
 
 /// <summary>Nature d'une fourniture d'envoi.</summary>

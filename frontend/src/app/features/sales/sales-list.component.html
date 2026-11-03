@@ -8,6 +8,10 @@
     </p>
   </div>
   <div class="page-actions">
+    <button mat-stroked-button type="button" (click)="openPlatformFees()"
+            matTooltip="Saisir la facture mensuelle des frais Cardmarket : elle est répartie sur les ventes du mois">
+      <mat-icon>receipt_long</mat-icon> Frais Cardmarket
+    </button>
     <a mat-stroked-button routerLink="/books"><mat-icon>menu_book</mat-icon> Livre des recettes</a>
     <a mat-flat-button routerLink="/sales/new"><mat-icon>add</mat-icon> Nouvelle vente</a>
   </div>

@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS sales (
   platform     VARCHAR(30)   NOT NULL,        -- Cardmarket, Ebay, Vinted, Leboncoin, FacebookMarketplace, InPerson, Other
   payment_method VARCHAR(30) NOT NULL DEFAULT 'Platform', -- Platform, BankTransfer, PayPal, Card, Cash, Check, Other
   fees         DECIMAL(10,2) NOT NULL,        -- frais (commission, envoi)
+  fees_from_invoice TINYINT(1) NOT NULL DEFAULT 0, -- Cardmarket : frais = part de la facture mensuelle (sinon estimation 5 %)
   comment      VARCHAR(1000) NULL,
   amount_paid  DECIMAL(10,2) NOT NULL DEFAULT 0, -- montant reçu du client
   tracking_number VARCHAR(100) NULL,       -- numéro fourni par la plateforme ou le transporteur
@@ -186,6 +187,21 @@ CREATE TABLE IF NOT EXISTS shipping_usages (
   KEY IX_shipping_usages_supply_id (supply_id),
   CONSTRAINT FK_shipping_usages_sales_sale_id FOREIGN KEY (sale_id) REFERENCES sales (id) ON DELETE CASCADE,
   CONSTRAINT FK_shipping_usages_shipping_supplies_supply_id FOREIGN KEY (supply_id) REFERENCES shipping_supplies (id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Factures mensuelles des frais Cardmarket : réparties sur les ventes du mois au prorata de leur montant.
+CREATE TABLE IF NOT EXISTS platform_fee_invoices (
+  id             INT           NOT NULL AUTO_INCREMENT,
+  platform       VARCHAR(30)   NOT NULL,
+  year           INT           NOT NULL,
+  month          INT           NOT NULL,
+  amount         DECIMAL(10,2) NOT NULL,
+  invoice_number VARCHAR(50)   NULL,
+  invoice_date   DATE          NULL,
+  comment        VARCHAR(1000) NULL,
+  created_at     DATETIME(6)   NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY IX_platform_fee_invoices_platform_year_month (platform, year, month)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Catalogue des cartes importé depuis TCGdex : cote saisie à la main, estimation de collections.
