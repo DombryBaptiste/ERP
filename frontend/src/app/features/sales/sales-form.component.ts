@@ -15,7 +15,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, Observable, of } from 'rxjs';
 import {
-  CARRIERS, cardmarketSaleFeeForItem, cardmarketSaleFees, defaultPaymentFor, PAYMENT_METHODS, PLATFORMS, SHIPPING_KIND_ICONS
+  CARRIERS, cardmarketSaleFeeForItem, defaultPaymentFor, PAYMENT_METHODS, PLATFORMS, SHIPPING_KIND_ICONS
 } from '../../core/labels';
 import {
   InventoryItem, PaymentMethod, Sale, SaleInput, SaleLineInput, SalePlatform, SaleRefund, ShippingCarrier, ShippingSupply,
@@ -605,11 +605,15 @@ export class SalesFormComponent implements OnInit {
 
   private updateAutomaticFees(): void {
     if (!this.automaticFees || this.form.controls.platform.value !== 'Cardmarket') return;
+    this.setAutomaticFees(this.cardmarketFees());
+  }
+
+  private cardmarketFees(): number {
     const fees = this.items.controls.reduce((sum, line) => {
       const value = line.getRawValue();
       return sum + (value.quantity || 0) * cardmarketSaleFeeForItem(value.salePrice || 0);
     }, 0);
-    this.setAutomaticFees(fees);
+    return Math.round(fees * 100) / 100;
   }
 
   private setAutomaticFees(fees: number): void {
@@ -634,7 +638,7 @@ export class SalesFormComponent implements OnInit {
   }
 
   totals(): {
-    total: number; revenue: number; netTotal: number; cost: number; fees: number; profit: number; margin: number; amountPaid: number;
+    total: number; itemCount: number; revenue: number; netTotal: number; cost: number; fees: number; profit: number; margin: number; amountPaid: number;
     shippingCost: number; tracked: boolean; portMargin: number;
   } {
     const allocation = this.allocate();
@@ -644,6 +648,7 @@ export class SalesFormComponent implements OnInit {
       total += this.lineTotal(line);
       cost += (allocation.get(line)?.lots ?? []).reduce((sum, a) => sum + a.quantity * this.lotCost(a.lot), 0);
     }
+    const itemCount = this.items.controls.reduce((sum, line) => sum + (line.controls.quantity.value || 0), 0);
     const fees = this.form.controls.fees.value || 0;
     const amountPaid = this.form.controls.amountPaid.value || 0;
     // CA (à déclarer) : payé par l'acheteur, articles + port, avant commission de la plateforme.
@@ -658,6 +663,7 @@ export class SalesFormComponent implements OnInit {
     const profit = total - cost - fees + portMargin;
     return {
       total,
+      itemCount,
       revenue,
       netTotal,
       cost,
@@ -714,7 +720,7 @@ export class SalesFormComponent implements OnInit {
 
     const v = this.form.getRawValue();
     const fees = v.platform === 'Cardmarket'
-      ? cardmarketSaleFees(items)
+      ? this.cardmarketFees()
       : (v.fees || 0);
     const payload: SaleInput = {
       saleDate: toIsoDate(v.saleDate),

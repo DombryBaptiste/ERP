@@ -51,6 +51,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         };
         ApplyHeader(sale, input);
         await ApplyLinesAsync(sale, input.Items, new Dictionary<int, decimal>());
+        ApplyCardmarketFees(sale);
         await ApplyShippingAsync(sale, input.Shipping, new Dictionary<int, decimal>());
         Recalculate(sale);
 
@@ -76,6 +77,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
             if (!same)
                 throw BusinessException.Conflict("Cette vente a des remboursements : supprimez-les avant de modifier les articles.");
             ApplyHeader(sale, input);
+            ApplyCardmarketFees(sale);
             // L'envoi reste modifiable (il ne dépend pas des retours).
             await ApplyShippingAsync(sale, input.Shipping, ReleaseShipping(sale));
             Recalculate(sale);
@@ -96,6 +98,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         // 2. ...puis on applique la nouvelle version (avec contrôle du stock).
         ApplyHeader(sale, input);
         await ApplyLinesAsync(sale, input.Items, previousCosts);
+        ApplyCardmarketFees(sale);
         await ApplyShippingAsync(sale, input.Shipping, ReleaseShipping(sale));
         Recalculate(sale);
 
@@ -240,9 +243,18 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         sale.Profit = Math.Round(sale.TotalAmount - sale.RefundedAmount - cost - sale.Fees + shippingMargin, 2);
     }
 
-    private static decimal CardmarketFees(SaleInput input)
+    private static void ApplyCardmarketFees(Sale sale)
     {
-        return Math.Round(input.Items.Sum(line => line.Quantity * Math.Min(line.SalePrice * 0.05m, 100m)), 2);
+        if (sale.Platform != SalePlatform.Cardmarket) return;
+
+        sale.Fees = Math.Round(sale.Items.Sum(item =>
+            item.Quantity * CardmarketSaleFeeForItem(item.SalePrice)), 2);
+    }
+
+    private static decimal CardmarketSaleFeeForItem(decimal value)
+    {
+        var roundedUp = Math.Ceiling(Math.Max(0m, value) * 5m) / 100m;
+        return Math.Min(100m, Math.Max(0.01m, roundedUp));
     }
 
     private static void ApplyHeader(Sale sale, SaleInput input)
@@ -251,7 +263,7 @@ public class SaleService(AppDbContext db, AttachmentService attachments)
         sale.Customer = Clean(input.Customer);
         sale.Platform = input.Platform;
         sale.PaymentMethod = input.PaymentMethod;
-        sale.Fees = input.Platform == SalePlatform.Cardmarket ? CardmarketFees(input) : Math.Round(input.Fees, 2);
+        sale.Fees = input.Platform == SalePlatform.Cardmarket ? 0m : Math.Round(input.Fees, 2);
         sale.Comment = Clean(input.Comment);
         sale.AmountPaid = Math.Round(input.AmountPaid, 2);
         sale.TrackingNumber = Clean(input.TrackingNumber);

@@ -105,7 +105,7 @@ export class PurchaseListComponent {
 
   /** Bénéfice déjà réalisé sur les unités vendues des achats affichés. */
   filteredRealizedProfit(): number {
-    return this.dataSource.filteredData.reduce((sum, p) => sum + p.performance.realizedProfit, 0);
+    return this.filteredSupplierPurchases().reduce((sum, p) => sum + p.performance.realizedProfit, 0);
   }
 
   private money(value: number): string {
@@ -114,13 +114,19 @@ export class PurchaseListComponent {
 
   /** Nombre d'articles achetés (unités) dans les achats affichés. */
   filteredItemCount(): number {
-    return this.dataSource.filteredData.reduce((sum, p) => sum + p.itemCount, 0);
+    return this.filteredSupplierPurchases().reduce((sum, p) => sum + p.itemCount, 0);
+  }
+
+  filteredPurchaseCount(): number {
+    return this.filteredSupplierPurchases().length;
   }
 
   filteredTotal(): number {
-    return this.dataSource.filteredData
-      .filter(p => p.source === 'Supplier')
-      .reduce((sum, p) => sum + p.totalAmount, 0);
+    return this.filteredSupplierPurchases().reduce((sum, p) => sum + p.totalAmount, 0);
+  }
+
+  private filteredSupplierPurchases(): Purchase[] {
+    return this.dataSource.filteredData.filter(p => p.source === 'Supplier');
   }
 
   edit(p: Purchase): void {

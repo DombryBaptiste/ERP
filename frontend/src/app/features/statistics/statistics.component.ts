@@ -5,6 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { RouterLink } from '@angular/router';
 import { Statistics } from '../../core/models';
 import { ReportingService } from '../../core/services/api.services';
@@ -19,7 +20,7 @@ import { LabelPipe } from '../../shared/label.pipe';
   selector: 'app-statistics',
   imports: [
     RouterLink, CurrencyPipe, DatePipe, DecimalPipe, LabelPipe,
-    MatCardModule, MatFormFieldModule, MatSelectModule, MatIconModule, MatProgressBarModule,
+    MatCardModule, MatFormFieldModule, MatSelectModule, MatIconModule, MatProgressBarModule, MatSlideToggleModule,
     KpiCardComponent, ChartComponent
   ],
   templateUrl: './statistics.component.html'
@@ -32,6 +33,7 @@ export class StatisticsComponent {
   readonly year = signal(this.currentYear);
   readonly loading = signal(true);
   readonly stats = signal<Statistics | null>(null);
+  readonly includePersonalCollection = signal(true);
 
   private readonly monthLabels = computed(() => (this.stats()?.monthly ?? []).map(m => monthLabel(m.year, m.month)));
 
@@ -63,13 +65,18 @@ export class StatisticsComponent {
     this.load();
   }
 
+  changeCollection(include: boolean): void {
+    this.includePersonalCollection.set(include);
+    this.load();
+  }
+
   monthName(year: number, month: number): string {
     return new Date(year, month - 1, 1).toLocaleDateString('fr-FR', { month: 'long' });
   }
 
   private load(): void {
     this.loading.set(true);
-    this.reporting.statistics(this.year()).subscribe({
+    this.reporting.statistics(this.year(), this.includePersonalCollection()).subscribe({
       next: s => {
         this.stats.set(s);
         this.loading.set(false);

@@ -80,19 +80,72 @@ public class ReportingService(AppDbContext db)
             MonthShippingPaid: monthShipments.Sum(s => s.AmountPaid));
     }
 
-    public async Task<StatisticsDto> GetStatisticsAsync(int? requestedYear)
+    public async Task<StatisticsDto> GetStatisticsAsync(int? requestedYear, bool includePersonalCollection = true)
     {
         var today = DateTime.Today;
         var year = requestedYear ?? today.Year;
         var start = new DateTime(year, 1, 1);
         var end = start.AddYears(1);
 
-        var sales = await db.Sales.AsNoTracking()
-            .Where(s => s.SaleDate >= start && s.SaleDate < end)
-            .ToListAsync();
+        List<Sale> sales;
+        List<SaleStatistic> salesForStatistics;
+        var salesQuery = db.Sales.AsNoTracking()
+            .Where(s => s.SaleDate >= start && s.SaleDate < end);
+        if (includePersonalCollection)
+        {
+            sales = await salesQuery.ToListAsync();
+            salesForStatistics = sales
+                .Select(s => new SaleStatistic(s, 1m, Mappings.SaleRevenue(s) - s.RefundedAmount, s.Profit, true))
+                .ToList();
+        }
+        else
+        {
+            sales = await salesQuery
+                .Include(s => s.Items).ThenInclude(i => i.InventoryItem)
+                    .ThenInclude(i => i.PurchaseItem).ThenInclude(pi => pi!.Purchase)
+                .Include(s => s.Refunds).ThenInclude(r => r.Items)
+                .Include(s => s.ShippingUsages)
+                .ToListAsync();
 
-        var lines = await db.SaleItems.AsNoTracking()
-            .Where(si => si.Sale.SaleDate >= start && si.Sale.SaleDate < end)
+            salesForStatistics = sales.Select(s =>
+            {
+                var eligibleItems = s.Items
+                    .Where(i => i.InventoryItem.PurchaseItem?.Purchase.Source != PurchaseSource.PersonalCollection)
+                    .ToList();
+                var totalGross = s.Items.Sum(i => i.Quantity * i.SalePrice);
+                var eligibleGross = eligibleItems.Sum(i => i.Quantity * i.SalePrice);
+                var totalQuantity = s.Items.Sum(i => i.Quantity);
+                var eligibleQuantity = eligibleItems.Sum(i => i.Quantity);
+                var weight = totalGross > 0
+                    ? eligibleGross / totalGross
+                    : totalQuantity > 0 ? eligibleQuantity / (decimal)totalQuantity : 0m;
+                var restockedByLine = s.Refunds.SelectMany(r => r.Items)
+                    .Where(i => i.Restocked)
+                    .GroupBy(i => i.SaleItemId)
+                    .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
+                var itemProfit = eligibleItems.Sum(i =>
+                {
+                    var restocked = restockedByLine.GetValueOrDefault(i.Id);
+                    return i.Quantity * i.SalePrice - (i.Quantity - restocked) * i.UnitCost;
+                });
+                var saleAdjustments = -s.RefundedAmount - s.Fees
+                    + (s.ShippingUsages.Count > 0 ? s.AmountPaid - s.ShippingCost : 0m);
+                var revenue = (Mappings.SaleRevenue(s) - s.RefundedAmount) * weight;
+                var profit = itemProfit + saleAdjustments * weight;
+                return new SaleStatistic(s, weight, revenue, profit, eligibleItems.Count > 0);
+            }).Where(s => s.HasEligibleItems).ToList();
+        }
+
+        var saleItemsQuery = db.SaleItems.AsNoTracking()
+            .Where(si => si.Sale.SaleDate >= start && si.Sale.SaleDate < end);
+        if (!includePersonalCollection)
+        {
+            saleItemsQuery = saleItemsQuery.Where(si =>
+                si.InventoryItem.PurchaseItem == null
+                || si.InventoryItem.PurchaseItem.Purchase.Source != PurchaseSource.PersonalCollection);
+        }
+
+        var lines = await saleItemsQuery
             .Select(si => new
             {
                 si.InventoryItem.Name,
@@ -106,29 +159,50 @@ public class ReportingService(AppDbContext db)
             })
             .ToListAsync();
 
-        var annualPurchases = await db.Purchases
-            .Where(p => p.Source == PurchaseSource.Supplier && p.PurchaseDate >= start && p.PurchaseDate < end)
+        var purchasesQuery = db.Purchases
+            .Where(p => p.PurchaseDate >= start && p.PurchaseDate < end);
+        if (!includePersonalCollection)
+            purchasesQuery = purchasesQuery.Where(p => p.Source == PurchaseSource.Supplier);
+        var annualPurchases = await purchasesQuery
             .SumAsync(p => (decimal?)p.TotalAmount) ?? 0m;
 
-        var stockValue = await db.InventoryItems.Where(i => i.RemainingQuantity > 0)
-            .SumAsync(i => (decimal?)(i.RemainingQuantity * i.PurchasePrice)) ?? 0m;
+        var stockQuery = db.InventoryItems.Where(i => i.RemainingQuantity > 0);
+        if (!includePersonalCollection)
+        {
+            stockQuery = stockQuery.Where(i =>
+                i.PurchaseItem == null || i.PurchaseItem.Purchase.Source != PurchaseSource.PersonalCollection);
+        }
+        var stockValue = await stockQuery.SumAsync(i => (decimal?)(i.RemainingQuantity * i.PurchasePrice)) ?? 0m;
 
         // Frais d'envoi de l'année.
         var annualShippingSpent = await db.ShippingSupplies
             .Where(s => s.PurchaseDate >= start && s.PurchaseDate < end)
             .SumAsync(s => (decimal?)s.TotalAmount) ?? 0m;
-        var shipped = sales.Where(s => s.ShippingCost > 0 || (s.Carrier.HasValue && s.Carrier != ShippingCarrier.HandDelivery)).ToList();
+        var shipped = salesForStatistics
+            .Where(s => s.Sale.ShippingCost > 0
+                || (s.Sale.Carrier.HasValue && s.Sale.Carrier != ShippingCarrier.HandDelivery))
+            .ToList();
 
-        var saleYears = await db.Sales.Select(s => s.SaleDate.Year).Distinct().ToListAsync();
-        var purchaseYears = await db.Purchases.Select(p => p.PurchaseDate.Year).Distinct().ToListAsync();
+        var saleYearsQuery = db.Sales.AsQueryable();
+        if (!includePersonalCollection)
+        {
+            saleYearsQuery = saleYearsQuery.Where(s => s.Items.Any(i =>
+                i.InventoryItem.PurchaseItem == null
+                || i.InventoryItem.PurchaseItem.Purchase.Source != PurchaseSource.PersonalCollection));
+        }
+        var saleYears = await saleYearsQuery.Select(s => s.SaleDate.Year).Distinct().ToListAsync();
+        var purchaseYearsQuery = db.Purchases.AsQueryable();
+        if (!includePersonalCollection)
+            purchaseYearsQuery = purchaseYearsQuery.Where(p => p.Source == PurchaseSource.Supplier);
+        var purchaseYears = await purchaseYearsQuery.Select(p => p.PurchaseDate.Year).Distinct().ToListAsync();
         var years = saleYears.Concat(purchaseYears).Append(today.Year).Append(year)
             .Distinct().OrderByDescending(y => y).ToList();
 
         var monthly = Enumerable.Range(1, 12).Select(m =>
         {
-            var inMonth = sales.Where(s => s.SaleDate.Month == m).ToList();
+            var inMonth = salesForStatistics.Where(s => s.Sale.SaleDate.Month == m).ToList();
             return new MonthlyPoint(year, m,
-                inMonth.Sum(s => Mappings.SaleRevenue(s) - s.RefundedAmount),
+                inMonth.Sum(s => s.Revenue),
                 inMonth.Sum(s => s.Profit), inMonth.Count);
         }).ToList();
 
@@ -151,8 +225,8 @@ public class ReportingService(AppDbContext db)
             })
             .ToList();
 
-        var annualRevenue = sales.Sum(s => Mappings.SaleRevenue(s) - s.RefundedAmount);
-        var annualProfit = sales.Sum(s => s.Profit);
+        var annualRevenue = salesForStatistics.Sum(s => s.Revenue);
+        var annualProfit = salesForStatistics.Sum(s => s.Profit);
         // Nombre de mois écoulés pour la moyenne (12 pour une année passée).
         var monthsElapsed = year < today.Year ? 12 : year == today.Year ? today.Month : 1;
         var currentMonth = year == today.Year ? monthly[today.Month - 1] : null;
@@ -163,19 +237,27 @@ public class ReportingService(AppDbContext db)
             AnnualRevenue: annualRevenue,
             AnnualProfit: annualProfit,
             AnnualPurchases: annualPurchases,
-            AnnualSalesCount: sales.Count,
+            AnnualSalesCount: salesForStatistics.Count,
             CurrentMonthRevenue: currentMonth?.Revenue ?? 0,
             CurrentMonthProfit: currentMonth?.Profit ?? 0,
             AverageMonthlyRevenue: Math.Round(annualRevenue / monthsElapsed, 2),
             AverageMonthlyProfit: Math.Round(annualProfit / monthsElapsed, 2),
             StockValue: stockValue,
             Monthly: monthly,
-            TopSales: sales.OrderByDescending(s => Mappings.SaleRevenue(s) - s.RefundedAmount).Take(10).Select(s => s.ToSummary()).ToList(),
+            TopSales: salesForStatistics.OrderByDescending(s => s.Revenue).Take(10)
+                .Select(s => s.Sale.ToSummary() with
+                {
+                    TotalAmount = Math.Round(s.Sale.TotalAmount * s.Weight, 2),
+                    NetAmount = s.Revenue,
+                    Profit = s.Profit
+                }).ToList(),
             TopProductsByRevenue: products.OrderByDescending(p => p.Revenue).Take(10).ToList(),
             TopProductsByProfit: products.OrderByDescending(p => p.Profit).Take(10).ToList(),
             AnnualShippingSpent: annualShippingSpent,
-            AnnualShippingCost: shipped.Sum(s => s.ShippingCost),
-            AnnualShippingPaid: shipped.Sum(s => s.AmountPaid),
+            AnnualShippingCost: shipped.Sum(s => s.Sale.ShippingCost * s.Weight),
+            AnnualShippingPaid: shipped.Sum(s => s.Sale.AmountPaid * s.Weight),
             ShippedSalesCount: shipped.Count);
     }
+
+    private sealed record SaleStatistic(Sale Sale, decimal Weight, decimal Revenue, decimal Profit, bool HasEligibleItems);
 }

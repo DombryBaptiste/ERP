@@ -143,9 +143,11 @@ export class ReportingService {
 
   dashboard(): Observable<Dashboard> { return this.http.get<Dashboard>('/api/dashboard'); }
 
-  statistics(year?: number): Observable<Statistics> {
-    const params = year ? new HttpParams().set('year', year) : undefined;
-    return this.http.get<Statistics>('/api/statistics', { params });
+  statistics(year?: number, includePersonalCollection = true): Observable<Statistics> {
+    let params = new HttpParams();
+    if (year) params = params.set('year', year);
+    if (!includePersonalCollection) params = params.set('includePersonalCollection', false);
+    return this.http.get<Statistics>('/api/statistics', { params: params.keys().length ? params : undefined });
   }
 }
 
@@ -205,4 +207,3 @@ export class CatalogService {
     return this.http.delete<CatalogDeleteResult>(`${this.url}/sets/${encodeURIComponent(setId)}`, { params: { language } });
   }
 }
-

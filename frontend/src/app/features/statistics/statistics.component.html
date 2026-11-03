@@ -4,6 +4,9 @@
     <p class="subtitle">Chiffre d'affaires, bénéfices et produits les plus performants</p>
   </div>
   <div class="page-actions">
+    <mat-slide-toggle [checked]="includePersonalCollection()" (change)="changeCollection($event.checked)">
+      Inclure ma collection
+    </mat-slide-toggle>
     <mat-form-field class="year-select">
       <mat-label>Année</mat-label>
       <mat-select [value]="year()" (selectionChange)="changeYear($event.value)">

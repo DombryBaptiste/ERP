@@ -14,5 +14,6 @@ public class ReportingController(ReportingService service) : ControllerBase
 
     /// <summary>Statistiques annuelles (année en cours par défaut).</summary>
     [HttpGet("statistics")]
-    public Task<StatisticsDto> Statistics([FromQuery] int? year) => service.GetStatisticsAsync(year);
+    public Task<StatisticsDto> Statistics([FromQuery] int? year, [FromQuery] bool includePersonalCollection = true) =>
+        service.GetStatisticsAsync(year, includePersonalCollection);
 }

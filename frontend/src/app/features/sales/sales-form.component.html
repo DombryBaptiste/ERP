@@ -77,7 +77,7 @@
           <mat-label>Frais (commission, envoi…)</mat-label>
           <input matInput type="number" min="0" step="0.01" formControlName="fees">
           <span matTextSuffix>€</span>
-          <mat-hint>Déduits du bénéfice</mat-hint>
+          <mat-hint>Cardmarket : 5 % par carte/article, arrondi supérieur (min. 0,01 €, max. 100 € par article).</mat-hint>
         </mat-form-field>
 
         <mat-form-field>
@@ -136,7 +136,10 @@
   <mat-card class="card">
     <mat-card-header>
       <mat-card-title>Articles vendus</mat-card-title>
-      <mat-card-subtitle>Recherchez un produit en stock par nom, catégorie, localisation ou n° d'achat</mat-card-subtitle>
+      <mat-card-subtitle>
+        {{ t.itemCount | number }} article(s) · Prix total des articles : {{ t.total | currency }}
+        · Recherchez par nom, catégorie, localisation ou n° d'achat
+      </mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
       <div class="lines">
