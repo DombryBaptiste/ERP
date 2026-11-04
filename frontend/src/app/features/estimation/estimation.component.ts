@@ -191,7 +191,8 @@ export class EstimationComponent {
       mergeMap(({ line, index }) => this.findCard(line).pipe(map(card => ({ line, index, card }))), 4),
       toArray()
     ).subscribe(found => {
-      found.sort((a, b) => a.index - b.index);
+      // Le texte va de la première carte ajoutée à la dernière ; la sélection affiche la plus récente en haut.
+      found.sort((a, b) => b.index - a.index);
       const lines: EstimationLine[] = [];
       const missing: string[] = [];
       for (const { line, card } of found) {
@@ -235,7 +236,8 @@ export class EstimationComponent {
   }
 
   copyEstimation(): void {
-    const lines = this.lines();
+    // Ordre d'ajout : la première carte ajoutée en premier (la sélection affiche la plus récente en haut).
+    const lines = [...this.lines()].reverse();
     const formatPrice = (value: number): string =>
       value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
     const text = [
