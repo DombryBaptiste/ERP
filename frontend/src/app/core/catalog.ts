@@ -61,12 +61,16 @@ export function conditionFactor(condition: ItemCondition, settings: BuybackSetti
   return percents[condition] / 100;
 }
 
-/** Prix d'achat proposé : valeur − remise, arrondi au pas inférieur (ex. −20 %, 0,50 € : 6,70 → 6,50 ; 6,40 → 6,00). */
+/**
+ * Prix d'achat proposé : valeur − remise, arrondi au pas inférieur (ex. −20 %, 0,50 € : 6,70 → 6,50 ; 6,40 → 6,00).
+ * Si l'arrondi tomberait à 0 alors que la carte vaut quelque chose, on garde le prix au centime (0,50 € → 0,40 €).
+ */
 export function buybackPrice(value: number | null | undefined, settings: BuybackSettings = DEFAULT_BUYBACK): number | null {
   if (value === null || value === undefined || value < 0) return null;
   const raw = value * (1 - settings.discountPercent / 100);
   const step = settings.roundingStep > 0 ? settings.roundingStep : 0.01;
-  return Math.round(Math.floor(raw / step + 1e-9) * step * 100) / 100;
+  const rounded = Math.round(Math.floor(raw / step + 1e-9) * step * 100) / 100;
+  return rounded > 0 ? rounded : Math.round(raw * 100) / 100;
 }
 
 /** Description courte du calcul, ex. « −20 %, arrondi au 0,50 € inférieur ». */

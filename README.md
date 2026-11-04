@@ -206,7 +206,7 @@ La documentation interactive de l'API (Swagger) est disponible en développement
   « Offres » ouvre Cardmarket filtré sur la langue de la carte, NM ou mieux.
 - Onglet **Estimation** : cherchez une carte (nom ou code, ex. `PFL 95`) et cliquez pour l'ajouter. Pour chaque carte :
   état, quantité, cote (modifiable), **valeur** (cote × part selon l'état) et **prix d'achat** proposé
-  (par défaut valeur − 20 %, arrondi au 0,50 € inférieur ; réglable dans les Paramètres). La sélection reste
+  (par défaut valeur − 20 %, arrondi au 0,50 € inférieur, sans tomber à 0 € : au centime dans ce cas ; réglable dans les Paramètres). La sélection reste
   enregistrée dans le navigateur jusqu'à **Tout supprimer**. **Reprendre une estimation** relit le texte de
   « Copier l'estimation » (cartes retrouvées dans le catalogue avec état, quantité et cote retenue), en remplacement
   ou en plus de la sélection.
