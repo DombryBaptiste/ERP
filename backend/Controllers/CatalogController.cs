@@ -33,6 +33,15 @@ public class CatalogController(CatalogService service) : ControllerBase
         [FromQuery] bool quotedOnly = false, [FromQuery] int take = 300, CancellationToken ct = default) =>
         service.SearchAsync(language, setId, search, quotedOnly, take, ct);
 
+    /// <summary>Ajoute une carte à la main (série pas encore à jour chez TCGdex).</summary>
+    [HttpPost("cards")]
+    public Task<CatalogCardDto> CreateCard(CatalogCardInput input, CancellationToken ct) => service.CreateCardAsync(input, ct);
+
+    /// <summary>Corrige une carte ajoutée à la main (numéro, nom, rareté).</summary>
+    [HttpPut("cards/{id:int}")]
+    public Task<CatalogCardDto> UpdateCard(int id, CatalogCardInput input, CancellationToken ct) =>
+        service.UpdateCardAsync(id, input, ct);
+
     /// <summary>Supprime une carte du catalogue (les articles liés passent en « Hors catégorie »).</summary>
     [HttpDelete("cards/{id:int}")]
     public Task<CatalogDeleteResultDto> DeleteCard(int id, CancellationToken ct) => service.DeleteCardAsync(id, ct);

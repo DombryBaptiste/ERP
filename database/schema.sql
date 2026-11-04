@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS sale_refund_items (
 -- Fichiers joints (le contenu est stocké sur disque, dans backend/data/uploads)
 CREATE TABLE IF NOT EXISTS attachments (
   id           INT          NOT NULL AUTO_INCREMENT,
-  owner_type   VARCHAR(30)  NOT NULL,           -- InventoryItem, Purchase, Sale, ShippingSupply, PlatformFeeInvoice
+  owner_type   VARCHAR(30)  NOT NULL,           -- InventoryItem, Purchase, Sale, ShippingSupply, PlatformFeeInvoice, CatalogCard
   owner_id     INT          NOT NULL,
   kind         VARCHAR(30)  NOT NULL,           -- Photo, Receipt, Listing, OriginProof, Other
   file_name    VARCHAR(255) NOT NULL,
@@ -221,6 +221,7 @@ CREATE TABLE IF NOT EXISTS card_catalog (
   rarity           VARCHAR(60)   NULL,
   image_url        VARCHAR(300)  NULL,      -- sans extension (+ /low.webp ou /high.webp)
   cardmarket_id    BIGINT        NULL,      -- idProduct Cardmarket
+  is_manual        TINYINT(1)    NOT NULL DEFAULT 0,  -- carte saisie à la main (absente de TCGdex)
   quote            DECIMAL(10,2) NULL,      -- cote saisie à la main (prix FR NM)
   quote_updated_at DATETIME(6)   NULL,
   created_at       DATETIME(6)   NOT NULL,

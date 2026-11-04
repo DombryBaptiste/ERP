@@ -11,9 +11,11 @@ namespace PokeStock.Api.Services;
 
 /// <summary>
 /// Catalogue des cartes Pokémon : import depuis l'API publique TCGdex (https://tcgdex.dev),
+/// cartes et images ajoutées à la main quand TCGdex n'est pas à jour,
 /// cotes saisies à la main et report de la cote sur la valeur de marché des articles liés.
 /// </summary>
-public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache, ILogger<CatalogService> logger)
+public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache, ILogger<CatalogService> logger,
+    AttachmentService attachments)
 {
     public const string ApiBaseUrl = "https://api.tcgdex.net/v2/";
 
@@ -257,6 +259,11 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
 
         var existing = await db.CatalogCards.Where(c => c.Language == wanted && c.SetId == setId)
             .ToDictionaryAsync(c => c.TcgdexId, ct);
+        // Cartes saisies à la main en attendant TCGdex (même série ou même code) : reprises par leur numéro.
+        var manual = await db.CatalogCards
+            .Where(c => c.Language == wanted && c.IsManual && (c.SetId == setId || (code != null && c.SetCode == code)))
+            .ToListAsync(ct);
+        var adopted = new List<CatalogCard>();
         int added = 0, updated = 0, skipped = 0;
         for (var i = 0; i < cards.Count; i++)
         {
@@ -270,13 +277,23 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
             if (rarity == "None") rarity = null;  // rareté non renseignée (fréquent en japonais)
 
             var number = Str(brief, "localId") ?? "";
-            if (!existing.TryGetValue(tcgdexId, out var card))
+            if (existing.TryGetValue(tcgdexId, out var card)) updated++;
+            else if ((card = manual.FirstOrDefault(m => SameNumber(m.Number, number))) is not null)
+            {
+                // La carte garde sa cote, son image ajoutée à la main et ses articles liés.
+                manual.Remove(card);
+                card.TcgdexId = tcgdexId;
+                card.SetId = setId;
+                card.IsManual = false;
+                adopted.Add(card);
+                updated++;
+            }
+            else
             {
                 card = new CatalogCard { Language = wanted, TcgdexId = tcgdexId, SetId = setId };
                 db.CatalogCards.Add(card);
                 added++;
             }
-            else updated++;
 
             card.SetCode = code;
             card.SetName = setName;
@@ -295,6 +312,17 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
             card.ImageUrl = Str(brief, "image") ?? (detail is { } di ? Str(di, "image") : null) ?? SubsetImage(setId, number, lang);
             card.CardmarketId = detail is { } dc ? CardmarketId(dc) : null;
             card.UpdatedAt = DateTime.UtcNow;
+        }
+
+        // Cartes manuelles reprises : leurs articles prennent le nom de série TCGdex.
+        if (adopted.Count > 0)
+        {
+            var adoptedIds = adopted.Select(c => c.Id).ToList();
+            var linked = await db.InventoryItems
+                .Where(i => i.CatalogCardId != null && adoptedIds.Contains(i.CatalogCardId.Value)
+                            && (i.Type == ItemType.RawCard || i.Type == ItemType.GradedCard))
+                .ToListAsync(ct);
+            foreach (var item in linked) item.Category = CategoryOf(adopted.First(c => c.Id == item.CatalogCardId));
         }
 
         await db.SaveChangesAsync(ct);
@@ -366,6 +394,78 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
         return (await ToDtosAsync([card], ct))[0];
     }
 
+    /// <summary>
+    /// Ajoute une carte à la main, quand TCGdex n'est pas encore à jour. Dans une série du catalogue, elle en reprend
+    /// le nom, le code et le bloc ; sinon une série « manuelle » est créée (identifiant dérivé du code).
+    /// </summary>
+    public async Task<CatalogCardDto> CreateCardAsync(CatalogCardInput input, CancellationToken ct)
+    {
+        var lang = CheckLanguage(input.Language);
+        var code = Limit(input.SetCode.TrimOrNull()?.ToUpperInvariant(), 20, "Le code de série");
+        var setId = input.SetId.TrimOrNull() ?? (code is null ? $"manuel-{Guid.NewGuid():N}"[..15] : $"manuel-{code}");
+        var card = new CatalogCard { Language = lang, TcgdexId = $"manuel-{Guid.NewGuid():N}", SetId = setId, IsManual = true };
+
+        var model = await db.CatalogCards.AsNoTracking().FirstOrDefaultAsync(c => c.Language == lang && c.SetId == setId, ct);
+        if (model is not null && input.SetId.TrimOrNull() is null)
+            throw new BusinessException($"La série {code} existe déjà : choisissez-la dans la liste des séries.");
+        if (model is not null)
+        {
+            card.SetCode = model.SetCode;
+            card.SetName = model.SetName;
+            card.SerieName = model.SerieName;
+            card.ReleaseDate = model.ReleaseDate;
+        }
+        else
+        {
+            card.SetCode = code;
+            card.SetName = Limit(input.SetName.TrimOrNull(), 150, "Le nom de la série")
+                           ?? throw new BusinessException("Indiquez le nom de la série.");
+            card.SerieName = Limit(input.SerieName.TrimOrNull(), 100, "Le bloc");
+            card.ReleaseDate = DateTime.Today;  // nouvelle série : affichée en tête de liste
+        }
+
+        await ApplyCardInputAsync(card, input, ct);
+        db.CatalogCards.Add(card);
+        await db.SaveChangesAsync(ct);
+        return (await ToDtosAsync([card], ct))[0];
+    }
+
+    /// <summary>Corrige le numéro, le nom ou la rareté d'une carte saisie à la main.</summary>
+    public async Task<CatalogCardDto> UpdateCardAsync(int id, CatalogCardInput input, CancellationToken ct)
+    {
+        var card = await db.CatalogCards.FirstOrDefaultAsync(c => c.Id == id, ct)
+                   ?? throw BusinessException.NotFound("Carte introuvable dans le catalogue.");
+        if (!card.IsManual) throw new BusinessException("Seules les cartes ajoutées à la main sont modifiables.");
+
+        await ApplyCardInputAsync(card, input, ct);
+        card.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return (await ToDtosAsync([card], ct))[0];
+    }
+
+    /// <summary>Numéro, nom et rareté d'une carte manuelle ; refuse un numéro déjà présent dans la série.</summary>
+    private async Task ApplyCardInputAsync(CatalogCard card, CatalogCardInput input, CancellationToken ct)
+    {
+        var number = Limit(input.Number.TrimOrNull(), 20, "Le numéro") ?? throw new BusinessException("Indiquez le numéro de la carte.");
+        var numbers = await db.CatalogCards
+            .Where(c => c.Language == card.Language && c.SetId == card.SetId && c.Id != card.Id)
+            .Select(c => c.Number)
+            .ToListAsync(ct);
+        if (numbers.Any(n => SameNumber(n, number)))
+            throw new BusinessException($"La carte n° {number} existe déjà dans cette série.");
+
+        card.Number = number;
+        card.Name = Limit(input.Name.TrimOrNull(), 200, "Le nom") ?? throw new BusinessException("Indiquez le nom de la carte.");
+        card.Rarity = Limit(input.Rarity.TrimOrNull(), 60, "La rareté");
+        // Ordre d'affichage proche de celui de TCGdex (position dans la série) : n° 95 -> 94.
+        card.SortOrder = int.TryParse(Regex.Match(number, @"\d+").Value, out var n) ? Math.Max(0, n - 1) : 0;
+    }
+
+    private static string? Limit(string? value, int max, string label) =>
+        value is { Length: var length } && length > max
+            ? throw new BusinessException($"{label} ne doit pas dépasser {max} caractères.")
+            : value;
+
     /// <summary>Supprime une carte du catalogue.</summary>
     public Task<CatalogDeleteResultDto> DeleteCardAsync(int id, CancellationToken ct) =>
         DeleteAsync(db.CatalogCards.Where(c => c.Id == id), ct);
@@ -397,6 +497,7 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
 
         db.CatalogCards.RemoveRange(cards);
         await db.SaveChangesAsync(ct);
+        await attachments.DeleteForOwnerAsync(AttachmentOwner.CatalogCard, ids.ToArray());
         return new CatalogDeleteResultDto(cards.Count, linked.Count);
     }
 
@@ -410,13 +511,21 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
             .GroupBy(i => i.CatalogCardId!.Value)
             .Select(g => new { Id = g.Key, Count = g.Sum(i => i.RemainingQuantity) })
             .ToDictionaryAsync(x => x.Id, x => x.Count, ct);
+        // Image ajoutée à la main : la plus récente (une image remplacée dont la suppression a échoué ne revient pas).
+        var photos = await db.Attachments.AsNoTracking()
+            .Where(a => a.OwnerType == AttachmentOwner.CatalogCard && a.Kind == AttachmentKind.Photo
+                        && a.ContentType.StartsWith("image/") && ids.Contains(a.OwnerId))
+            .GroupBy(a => a.OwnerId)
+            .Select(g => new { OwnerId = g.Key, Id = g.Max(a => a.Id) })
+            .ToDictionaryAsync(x => x.OwnerId, x => x.Id, ct);
 
         return cards.Select(c => new CatalogCardDto(
             c.Id, c.Language, c.TcgdexId, c.SetId, c.SetCode, c.SetName, c.SerieName, c.Number, c.Name, c.Rarity, c.ImageUrl,
             c.CardmarketId is null ? null
                 : $"https://www.cardmarket.com/fr/Pokemon/Products?idProduct={c.CardmarketId}" +
                   $"&language={Languages.GetValueOrDefault(c.Language, 2)}&minCondition=2",
-            c.Quote, c.QuoteUpdatedAt, stock.GetValueOrDefault(c.Id))).ToList();
+            c.Quote, c.QuoteUpdatedAt, stock.GetValueOrDefault(c.Id),
+            c.IsManual, photos.TryGetValue(c.Id, out var photoId) ? photoId : null)).ToList();
     }
 
     private static string CheckLanguage(string? language)

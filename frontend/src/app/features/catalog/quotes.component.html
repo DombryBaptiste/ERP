@@ -8,8 +8,12 @@
     </p>
   </div>
   <div class="page-actions">
+    <button mat-stroked-button (click)="openCard()" matTooltip="Pour une carte que TCGdex n'a pas encore">
+      <mat-icon>add</mat-icon> Ajouter une carte
+    </button>
     <button mat-flat-button (click)="openImport()"><mat-icon>download</mat-icon> Importer des séries</button>
   </div>
+  <input #imageInput type="file" accept="image/*" hidden (change)="uploadImage($event)">
 </div>
 
 @if (!loading() && sets().length === 0) {
@@ -17,6 +21,7 @@
     <mat-icon>style</mat-icon>
     <p>Le catalogue est vide. Importez les séries qui vous intéressent pour commencer à saisir les cotes.</p>
     <button mat-flat-button (click)="openImport()"><mat-icon>download</mat-icon> Importer des séries</button>
+    <button mat-button (click)="openCard()"><mat-icon>add</mat-icon> Ajouter une carte à la main</button>
   </div>
 } @else {
   <div class="filters">
@@ -77,14 +82,29 @@
     @for (c of visibleCards(); track c.id) {
       <div class="tile" [class.quoted]="c.quote !== null">
         @if (thumbnail(c); as img) {
-          <img [src]="img" [alt]="c.name" loading="lazy">
+          <div class="image-wrap">
+            <img [src]="img" [alt]="c.name" loading="lazy">
+            <span class="image-actions">
+              <button mat-mini-fab type="button" (click)="pickImage(c, imageInput)" matTooltip="Remplacer l'image">
+                <mat-icon>add_photo_alternate</mat-icon>
+              </button>
+              @if (c.photoId) {
+                <button mat-mini-fab type="button" (click)="removeImage(c)"
+                        [matTooltip]="c.imageUrl ? 'Revenir à l\'image TCGdex' : 'Retirer l\'image'"><mat-icon>hide_image</mat-icon></button>
+              }
+            </span>
+          </div>
         } @else {
-          <div class="no-image"><mat-icon>image_not_supported</mat-icon></div>
+          <button type="button" class="no-image add-image" (click)="pickImage(c, imageInput)">
+            <mat-icon>add_photo_alternate</mat-icon>
+            <span class="small">Ajouter une image</span>
+          </button>
         }
         <div class="tile-body">
           <div class="tile-title">
             <span class="ref">{{ code(c) }}</span>
             @if (c.language !== 'fr') { <span class="lang">{{ short(c.language) }}</span> }
+            @if (c.isManual) { <span class="manual" matTooltip="Ajoutée à la main : reprise à l'import de la série chez TCGdex">Manuelle</span> }
             @if (c.inStock) {
               <span class="stock" matTooltip="Exemplaires en stock liés à cette carte">{{ c.inStock }} en stock</span>
             }
@@ -114,6 +134,10 @@
               } @else if (c.cardmarketUrl) {
                 <a mat-icon-button [href]="c.cardmarketUrl" target="_blank" rel="noopener"
                    [matTooltip]="'Offres ' + short(c.language) + ' sur Cardmarket'"><mat-icon>open_in_new</mat-icon></a>
+              }
+              @if (c.isManual) {
+                <button mat-icon-button type="button" class="edit" (click)="openCard(c)"
+                        matTooltip="Modifier le numéro, le nom ou la rareté"><mat-icon>edit</mat-icon></button>
               }
               <button mat-icon-button type="button" class="delete" (click)="deleteCard(c)"
                       matTooltip="Supprimer cette carte du catalogue"><mat-icon>delete</mat-icon></button>

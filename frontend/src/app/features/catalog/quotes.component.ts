@@ -13,9 +13,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subject, debounceTime } from 'rxjs';
 import { CARD_LANGUAGES, cardCode, cardThumbnail, languageShort, parseSetKey, setKey } from '../../core/catalog';
 import { CardLanguage, CatalogCard, CatalogSet } from '../../core/models';
-import { CatalogService } from '../../core/services/api.services';
+import { AttachmentService, CatalogService } from '../../core/services/api.services';
 import { BuybackService } from '../../core/services/buyback.service';
 import { NotifyService } from '../../core/services/notify.service';
+import { CatalogCardDialogComponent, CatalogCardDialogData } from './catalog-card-dialog.component';
 import { ImportSetsDialogComponent } from './import-sets-dialog.component';
 
 interface SerieGroup {
@@ -39,6 +40,7 @@ interface SerieGroup {
 })
 export class QuotesComponent {
   private readonly api = inject(CatalogService);
+  private readonly attachments = inject(AttachmentService);
   private readonly notify = inject(NotifyService);
   private readonly dialog = inject(MatDialog);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -65,6 +67,8 @@ export class QuotesComponent {
   readonly drafts = signal(new Map<number, string>());
   readonly saving = signal(new Set<number>());
   private readonly search$ = new Subject<void>();
+  /** Carte dont on choisit l'image (le sélecteur de fichier est commun à la page). */
+  private imageTarget: CatalogCard | null = null;
 
   readonly groups = computed<SerieGroup[]>(() => {
     const groups: SerieGroup[] = [];
@@ -132,6 +136,54 @@ export class QuotesComponent {
       .subscribe(imported => { if (imported) this.loadSets(true); });
   }
 
+  /** Ajout d'une carte à la main (ou correction d'une carte manuelle) : la page affiche ensuite sa série. */
+  openCard(card?: CatalogCard): void {
+    const data: CatalogCardDialogData = { sets: this.sets(), card, set: this.currentSet() };
+    this.dialog.open(CatalogCardDialogComponent, { data, width: '560px' }).afterClosed()
+      .subscribe((saved?: CatalogCard) => {
+        if (!saved) return;
+        if (card) { this.replaceCard(saved); return; }
+        this.setId.set(setKey(saved));
+        this.loadSets(false);
+      });
+  }
+
+  /** Ouvre le choix d'un fichier pour l'image de la carte. */
+  pickImage(card: CatalogCard, input: HTMLInputElement): void {
+    this.imageTarget = card;
+    input.click();
+  }
+
+  /** Image choisie : elle remplace l'image ajoutée précédemment (l'image TCGdex reste en base, masquée). */
+  uploadImage(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const card = this.imageTarget;
+    input.value = '';  // permet de rechoisir le même fichier
+    if (!file || !card) return;
+    this.saving.update(s => new Set(s).add(card.id));
+    this.attachments.upload('CatalogCard', card.id, 'Photo', file).subscribe({
+      next: photo => {
+        if (card.photoId) this.attachments.delete(card.photoId).subscribe({ error: err => this.notify.error(err) });
+        this.setPhoto(card.id, photo.id);
+        this.stopSaving(card.id);
+      },
+      error: err => {
+        this.stopSaving(card.id);
+        this.notify.error(err);
+      }
+    });
+  }
+
+  /** Retire l'image ajoutée à la main (la carte reprend son image TCGdex, s'il y en a une). */
+  removeImage(card: CatalogCard): void {
+    if (!card.photoId) return;
+    this.attachments.delete(card.photoId).subscribe({
+      next: () => this.setPhoto(card.id, null),
+      error: err => this.notify.error(err)
+    });
+  }
+
   draft(card: CatalogCard): string {
     return this.drafts().get(card.id) ?? (card.quote === null ? '' : String(card.quote));
   }
@@ -156,7 +208,7 @@ export class QuotesComponent {
     this.saving.update(s => new Set(s).add(card.id));
     this.api.setQuote(card.id, quote).subscribe({
       next: updated => {
-        this.cards.update(list => list.map(c => c.id === updated.id ? updated : c));
+        this.replaceCard(updated);
         this.clearDraft(card.id);
         this.stopSaving(card.id);
         this.sets.update(list => list.map(s => s.setId !== updated.setId ? s : {
@@ -223,6 +275,15 @@ export class QuotesComponent {
     const index = inputs.indexOf(event.target as HTMLInputElement);
     inputs[index + 1]?.focus();
     inputs[index + 1]?.select();
+  }
+
+  private replaceCard(card: CatalogCard): void {
+    this.cards.update(list => list.map(c => c.id === card.id ? card : c));
+  }
+
+  /** Met à jour l'image sur la carte affichée (sa cote a pu changer pendant l'envoi). */
+  private setPhoto(id: number, photoId: number | null): void {
+    this.cards.update(list => list.map(c => c.id === id ? { ...c, photoId } : c));
   }
 
   private clearDraft(id: number): void {

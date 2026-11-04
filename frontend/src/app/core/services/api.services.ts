@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkSettings, CatalogCard, CatalogImportResult,
+  Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkSettings, CatalogCard, CatalogCardInput, CatalogImportResult,
   CardLanguage, CatalogDeleteResult, CatalogSet, Dashboard, RarityGroup, InventoryItem, InventoryItemInput,
   PlatformFeeInvoice, PlatformFeeInvoiceInput, PlatformFeeMonth,
   Purchase, PurchaseInput, RefundInput, Sale, SaleInput, ShippingSummary, ShippingSupply, ShippingSupplyInput, Statistics,
@@ -212,6 +212,14 @@ export class CatalogService {
     if (filter.quotedOnly) params = params.set('quotedOnly', true);
     if (filter.take) params = params.set('take', filter.take);
     return this.http.get<CatalogCard[]>(`${this.url}/cards`, { params });
+  }
+
+  createCard(input: CatalogCardInput): Observable<CatalogCard> {
+    return this.http.post<CatalogCard>(`${this.url}/cards`, input);
+  }
+
+  updateCard(id: number, input: CatalogCardInput): Observable<CatalogCard> {
+    return this.http.put<CatalogCard>(`${this.url}/cards/${id}`, input);
   }
 
   setQuote(id: number, quote: number | null): Observable<CatalogCard> {

@@ -175,6 +175,7 @@ public static class DbInitializer
               rarity           VARCHAR(60)   NULL,
               image_url        VARCHAR(300)  NULL,
               cardmarket_id    BIGINT        NULL,
+              is_manual        TINYINT(1)    NOT NULL DEFAULT 0,
               quote            DECIMAL(10,2) NULL,
               quote_updated_at DATETIME(6)   NULL,
               created_at       DATETIME(6)   NOT NULL,
@@ -193,6 +194,8 @@ public static class DbInitializer
                 "ADD UNIQUE KEY IX_card_catalog_language_tcgdex_id (language, tcgdex_id), " +
                 "ADD KEY IX_card_catalog_language_set_id (language, set_id)");
         await EnsureColumnAsync(db, "inventory_items", "catalog_card_id", "INT NULL AFTER market_value_updated_at");
+        // Cartes saisies à la main, en attendant qu'elles arrivent chez TCGdex.
+        await EnsureColumnAsync(db, "card_catalog", "is_manual", "TINYINT(1) NOT NULL DEFAULT 0 AFTER cardmarket_id");
 
         // Frais Cardmarket facturés au mois : la facture est répartie sur les ventes du mois.
         await EnsureColumnAsync(db, "sales", "fees_from_invoice", "TINYINT(1) NOT NULL DEFAULT 0 AFTER fees");

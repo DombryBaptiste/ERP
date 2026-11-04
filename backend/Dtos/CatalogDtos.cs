@@ -7,7 +7,17 @@ public record CatalogCardDto(
     string? ImageUrl,       // sans extension : ajouter /low.webp (vignette) ou /high.webp
     string? CardmarketUrl,  // page produit filtrée sur les offres dans la langue de la carte, NM ou mieux
     decimal? Quote, DateTime? QuoteUpdatedAt,
-    int InStock);           // exemplaires en stock liés à cette carte
+    int InStock,            // exemplaires en stock liés à cette carte
+    bool IsManual,          // carte saisie à la main
+    int? PhotoId);          // image ajoutée à la main (pièce jointe), prioritaire sur l'image TCGdex
+
+/// <summary>
+/// Carte saisie à la main. Avec <c>SetId</c> d'une série du catalogue, elle en reprend le nom, le code et le bloc ;
+/// sans, une nouvelle série est créée avec <c>SetName</c>, <c>SetCode</c> et <c>SerieName</c>.
+/// </summary>
+public record CatalogCardInput(
+    string Language, string? SetId, string? SetCode, string? SetName, string? SerieName,
+    string Number, string Name, string? Rarity);
 
 /// <summary>Série importée dans le catalogue.</summary>
 public record CatalogSetDto(
