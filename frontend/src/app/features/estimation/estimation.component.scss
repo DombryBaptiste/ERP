@@ -131,3 +131,5 @@
   .layout { grid-template-columns: 1fr; }
   .selection { position: static; max-height: none; }
 }
+
+.danger { color: var(--app-danger); }

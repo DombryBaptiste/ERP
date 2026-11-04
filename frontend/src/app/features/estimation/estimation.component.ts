@@ -3,6 +3,7 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -10,7 +11,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
-import { Subject, debounceTime } from 'rxjs';
+import { catchError, debounceTime, from, map, mergeMap, Observable, of, Subject, switchMap, toArray } from 'rxjs';
 import {
   CARD_LANGUAGES, cardCode, cardThumbnail, catalogCategory, languageLabel, languageShort, parseSetKey, setKey
 } from '../../core/catalog';
@@ -19,6 +20,8 @@ import { CardLanguage, CatalogCard, CatalogSet, ItemCondition, PurchaseLineInput
 import { CatalogService } from '../../core/services/api.services';
 import { BuybackService } from '../../core/services/buyback.service';
 import { NotifyService } from '../../core/services/notify.service';
+import { EstimationImportDialogComponent, EstimationImportDialogData, EstimationImportResult } from './estimation-import-dialog.component';
+import { ParsedEstimationLine, parseEstimationText } from './estimation-text';
 
 /** Une carte de la collection à estimer. */
 export interface EstimationLine {
@@ -51,6 +54,7 @@ export class EstimationComponent {
   private readonly api = inject(CatalogService);
   private readonly notify = inject(NotifyService);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
   readonly buyback = inject(BuybackService);
 
   readonly code = cardCode;
@@ -69,6 +73,7 @@ export class EstimationComponent {
   readonly results = signal<CatalogCard[]>([]);
   readonly searching = signal(false);
   readonly lines = signal<EstimationLine[]>(this.restore());
+  readonly importing = signal(false);
   private readonly search$ = new Subject<void>();
 
   readonly totals = computed(() => this.lines().reduce((t, l) => ({
@@ -159,11 +164,65 @@ export class EstimationComponent {
     this.lines.update(lines => lines.filter(l => l !== line));
   }
 
+  /** Vide toute la sélection, après confirmation (pensez à « Copier l'estimation » pour la reprendre plus tard). */
   reset(): void {
     this.notify.confirm({
-      title: 'Vider l\'estimation ?',
-      message: `Les ${this.lines().length} ligne(s) sélectionnée(s) seront retirées.`
+      title: 'Tout supprimer ?',
+      message: `Les ${this.lines().length} ligne(s) de l'estimation seront retirées. `
+        + `Pour la reprendre plus tard, copiez-la d'abord avec « Copier l'estimation ».`
     }).subscribe(confirmed => { if (confirmed) this.lines.set([]); });
+  }
+
+  /** Reprend une estimation copiée (« Copier l'estimation ») : en remplacement ou en plus de la sélection. */
+  importEstimation(): void {
+    const data: EstimationImportDialogData = { hasLines: this.lines().length > 0 };
+    this.dialog.open(EstimationImportDialogComponent, { data, width: '680px' }).afterClosed()
+      .subscribe((result?: EstimationImportResult) => { if (result) this.importText(result.text, result.replace); });
+  }
+
+  private importText(text: string, replace: boolean): void {
+    const { lines: parsed, unreadable } = parseEstimationText(text);
+    if (parsed.length === 0) {
+      this.notify.error(null, 'Aucune ligne d\'estimation reconnue : collez le texte de « Copier l\'estimation ».');
+      return;
+    }
+    this.importing.set(true);
+    from(parsed.map((line, index) => ({ line, index }))).pipe(
+      mergeMap(({ line, index }) => this.findCard(line).pipe(map(card => ({ line, index, card }))), 4),
+      toArray()
+    ).subscribe(found => {
+      found.sort((a, b) => a.index - b.index);
+      const lines: EstimationLine[] = [];
+      const missing: string[] = [];
+      for (const { line, card } of found) {
+        if (card) lines.push({ card, condition: line.condition, quantity: line.quantity, quote: line.quote });
+        else missing.push(line.code);
+      }
+      this.lines.update(current => replace ? lines : [...lines, ...current]);
+      this.importing.set(false);
+
+      const problems = [
+        missing.length ? `introuvable(s) dans le catalogue : ${missing.join(', ')}` : '',
+        unreadable ? `${unreadable} ligne(s) non reconnue(s)` : ''
+      ].filter(Boolean);
+      if (problems.length) this.notify.error(null, `${lines.length} carte(s) reprise(s) ; ${problems.join(' ; ')}.`);
+      else this.notify.success(`${lines.length} carte(s) reprise(s).`);
+    });
+  }
+
+  /**
+   * Carte du catalogue d'une ligne relue : recherche par code (« PFL 095 »), puis par nom si le code ne suffit pas
+   * (série sans code). En cas de doublon, le code exact puis le nom départagent.
+   */
+  private findCard(line: ParsedEstimationLine): Observable<CatalogCard | undefined> {
+    const pick = (cards: CatalogCard[]) => cards.find(c => cardCode(c) === line.code) ?? cards.find(c => c.name === line.name);
+    return this.api.cards({ language: line.language, search: line.code, take: 50 }).pipe(
+      switchMap(cards => {
+        const card = pick(cards) ?? (cards.length === 1 ? cards[0] : undefined);
+        return card || line.name.length < 2 ? of(card)
+          : this.api.cards({ language: line.language, search: line.name, take: 200 }).pipe(map(pick));
+      }),
+      catchError(() => of(undefined)));
   }
 
   /** Valeur unitaire : cote × part retenue selon l'état. */
