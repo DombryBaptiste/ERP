@@ -29,6 +29,11 @@ public class CatalogCard
     public string? ImageUrl { get; set; }
     /// <summary>Identifiant du produit Cardmarket (idProduct).</summary>
     public long? CardmarketId { get; set; }
+    /// <summary>
+    /// Carte saisie à la main (série pas encore à jour chez TCGdex). Un import TCGdex ultérieur la reprend
+    /// par son numéro, avec sa cote, son image et ses articles liés.
+    /// </summary>
+    public bool IsManual { get; set; }
     /// <summary>Cote saisie à la main (prix FR NM, en euros).</summary>
     public decimal? Quote { get; set; }
     public DateTime? QuoteUpdatedAt { get; set; }

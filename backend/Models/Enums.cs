@@ -92,7 +92,8 @@ public enum AttachmentOwner
     Purchase,
     Sale,
     ShippingSupply,  // Achat de fournitures d'envoi (ticket de La Poste, facture de bordereaux...)
-    PlatformFeeInvoice  // Facture mensuelle de frais de plateforme (Cardmarket)
+    PlatformFeeInvoice,  // Facture mensuelle de frais de plateforme (Cardmarket)
+    CatalogCard  // Image ajoutée à une carte du catalogue (sans visuel TCGdex)
 }
 
 /// <summary>Nature d'une fourniture d'envoi.</summary>

@@ -196,6 +196,12 @@ La documentation interactive de l'API (Swagger) est disponible en développement
 - **Supprimer** : l'icône corbeille d'une carte, ou **Supprimer la série** pour la série affichée, retire les cartes
   du catalogue avec leurs cotes. Les cartes en stock liées restent dans l'inventaire et passent en « Hors catégorie ».
   Une série supprimée peut être réimportée.
+- **Ajouter une carte** (TCGdex pas encore à jour) : dans une série du catalogue ou dans une nouvelle série (nom, code,
+  bloc), avec numéro, nom, rareté et image. La carte porte la mention « Manuelle » et se corrige avec le crayon.
+  À l'import de sa série chez TCGdex (même identifiant ou même code), elle est reprise par son numéro : elle garde
+  sa cote, son image et ses articles liés.
+- **Image** : une carte sans visuel affiche « Ajouter une image » ; au survol d'une image, on peut la remplacer
+  ou revenir à l'image TCGdex. L'image ajoutée sert aussi dans les achats et l'estimation.
 - Saisissez la **cote FR (NM)** de chaque carte : **Entrée** enregistre et passe à la carte suivante. Le lien
   « Offres » ouvre Cardmarket filtré sur la langue de la carte, NM ou mieux.
 - Onglet **Estimation** : cherchez une carte (nom ou code, ex. `PFL 95`) et cliquez pour l'ajouter. Pour chaque carte :
@@ -363,6 +369,8 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 | GET | `/api/catalog/available-sets?language=fr\|ja\|ko\|zh-tw\|zh-cn` | Séries disponibles chez TCGdex dans une langue |
 | POST | `/api/catalog/sets/:setId/import?language=fr&groups=Other&groups=Holo` | Importe ou met à jour une série (`groups` : `Common`, `Uncommon`, `Rare`, `Holo`, `ClassicEx`, `NoRarity`, `Unknown`, `Other` ; par défaut `Other` + `Unknown`) |
 | GET | `/api/catalog/cards?language=&setId=&search=&quotedOnly=&take=` | Cartes du catalogue (`search` : nom ou code + numéro, ex. `PFL 95`) |
+| POST | `/api/catalog/cards` | Ajoute une carte à la main `{ language, setId \| setName, setCode, serieName, number, name, rarity }` |
+| PUT | `/api/catalog/cards/:id` | Corrige une carte ajoutée à la main (numéro, nom, rareté) |
 | PUT | `/api/catalog/cards/:id/quote` | Cote d'une carte `{ quote }` (null pour l'effacer) |
 | DELETE | `/api/catalog/cards/:id` | Supprime une carte du catalogue (articles liés → « Hors catégorie ») |
 | DELETE | `/api/catalog/sets/:setId?language=fr` | Supprime toute une série du catalogue |

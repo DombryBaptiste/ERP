@@ -11,7 +11,7 @@ export type PurchaseSource = 'Supplier' | 'PersonalCollection';
 export type PurchasePlatform = 'Cardmarket' | 'Ebay' | 'Vinted' | 'Leboncoin' | 'FacebookMarketplace' | 'Amazon' | 'Store' | 'Other';
 export type ItemOrigin = 'Purchase' | 'PersonalCollection' | 'Manual';
 export type PaymentMethod = 'Platform' | 'BankTransfer' | 'PayPal' | 'Card' | 'Cash' | 'Check' | 'Other';
-export type AttachmentOwner = 'InventoryItem' | 'Purchase' | 'Sale' | 'ShippingSupply' | 'PlatformFeeInvoice';
+export type AttachmentOwner = 'InventoryItem' | 'Purchase' | 'Sale' | 'ShippingSupply' | 'PlatformFeeInvoice' | 'CatalogCard';
 export type ShippingSupplyKind = 'Stamp' | 'Label' | 'Envelope' | 'Protection' | 'Box' | 'Other';
 export type ShippingCarrier = 'LaPoste' | 'Colissimo' | 'MondialRelay' | 'RelaisColis' | 'Chronopost' | 'VintedGo' | 'Ups' | 'HandDelivery' | 'Other';
 export type AttachmentKind = 'Photo' | 'Receipt' | 'Listing' | 'OriginProof' | 'Other';
@@ -624,6 +624,22 @@ export interface CatalogCard {
   quoteUpdatedAt: string | null;
   /** Exemplaires en stock liés à cette carte. */
   inStock: number;
+  /** Carte saisie à la main (absente de TCGdex au moment de l'ajout). */
+  isManual: boolean;
+  /** Image ajoutée à la main (pièce jointe), prioritaire sur l'image TCGdex. */
+  photoId: number | null;
+}
+
+/** Carte saisie à la main : série du catalogue (setId) ou nouvelle série (setName, setCode, serieName). */
+export interface CatalogCardInput {
+  language: CardLanguage;
+  setId: string | null;
+  setCode: string | null;
+  setName: string | null;
+  serieName: string | null;
+  number: string;
+  name: string;
+  rarity: string | null;
 }
 
 export interface CatalogSet {

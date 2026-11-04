@@ -123,7 +123,7 @@ public class AttachmentService(AppDbContext db, IConfiguration config, IWebHostE
         DeleteFile(a);
     }
 
-    /// <summary>Supprime les fichiers d'un élément supprimé (article, achat, vente, fourniture, facture de frais).</summary>
+    /// <summary>Supprime les fichiers d'un élément supprimé (article, achat, vente, fourniture, facture de frais, carte du catalogue).</summary>
     public async Task DeleteForOwnerAsync(AttachmentOwner owner, params int[] ownerIds)
     {
         var rows = await db.Attachments.Where(a => a.OwnerType == owner && ownerIds.Contains(a.OwnerId)).ToListAsync();
@@ -150,6 +150,7 @@ public class AttachmentService(AppDbContext db, IConfiguration config, IWebHostE
             AttachmentOwner.Sale => await db.Sales.AnyAsync(s => s.Id == id),
             AttachmentOwner.ShippingSupply => await db.ShippingSupplies.AnyAsync(s => s.Id == id),
             AttachmentOwner.PlatformFeeInvoice => await db.PlatformFeeInvoices.AnyAsync(f => f.Id == id),
+            AttachmentOwner.CatalogCard => await db.CatalogCards.AnyAsync(c => c.Id == id),
             _ => false
         };
         if (!exists) throw BusinessException.NotFound("Élément introuvable : enregistrez-le avant d'ajouter des fichiers.");

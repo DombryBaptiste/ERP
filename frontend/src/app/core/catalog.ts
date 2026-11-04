@@ -90,6 +90,8 @@ export function cardCode(card: Pick<CatalogCard, 'setCode' | 'setId' | 'number'>
   return `${card.setCode ?? card.setId} ${card.number}`;
 }
 
-export function cardThumbnail(card: Pick<CatalogCard, 'imageUrl'>): string | null {
+/** Vignette : image ajoutée à la main en priorité, sinon visuel TCGdex. */
+export function cardThumbnail(card: Pick<CatalogCard, 'imageUrl'> & { photoId?: number | null }): string | null {
+  if (card.photoId) return `/api/attachments/${card.photoId}/file`;
   return card.imageUrl ? `${card.imageUrl}/low.webp` : null;
 }

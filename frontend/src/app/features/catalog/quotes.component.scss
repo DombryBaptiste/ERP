@@ -56,6 +56,46 @@
     justify-content: center;
     color: var(--app-muted);
   }
+
+  // Carte sans image : cliquer pour en ajouter une.
+  .add-image {
+    flex-direction: column;
+    gap: 4px;
+    border: 2px dashed #d5d8de;
+    font: inherit;
+    cursor: pointer;
+
+    mat-icon { font-size: 32px; width: 32px; height: 32px; }
+    &:hover { color: var(--app-primary); border-color: currentColor; }
+  }
+}
+
+.image-wrap {
+  position: relative;
+
+  img { display: block; }
+
+  // Boutons de l'image, affichés au survol.
+  .image-actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  &:hover .image-actions, .image-actions:focus-within { opacity: 1; }
+}
+
+.manual {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #f3e5f5;
+  color: #7b1fa2;
 }
 
 .tile-body {
@@ -100,6 +140,7 @@
 
   .state { color: var(--app-muted); }
   .tile-actions { display: flex; align-items: center; }
-  .delete { color: var(--app-muted); }
+  .delete, .edit { color: var(--app-muted); }
+  .edit:hover { color: var(--app-primary); }
   .delete:hover { color: var(--app-danger); }
 }
