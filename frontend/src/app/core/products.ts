@@ -99,19 +99,36 @@ export interface LotAllocation {
 }
 
 /**
- * Répartit une quantité sur les lots en FIFO (les plus anciens d'abord).
- * Renvoie null si le stock total ne suffit pas.
+ * Répartit une quantité sur les lots AU PRORATA de leur stock (bulk) : chaque vente prend un peu de
+ * chaque lot, donc son coût est le coût moyen du stock, quel que soit l'ordre des ajouts.
+ * Le bulk de la collection (0 €) et le bulk acheté sont mélangés dans les boîtes : les vendre en FIFO
+ * ferait partir l'un puis l'autre et fausserait la rentabilité de chaque vente.
+ * Les arrondis sont répartis selon les plus grands restes. <c>missing</c> = quantité non couverte.
  */
-export function allocateFifo(lots: InventoryItem[], quantity: number): LotAllocation[] | null {
-  const result: LotAllocation[] = [];
-  let wanted = quantity;
-  for (const lot of [...lots].sort(byFifo)) {
-    if (wanted <= 0) break;
-    const take = Math.min(lot.remainingQuantity, wanted);
-    if (take > 0) {
-      result.push({ lot, quantity: take });
-      wanted -= take;
-    }
+export function allocateProportional<T extends { id: number }>(
+  lots: T[], quantity: number, stock: (lot: T) => number
+): { lots: { lot: T; quantity: number }[]; missing: number } {
+  const available = lots.map(lot => Math.max(0, stock(lot)));
+  const total = available.reduce((s, a) => s + a, 0);
+  const wanted = Math.max(0, Math.min(quantity, total));
+  if (wanted === 0) return { lots: [], missing: Math.max(0, quantity) };
+
+  const shares = available.map(a => (a * wanted) / total);
+  const taken = shares.map(Math.floor);
+  let rest = wanted - taken.reduce((s, t) => s + t, 0);
+  const byRemainder = shares.map((_, i) => i).sort((a, b) => (shares[b] - taken[b]) - (shares[a] - taken[a]) || a - b);
+  for (const i of byRemainder) {
+    if (rest <= 0) break;
+    if (taken[i] < available[i]) { taken[i]++; rest--; }
   }
-  return wanted > 0 ? null : result;
+  return {
+    lots: lots.map((lot, i) => ({ lot, quantity: taken[i] })).filter(a => a.quantity > 0),
+    missing: quantity - wanted
+  };
+}
+
+/** Lots de bulk à prélever pour une vente (au prorata) ; null si le stock ne suffit pas. */
+export function allocateBulk(lots: InventoryItem[], quantity: number): LotAllocation[] | null {
+  const { lots: taken, missing } = allocateProportional([...lots].sort(byFifo), quantity, lot => lot.remainingQuantity);
+  return missing > 0 ? null : taken;
 }

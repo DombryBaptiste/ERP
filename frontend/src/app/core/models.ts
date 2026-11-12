@@ -509,6 +509,28 @@ export interface BulkSettings {
   categories: BulkCategory[];
 }
 
+/** Vente de bulk dont le coût change avec le recalcul au coût moyen. */
+export interface BulkRebalanceSale {
+  saleId: number;
+  saleNumber: string;
+  saleDate: string;
+  categories: string;
+  cards: number;
+  oldCost: number;
+  newCost: number;
+  oldProfit: number;
+  newProfit: number;
+}
+
+/** Aperçu (ou résultat) du recalcul des ventes de bulk au coût moyen. */
+export interface BulkRebalance {
+  applied: boolean;
+  sales: BulkRebalanceSale[];
+  profitDifference: number;
+  /** Ventes ou catégories laissées telles quelles, avec la raison. */
+  skipped: string[];
+}
+
 // ----- Frais d'envoi -----
 export interface ShippingSupply {
   id: number;

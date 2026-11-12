@@ -96,6 +96,18 @@ public class BulkSettingsController(BulkSettingsService service) : ControllerBas
     public Task<BulkSettings> Save(BulkSettings settings) => service.SaveAsync(settings);
 }
 
+/// <summary>Bulk : recalcul des ventes déjà enregistrées au coût moyen (aperçu puis application).</summary>
+[ApiController]
+[Route("api/bulk/rebalance")]
+public class BulkRebalanceController(BulkRebalanceService service) : ControllerBase
+{
+    [HttpGet]
+    public Task<BulkRebalanceDto> Preview() => service.PreviewAsync();
+
+    [HttpPost]
+    public Task<BulkRebalanceDto> Apply() => service.ApplyAsync();
+}
+
 /// <summary>Frais d'envoi : achats de fournitures (timbres, bordereaux, emballages) et synthèse.</summary>
 [ApiController]
 [Route("api/shipping")]

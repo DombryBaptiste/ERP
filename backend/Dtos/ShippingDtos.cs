@@ -40,3 +40,14 @@ public record ShippingSummaryDto(
     List<CarrierStatDto> Carriers);
 
 public record CarrierStatDto(ShippingCarrier? Carrier, int Shipments, decimal Cost, decimal PaidByBuyers);
+
+// ----- Bulk : recalcul des ventes au coût moyen -----
+
+/// <summary>Vente de bulk dont le coût change avec le recalcul.</summary>
+public record BulkRebalanceSaleDto(
+    int SaleId, string SaleNumber, DateTime SaleDate, string Categories, int Cards,
+    decimal OldCost, decimal NewCost, decimal OldProfit, decimal NewProfit);
+
+/// <summary>Résultat (aperçu ou application) du recalcul des ventes de bulk.</summary>
+public record BulkRebalanceDto(
+    bool Applied, List<BulkRebalanceSaleDto> Sales, decimal ProfitDifference, List<string> Skipped);

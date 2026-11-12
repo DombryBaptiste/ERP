@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkSettings, CatalogCard, CatalogCardInput, CatalogImportResult,
+  Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkRebalance, BulkSettings, CatalogCard, CatalogCardInput, CatalogImportResult,
   CardLanguage, CatalogDeleteResult, CatalogSet, Dashboard, RarityGroup, InventoryItem, InventoryItemInput,
   PlatformFeeInvoice, PlatformFeeInvoiceInput, PlatformFeeMonth,
   Purchase, PurchaseInput, RefundInput, Sale, SaleInput, ShippingSummary, ShippingSupply, ShippingSupplyInput, Statistics,
@@ -113,6 +113,9 @@ export class BulkService {
 
   settings(): Observable<BulkSettings> { return this.http.get<BulkSettings>(this.url); }
   saveSettings(settings: BulkSettings): Observable<BulkSettings> { return this.http.put<BulkSettings>(this.url, settings); }
+  /** Aperçu du recalcul des ventes de bulk au coût moyen (rien n'est enregistré). */
+  previewRebalance(): Observable<BulkRebalance> { return this.http.get<BulkRebalance>('/api/bulk/rebalance'); }
+  applyRebalance(): Observable<BulkRebalance> { return this.http.post<BulkRebalance>('/api/bulk/rebalance', {}); }
 }
 
 /** Fichiers joints (/api/attachments) */

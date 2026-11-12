@@ -37,6 +37,7 @@ builder.Services.AddScoped<TaxService>();
 builder.Services.AddScoped<SettingsStore>();
 builder.Services.AddScoped<PreferencesService>();
 builder.Services.AddScoped<BulkSettingsService>();
+builder.Services.AddScoped<BulkRebalanceService>();
 builder.Services.AddScoped<ShippingService>();
 builder.Services.AddScoped<PlatformFeeService>();
 builder.Services.AddScoped<AttachmentService>();

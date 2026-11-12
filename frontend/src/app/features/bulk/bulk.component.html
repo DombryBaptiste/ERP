@@ -6,6 +6,10 @@
   </div>
   <div class="page-actions">
     <button mat-stroked-button (click)="showSettings.set(!showSettings())"><mat-icon>tune</mat-icon> Réglages</button>
+    <button mat-stroked-button (click)="openRebalance()"
+            matTooltip="Recalcule le coût et le bénéfice des ventes de bulk déjà faites au coût moyen (aperçu avant d'appliquer)">
+      <mat-icon>calculate</mat-icon> Recalculer les ventes
+    </button>
     <button mat-stroked-button (click)="openAdd()"><mat-icon>add</mat-icon> Ajouter du bulk</button>
     <button mat-flat-button (click)="openSell()"><mat-icon>sell</mat-icon> Vendre un lot</button>
   </div>
@@ -110,8 +114,9 @@
       <mat-card-content>
         <ul class="tips">
           <li><strong>Ajouter</strong> : un lot de bulk acheté (ex. 3 000 cartes pour 30 €) ou les cartes de votre collection (0 €). Il apparaît dans les achats et le registre comme les autres achats.</li>
-          <li><strong>Vendre un lot</strong> : choisissez la catégorie, le nombre de cartes (ou le poids) et le prix du lot. Les cartes les plus anciennes partent en premier, et le bénéfice utilise leur coût réel.</li>
+          <li><strong>Vendre un lot</strong> : choisissez la catégorie, le nombre de cartes (ou le poids) et le prix du lot. Le bulk de la collection et le bulk acheté étant mélangés, chaque vente prend sa part de chaque lot : le bénéfice utilise le coût moyen du stock.</li>
           <li>Les ventes de bulk entrent dans le CA, l'URSSAF, le livre des recettes et les statistiques, comme les autres ventes.</li>
+          <li><strong>Recalculer les ventes</strong> : remet au coût moyen les ventes de bulk faites avant ce mode de calcul (aperçu avant d'appliquer).</li>
           <li>Les catégories apparaissent aussi dans l'<a routerLink="/inventory">inventaire</a> (type « Bulk »).</li>
         </ul>
       </mat-card-content>

@@ -94,12 +94,16 @@ public class InvoicePdfService
                         h.Cell().Element(HeaderCell).AlignRight().Text("Total");
                     });
 
-                    foreach (var item in sale.Items.OrderBy(i => i.Id))
+                    // Un même article pris sur plusieurs lots (ex. bulk) n'apparaît qu'une fois : même désignation, même prix.
+                    var lines = sale.Items.OrderBy(i => i.Id)
+                        .GroupBy(i => (i.InventoryItem.Name, i.SalePrice))
+                        .Select(g => (g.Key.Name, g.Key.SalePrice, Quantity: g.Sum(i => i.Quantity)));
+                    foreach (var (name, salePrice, quantity) in lines)
                     {
-                        table.Cell().Element(BodyCell).Text(item.InventoryItem.Name);
-                        table.Cell().Element(BodyCell).AlignRight().Text(item.Quantity.ToString(Fr));
-                        table.Cell().Element(BodyCell).AlignRight().Text(UnitMoney(item.SalePrice));
-                        table.Cell().Element(BodyCell).AlignRight().Text(Money(item.Quantity * item.SalePrice));
+                        table.Cell().Element(BodyCell).Text(name);
+                        table.Cell().Element(BodyCell).AlignRight().Text(quantity.ToString(Fr));
+                        table.Cell().Element(BodyCell).AlignRight().Text(UnitMoney(salePrice));
+                        table.Cell().Element(BodyCell).AlignRight().Text(Money(quantity * salePrice));
                     }
                 });
 
