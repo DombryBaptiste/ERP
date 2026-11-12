@@ -233,7 +233,8 @@ export class BulkAddDialogComponent {
           condition: item.condition,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          location: item.location
+          location: item.location,
+          catalogCardId: item.catalogCardId
         })),
         ...addition.items
       ]

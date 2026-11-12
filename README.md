@@ -261,7 +261,8 @@ Onglet **Bulk** : les communes, peu communes, reverses, etc. se gèrent **au nom
   Cela crée un achat (A…) ou un transfert de collection (C…, 0 €), avec un coût par carte (ex. 30 € / 3 000 = 0,01 €).
 - **Depuis un achat ou une vente** : une ligne de bulk se saisit avec le **nombre de cartes et le prix total du lot** ; le prix par carte est calculé automatiquement.
 - **Vendre un lot** : catégorie, nombre de cartes (ou poids), prix du lot proposé d'après le prix conseillé.
-  Les cartes les plus anciennes partent en premier (FIFO) ; coût réel, bénéfice et marge sont affichés avant de valider.
+  Les cartes sont prélevées **au prorata de chaque lot** (collection à 0 € et achats mélangés) : chaque vente est comptée
+  au coût moyen du stock, pour une rentabilité juste. Coût, bénéfice et marge sont affichés avant de valider.
   C'est une vente normale : CA, URSSAF, livre des recettes et statistiques sont à jour.
 - Calculatrice « compter au poids », historique des ajouts et des ventes de bulk.
 - Les prix unitaires sont stockés avec 6 décimales (0,133333 € la carte), pour que le total d'un lot tombe juste au centime.
@@ -285,7 +286,8 @@ Onglet **Bulk** : les communes, peu communes, reverses, etc. se gèrent **au nom
   - flèche pour déplier le détail des lots (date, n° d'achat, prix, restant, localisation) ;
   - la valeur de marché saisie sur le produit s'applique à tous ses lots.
 - **Ventes en FIFO** : on vend un produit, et les lots les plus anciens partent en premier. Le bénéfice
-  utilise le prix réel de chaque lot (ex. 2 unités à 4,50 € + 1 à 6,00 €).
+  utilise le prix réel de chaque lot (ex. 2 unités à 4,50 € + 1 à 6,00 €). Exception : le **bulk** est prélevé au
+  prorata de tous ses lots (coût moyen du stock).
 - À la saisie d'un achat, le nom propose les produits déjà en stock et reprend leur type et leur état,
   pour que le nouveau lot rejoigne bien le même produit.
 - Un article peut être ajouté manuellement (sans achat), par exemple une carte de votre collection personnelle.

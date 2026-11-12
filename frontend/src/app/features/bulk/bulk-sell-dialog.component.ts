@@ -11,7 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { cardmarketSaleFeeForItem, defaultPaymentFor, PAYMENT_METHODS, PLATFORMS } from '../../core/labels';
 import { BulkSettings, PaymentMethod, Sale, SaleInput, SalePlatform } from '../../core/models';
-import { allocateFifo, ProductGroup } from '../../core/products';
+import { allocateBulk, ProductGroup } from '../../core/products';
 import { SaleService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 import { euro, roundMoney, toIsoDate, unitPrice } from '../../core/utils';
@@ -26,7 +26,7 @@ export interface BulkSellDialogData {
 
 /**
  * Vente d'un lot de bulk : nombre de cartes (ou poids) + prix du lot.
- * Les cartes sont prélevées sur les lots les plus anciens (FIFO) ; une vente classique est créée,
+ * Les cartes sont prélevées au prorata sur tous les lots (coût moyen du stock, collection et achats mélangés) ; une vente classique est créée,
  * donc le CA, l'URSSAF, le livre des recettes et les statistiques sont à jour.
  */
 @Component({
@@ -193,10 +193,10 @@ export class BulkSellDialogComponent {
   readonly lotPrice = computed(() => this.priceField() ?? 0);
   readonly pricePerCard = computed(() => unitPrice(this.lotPrice(), this.cards()));
 
-  /** Coût FIFO réel des cartes vendues, bénéfice et marge. */
+  /** Coût réel des cartes vendues (prélevées au prorata de chaque lot = coût moyen du stock), bénéfice et marge. */
   readonly result = computed(() => {
     const product = this.product();
-    const allocation = product ? allocateFifo(product.lots, this.cards()) : null;
+    const allocation = product ? allocateBulk(product.lots, this.cards()) : null;
     if (!allocation) return { missing: true, cost: 0, profit: 0, margin: 0 };
     const cost = allocation.reduce((sum, a) => sum + a.quantity * a.lot.purchasePrice, 0);
     const profit = this.lotPrice() - cost - (this.fees() || 0);
@@ -228,7 +228,7 @@ export class BulkSellDialogComponent {
   save(): void {
     const product = this.product();
     const quantity = this.cards();
-    const allocation = product ? allocateFifo(product.lots, quantity) : null;
+    const allocation = product ? allocateBulk(product.lots, quantity) : null;
     if (!product || !allocation || quantity < 1) {
       this.notify.error(null, 'Stock de bulk insuffisant pour ce lot.');
       return;

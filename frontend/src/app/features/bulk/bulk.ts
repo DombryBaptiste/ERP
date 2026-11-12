@@ -4,7 +4,8 @@ import { groupProducts, ProductGroup } from '../../core/products';
 /**
  * Le bulk (communes, peu communes, reverses…) est géré comme un produit de l'inventaire de type « Bulk »,
  * dont la quantité est un nombre de cartes. Chaque ajout crée un lot (avec son coût par carte), et chaque
- * vente de lot prélève les cartes en FIFO : le bénéfice utilise le coût moyen réel des cartes vendues.
+ * vente de lot prélève les cartes au prorata de chaque lot : le bulk de la collection (0 €) et le bulk acheté
+ * étant mélangés dans les boîtes, chaque vente est comptée au coût moyen du stock.
  */
 
 /** État fixe des lots de bulk : il fait partie de la clé produit, il doit donc rester constant. */
