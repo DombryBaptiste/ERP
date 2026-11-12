@@ -124,11 +124,32 @@ export class PurchaseFormComponent implements OnInit {
     return this.form.controls.items;
   }
 
+  /** Lignes dans l'ordre d'affichage : les plus récentes en haut, celles déjà vendues (même en partie) à la fin. */
+  get displayedItems(): LineForm[] {
+    const lines = [...this.items.controls].reverse();
+    return [...lines.filter(l => !this.isSold(l)), ...lines.filter(l => this.isSold(l))];
+  }
+
   get visibleReversedItems(): LineForm[] {
     const start = this.linePage() * this.linePageSize;
-    const firstIndex = this.items.length - start - 1;
-    const count = Math.min(this.linePageSize, firstIndex + 1);
-    return Array.from({ length: count }, (_, offset) => this.items.at(firstIndex - offset));
+    return this.displayedItems.slice(start, start + this.linePageSize);
+  }
+
+  /** Numéro de la ligne dans l'achat (ordre de saisie). */
+  lineNumber(line: LineForm): number {
+    return this.items.controls.indexOf(line) + 1;
+  }
+
+  isSold(line: LineForm): boolean {
+    return line.controls.soldQuantity.value > 0;
+  }
+
+  isFullySold(line: LineForm): boolean {
+    return this.isSold(line) && line.controls.soldQuantity.value >= (line.controls.quantity.value || 0);
+  }
+
+  get soldLineCount(): number {
+    return this.items.controls.filter(l => this.isSold(l)).length;
   }
 
   get linePageCount(): number {
@@ -298,7 +319,7 @@ export class PurchaseFormComponent implements OnInit {
     const copy = this.createLine();
     copy.patchValue({ ...source, itemId: null, soldQuantity: 0 });
     this.items.insert(index + 1, copy);
-    const displayedIndex = this.items.length - index - 2;
+    const displayedIndex = this.displayedItems.indexOf(copy);
     this.linePage.set(Math.floor(Math.max(0, displayedIndex) / this.linePageSize));
   }
 

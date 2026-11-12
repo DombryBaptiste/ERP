@@ -570,6 +570,43 @@ a.link:hover { text-decoration: underline; }
   background: #fff4e5;
 }
 
+/* Lignes d'achat déjà vendues : regroupées à la fin, teinte verte (entièrement) ou vert pâle (en partie). */
+.sold-separator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 6px;
+  padding-top: 8px;
+  border-top: 1px dashed #a5d6a7;
+  color: #2e7d32;
+  font-size: 13px;
+  font-weight: 600;
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+
+.purchase-line.sold-line {
+  border-color: #a5d6a7;
+  background: #eef7ee;
+  box-shadow: inset 4px 0 0 #43a047;
+}
+
+.purchase-line.partly-sold-line {
+  border-color: #c5e1a5;
+  background: #f7fbef;
+  box-shadow: inset 4px 0 0 #9ccc65;
+}
+
+.line-index.sold {
+  background: #43a047;
+  color: #fff;
+
+  &.partly { background: #9ccc65; }
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
+
+.sold-hint { color: #2e7d32; font-weight: 600; }
+
 .purchase-line.unsaved-line {
   border-color: #d32f2f;
   background: #fff1f1;
