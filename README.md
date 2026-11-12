@@ -263,6 +263,9 @@ Onglet **Bulk** : les communes, peu communes, reverses, etc. se gèrent **au nom
 - **Vendre un lot** : catégorie, nombre de cartes (ou poids), prix du lot proposé d'après le prix conseillé.
   Les cartes sont prélevées **au prorata de chaque lot** (collection à 0 € et achats mélangés) : chaque vente est comptée
   au coût moyen du stock, pour une rentabilité juste. Coût, bénéfice et marge sont affichés avant de valider.
+- **Recalculer les ventes** : rejoue les ventes de bulk déjà enregistrées au coût moyen (aperçu des bénéfices avant /
+  après, puis application). Le montant des ventes, les frais et les achats ne changent pas ; les ventes avec un
+  remboursement sur le bulk ou plusieurs prix pour la même catégorie sont laissées telles quelles.
   C'est une vente normale : CA, URSSAF, livre des recettes et statistiques sont à jour.
 - Calculatrice « compter au poids », historique des ajouts et des ventes de bulk.
 - Les prix unitaires sont stockés avec 6 décimales (0,133333 € la carte), pour que le total d'un lot tombe juste au centime.

@@ -17,6 +17,7 @@ import { BulkService, InventoryService, SaleService } from '../../core/services/
 import { NotifyService } from '../../core/services/notify.service';
 import { KpiCardComponent } from '../../shared/kpi-card.component';
 import { BulkAddDialogComponent, BulkAddDialogData } from './bulk-add-dialog.component';
+import { BulkRebalanceDialogComponent } from './bulk-rebalance-dialog.component';
 import { BulkSellDialogComponent, BulkSellDialogData } from './bulk-sell-dialog.component';
 import { bulkProducts, cardsFromGrams, DEFAULT_GRAMS_PER_CARD, isBulk } from './bulk';
 
@@ -174,6 +175,12 @@ export class BulkComponent {
     const data: BulkSellDialogData = { settings, products, category: category && products.some(p => p.name === category) ? category : undefined };
     this.dialog.open(BulkSellDialogComponent, { data, width: '640px' }).afterClosed()
       .subscribe(result => { if (result) this.load(); });
+  }
+
+  /** Recalcul des ventes de bulk passées au coût moyen (aperçu puis confirmation). */
+  openRebalance(): void {
+    this.dialog.open(BulkRebalanceDialogComponent, { width: '860px' }).afterClosed()
+      .subscribe(applied => { if (applied) this.load(); });
   }
 
   // ----- Réglages -----
