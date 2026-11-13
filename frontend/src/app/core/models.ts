@@ -404,6 +404,74 @@ export interface Statistics {
   shippedSalesCount: number;
 }
 
+// ----- Statistiques détaillées (/api/statistics/insights) -----
+/** Ligne d'une répartition : CA, bénéfice et frais incluent la part de la vente (port, remboursements, frais). */
+export interface StatRow {
+  label: string;
+  /** Nombre de ventes concernées. */
+  sales: number;
+  /** Articles vendus. */
+  quantity: number;
+  revenue: number;
+  profit: number;
+  margin: number;
+  fees: number;
+}
+
+export interface CustomerStat {
+  name: string;
+  sales: number;
+  revenue: number;
+  profit: number;
+  lastSale: string;
+}
+
+export interface PurchaseRoi {
+  purchaseId: number;
+  purchaseNumber: string;
+  purchaseDate: string;
+  supplier: string;
+  cost: number;
+  recovered: number;
+  profit: number;
+  recoveredPercent: number;
+  quantity: number;
+  sold: number;
+  remainingStockCost: number;
+}
+
+export interface Insights {
+  year: number;
+  basket: { salesCount: number; averageBasket: number; averageProfit: number; averageItems: number; medianBasket: number; largestBasket: number };
+  byPlatform: StatRow[];
+  byType: StatRow[];
+  customers: { customerCount: number; returningCustomers: number; returningRevenueShare: number; anonymousSales: number; topCustomers: CustomerStat[] };
+  bulk: {
+    cardsSold: number; sales: number; revenue: number; profit: number; margin: number;
+    averagePricePerCard: number; averageCostPerCard: number; byOrigin: StatRow[]; cardsInStock: number; stockCost: number;
+  };
+  byOrigin: StatRow[];
+  margins: {
+    revenue: number; profit: number; margin: number; platformFees: number; feesShare: number;
+    refunds: number; refundedSales: number; shippingCost: number; shippingPaid: number; costOfGoods: number;
+  };
+  purchases: { purchaseCount: number; fullyRecovered: number; totalCost: number; totalRecovered: number; totalProfit: number; best: PurchaseRoi[]; worst: PurchaseRoi[] };
+  averageDaysToSell: number;
+  daysToSellByType: { label: string; quantity: number; averageDays: number }[];
+  stockAge: { label: string; quantity: number; value: number }[];
+  bySeries: StatRow[];
+  byLanguage: StatRow[];
+  byCondition: StatRow[];
+  comparison: {
+    previousYear: number; revenue: number; profit: number; salesCount: number; monthly: MonthlyPoint[];
+    projectedRevenue: number | null; projectedProfit: number | null;
+    /** N-1 arrêtée à la même date (année en cours), sinon égaux aux totaux. */
+    revenueToDate: number; profitToDate: number; salesCountToDate: number;
+  };
+  byWeekday: StatRow[];
+  byPriceBand: StatRow[];
+}
+
 // ----- Alertes -----
 export interface AlertSettings {
   dormantWarningDays: number;

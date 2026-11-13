@@ -96,6 +96,20 @@ body {
   &.chart-grid--aside { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
 }
 
+/* Onglets de la page Statistiques. */
+.stats-tabs .mat-mdc-tab-body-content { padding: 16px 4px 4px; }
+.kpi-grid.compact { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.table-title { margin: 4px 0 8px; font-size: 15px; font-weight: 600; }
+.badge-returning {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
 a.alert-banner {
   text-decoration: none;
   background: #fff3e0;

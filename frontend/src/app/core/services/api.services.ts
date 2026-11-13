@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkRebalance, BulkSettings, CatalogCard, CatalogCardInput, CatalogImportResult,
-  CardLanguage, CatalogDeleteResult, CatalogSet, Dashboard, RarityGroup, InventoryItem, InventoryItemInput,
+  CardLanguage, CatalogDeleteResult, CatalogSet, Dashboard, Insights, RarityGroup, InventoryItem, InventoryItemInput,
   PlatformFeeInvoice, PlatformFeeInvoiceInput, PlatformFeeMonth,
   Purchase, PurchaseInput, RefundInput, Sale, SaleInput, ShippingSummary, ShippingSupply, ShippingSupplyInput, Statistics,
   TaxSettings, TaxSummary
@@ -170,6 +170,13 @@ export class ReportingService {
     if (year) params = params.set('year', year);
     if (!includePersonalCollection) params = params.set('includePersonalCollection', false);
     return this.http.get<Statistics>('/api/statistics', { params: params.keys().length ? params : undefined });
+  }
+
+  /** Statistiques détaillées (panier moyen, plateformes, types, clients, bulk, rotation, N-1…). */
+  insights(year: number, includePersonalCollection = true): Observable<Insights> {
+    let params = new HttpParams().set('year', year);
+    if (!includePersonalCollection) params = params.set('includePersonalCollection', false);
+    return this.http.get<Insights>('/api/statistics/insights', { params });
   }
 }
 
