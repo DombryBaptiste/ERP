@@ -23,6 +23,8 @@
 }
 
 @if (stats(); as s) {
+<mat-tab-group class="stats-tabs" mat-stretch-tabs="false" animationDuration="150ms">
+<mat-tab label="Vue d'ensemble">
   <div class="kpi-grid">
     <app-kpi-card icon="payments" label="CA annuel" color="#3949ab"
                   [value]="s.annualRevenue | currency" [sub]="s.annualSalesCount + ' vente(s)'" />
@@ -185,4 +187,347 @@
       }
     </mat-card-content>
   </mat-card>
+</mat-tab>
+
+@if (insights(); as i) {
+  <!-- ===================== Ventes ===================== -->
+  <mat-tab label="Ventes">
+    <div class="kpi-grid">
+      <app-kpi-card icon="shopping_basket" label="Panier moyen" color="#3949ab"
+                    [value]="i.basket.averageBasket | currency" [sub]="'médiane ' + (i.basket.medianBasket | currency)" />
+      <app-kpi-card icon="trending_up" label="Bénéfice moyen par vente" color="#2e7d32"
+                    [value]="i.basket.averageProfit | currency" [negative]="i.basket.averageProfit < 0" />
+      <app-kpi-card icon="inventory_2" label="Articles par vente" color="#ef6c00"
+                    [value]="i.basket.averageItems | number: '1.0-1'" sub="un lot de bulk compte pour 1" />
+      <app-kpi-card icon="emoji_events" label="Plus grosse vente" color="#8e24aa"
+                    [value]="i.basket.largestBasket | currency" [sub]="i.basket.salesCount + ' vente(s) dans l’année'" />
+      <app-kpi-card icon="groups" label="Clients" color="#00897b"
+                    [value]="i.customers.customerCount | number"
+                    [sub]="i.customers.returningCustomers + ' fidèle(s) · ' + (i.customers.returningRevenueShare | number: '1.0-0') + ' % du CA'" />
+    </div>
+
+    <div class="chart-grid">
+      <mat-card class="card">
+        <mat-card-header>
+          <mat-card-title>Par plateforme</mat-card-title>
+          <mat-card-subtitle>CA de chaque plateforme</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          @if (i.byPlatform.length) { <app-chart [config]="platformChart()" [height]="260" /> }
+          <app-stat-table [rows]="i.byPlatform" labelTitle="Plateforme" [showFees]="true" />
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="card">
+        <mat-card-header>
+          <mat-card-title>Par type d'article</mat-card-title>
+          <mat-card-subtitle>Cartes à l'unité, gradées, scellé, bulk…</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          @if (i.byType.length) { <app-chart [config]="typeChart()" [height]="260" /> }
+          <app-stat-table [rows]="i.byType" labelTitle="Type" />
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Meilleurs clients</mat-card-title>
+        <mat-card-subtitle>
+          Top 10 par CA · {{ i.customers.anonymousSales }} vente(s) sans nom de client non comptée(s)
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (i.customers.topCustomers.length === 0) {
+          <p class="empty">Aucun client renseigné sur cette année.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="simple-table">
+              <thead>
+                <tr><th>Client</th><th class="num">Ventes</th><th class="num">CA</th><th class="num">Bénéfice</th><th>Dernière vente</th></tr>
+              </thead>
+              <tbody>
+                @for (c of i.customers.topCustomers; track c.name) {
+                  <tr>
+                    <td class="strong">{{ c.name }} @if (c.sales > 1) { <span class="badge-returning">fidèle</span> }</td>
+                    <td class="num">{{ c.sales }}</td>
+                    <td class="num">{{ c.revenue | currency }}</td>
+                    <td class="num" [class.negative]="c.profit < 0" [class.positive]="c.profit > 0">{{ c.profit | currency }}</td>
+                    <td>{{ c.lastSale | date: 'dd/MM/yyyy' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  </mat-tab>
+
+  <!-- ===================== Rentabilité ===================== -->
+  <mat-tab label="Rentabilité">
+    <div class="kpi-grid">
+      <app-kpi-card icon="percent" label="Taux de marge" color="#2e7d32"
+                    [value]="(i.margins.margin | number: '1.0-1') + ' %'" [sub]="'bénéfice ' + (i.margins.profit | currency)" />
+      <app-kpi-card icon="receipt_long" label="Frais de plateforme" color="#c62828"
+                    [value]="i.margins.platformFees | currency" [sub]="(i.margins.feesShare | number: '1.0-1') + ' % du CA'" />
+      <app-kpi-card icon="undo" label="Remboursements" color="#ef6c00"
+                    [value]="i.margins.refunds | currency" [sub]="i.margins.refundedSales + ' vente(s) remboursée(s)'" />
+      <app-kpi-card icon="inventory" label="Coût des articles vendus" color="#5d4037" [value]="i.margins.costOfGoods | currency" />
+      <app-kpi-card icon="local_shipping" label="Envois" color="#3949ab"
+                    [value]="(i.margins.shippingPaid - i.margins.shippingCost) | currency" [negative]="i.margins.shippingPaid - i.margins.shippingCost < 0"
+                    [sub]="'payé ' + (i.margins.shippingPaid | currency) + ' · coûté ' + (i.margins.shippingCost | currency)" />
+    </div>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Bulk</mat-card-title>
+        <mat-card-subtitle>Ventes de bulk de l'année, et d'où venaient les cartes vendues</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="kpi-grid compact">
+          <app-kpi-card icon="layers" label="Cartes vendues" color="#5d4037"
+                        [value]="i.bulk.cardsSold | number" [sub]="i.bulk.sales + ' vente(s)'" />
+          <app-kpi-card icon="payments" label="CA bulk" color="#3949ab" [value]="i.bulk.revenue | currency" />
+          <app-kpi-card icon="trending_up" label="Bénéfice bulk" color="#2e7d32"
+                        [value]="i.bulk.profit | currency" [negative]="i.bulk.profit < 0" [sub]="'marge ' + (i.bulk.margin | number: '1.0-1') + ' %'" />
+          <app-kpi-card icon="sell" label="Prix moyen / carte" color="#8e24aa"
+                        [value]="i.bulk.averagePricePerCard | currency: 'EUR' : 'symbol' : '1.2-4'"
+                        [sub]="'coût moyen ' + (i.bulk.averageCostPerCard | currency: 'EUR' : 'symbol' : '1.2-4')" />
+          <app-kpi-card icon="warehouse" label="Bulk en stock" color="#00897b"
+                        [value]="i.bulk.cardsInStock | number" [sub]="'coût ' + (i.bulk.stockCost | currency)" />
+        </div>
+        @if (i.bulk.byOrigin.length) {
+          <div class="chart-grid chart-grid--aside">
+            <app-chart [config]="bulkOriginChart()" [height]="220" />
+            <app-stat-table [rows]="i.bulk.byOrigin" labelTitle="Origine des cartes" />
+          </div>
+        } @else {
+          <p class="empty">Aucune vente de bulk sur cette année.</p>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Collection vs achats</mat-card-title>
+        <mat-card-subtitle>Ce que rapportent les articles de ta collection perso face à ceux achetés</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (i.byOrigin.length) {
+          <div class="chart-grid chart-grid--aside">
+            <app-chart [config]="originChart()" [height]="220" />
+            <app-stat-table [rows]="i.byOrigin" labelTitle="Origine" />
+          </div>
+        } @else {
+          <p class="empty">Aucune vente sur cette année.</p>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Rentabilité des achats de {{ i.year }}</mat-card-title>
+        <mat-card-subtitle>
+          Ce que chaque achat a déjà rapporté (ventes nettes de frais, toutes années confondues) face à son prix
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="kpi-grid compact">
+          <app-kpi-card icon="shopping_cart" label="Achats" color="#ef6c00"
+                        [value]="i.purchases.purchaseCount | number" [sub]="(i.purchases.totalCost | currency) + ' payés'" />
+          <app-kpi-card icon="savings" label="Déjà récupéré" color="#3949ab"
+                        [value]="i.purchases.totalRecovered | currency"
+                        [sub]="i.purchases.totalCost > 0 ? ((i.purchases.totalRecovered / i.purchases.totalCost * 100) | number: '1.0-0') + ' % du prix payé' : ''" />
+          <app-kpi-card icon="check_circle" label="Achats remboursés" color="#2e7d32"
+                        [value]="i.purchases.fullyRecovered + ' / ' + i.purchases.purchaseCount" sub="prix payé déjà récupéré" />
+        </div>
+        <div class="chart-grid">
+          <div>
+            <h3 class="table-title">Meilleurs achats</h3>
+            <ng-container *ngTemplateOutlet="roiTable; context: { $implicit: i.purchases.best }" />
+          </div>
+          <div>
+            <h3 class="table-title">Pas encore remboursés</h3>
+            <ng-container *ngTemplateOutlet="roiTable; context: { $implicit: i.purchases.worst }" />
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </mat-tab>
+
+  <!-- ===================== Stock ===================== -->
+  <mat-tab label="Stock et rotation">
+    <div class="kpi-grid">
+      <app-kpi-card icon="timer" label="Délai moyen de vente" color="#00897b"
+                    [value]="(i.averageDaysToSell | number: '1.0-0') + ' jours'" sub="entre l'achat et la vente (hors bulk)" />
+      @for (a of i.stockAge; track a.label; let last = $last) {
+        @if (last) {
+          <app-kpi-card icon="hourglass_bottom" label="Stock de plus d'un an" color="#c62828"
+                        [value]="a.value | currency" [sub]="(a.quantity | number) + ' article(s)'" />
+        }
+      }
+    </div>
+
+    <div class="chart-grid">
+      <mat-card class="card">
+        <mat-card-header>
+          <mat-card-title>Délai de vente par type</mat-card-title>
+          <mat-card-subtitle>Nombre moyen de jours entre l'achat et la vente</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          @if (i.daysToSellByType.length) {
+            <app-chart [config]="daysChart()" [height]="260" />
+          } @else {
+            <p class="empty">Aucune vente sur cette année.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="card">
+        <mat-card-header>
+          <mat-card-title>Âge du stock actuel</mat-card-title>
+          <mat-card-subtitle>Valeur (prix d'achat) selon l'ancienneté</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <app-chart [config]="stockAgeChart()" [height]="220" />
+          <div class="table-wrap">
+            <table class="simple-table">
+              <thead><tr><th>Ancienneté</th><th class="num">Articles</th><th class="num">Valeur</th></tr></thead>
+              <tbody>
+                @for (a of i.stockAge; track a.label) {
+                  <tr [class.muted]="a.quantity === 0">
+                    <td>{{ a.label }}</td><td class="num">{{ a.quantity | number }}</td><td class="num">{{ a.value | currency }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Par série / extension</mat-card-title>
+        <mat-card-subtitle>Cartes à l'unité et gradées · top 15 par bénéfice</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (i.bySeries.length) { <app-chart [config]="seriesChart()" [height]="300" /> }
+        <app-stat-table [rows]="i.bySeries" labelTitle="Série" />
+      </mat-card-content>
+    </mat-card>
+
+    <div class="chart-grid">
+      <mat-card class="card">
+        <mat-card-header>
+          <mat-card-title>Par langue</mat-card-title>
+          <mat-card-subtitle>Cartes à l'unité et gradées</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content><app-stat-table [rows]="i.byLanguage" labelTitle="Langue" /></mat-card-content>
+      </mat-card>
+
+      <mat-card class="card">
+        <mat-card-header>
+          <mat-card-title>Par état</mat-card-title>
+          <mat-card-subtitle>Cartes à l'unité</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content><app-stat-table [rows]="i.byCondition" labelTitle="État" /></mat-card-content>
+      </mat-card>
+    </div>
+  </mat-tab>
+
+  <!-- ===================== Évolution ===================== -->
+  <mat-tab label="Évolution">
+    <div class="kpi-grid">
+      <app-kpi-card icon="payments" label="CA {{ s.year }}" color="#3949ab"
+                    [value]="s.annualRevenue | currency" [sub]="evolutionText(s.annualRevenue, i.comparison.revenueToDate)" />
+      <app-kpi-card icon="trending_up" label="Bénéfice {{ s.year }}" color="#2e7d32"
+                    [value]="s.annualProfit | currency" [negative]="s.annualProfit < 0" [sub]="evolutionText(s.annualProfit, i.comparison.profitToDate)" />
+      <app-kpi-card icon="receipt" label="Ventes {{ s.year }}" color="#ef6c00"
+                    [value]="s.annualSalesCount | number" [sub]="evolutionText(s.annualSalesCount, i.comparison.salesCountToDate)" />
+      @if (i.comparison.projectedRevenue !== null) {
+        <app-kpi-card icon="rocket_launch" label="Projection fin d'année" color="#8e24aa"
+                      [value]="i.comparison.projectedRevenue | currency"
+                      [sub]="'bénéfice ≈ ' + (i.comparison.projectedProfit | currency) + ' au rythme actuel'" />
+      }
+      @if (bestMonth(); as m) {
+        <app-kpi-card icon="star" label="Meilleur mois" color="#f9a825"
+                      [value]="monthName(m.year, m.month)" [sub]="(m.revenue | currency) + ' · ' + m.salesCount + ' vente(s)'" />
+      }
+      @if (bestWeekday(); as d) {
+        <app-kpi-card icon="event" label="Meilleur jour" color="#00897b"
+                      [value]="d.label" [sub]="d.sales + ' vente(s) · ' + (d.revenue | currency)" />
+      }
+    </div>
+
+    <div class="chart-grid">
+      <mat-card class="card">
+        <mat-card-header>
+          <mat-card-title>CA par mois : {{ s.year }} vs {{ i.comparison.previousYear }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content><app-chart [config]="comparisonChart()" /></mat-card-content>
+      </mat-card>
+
+      <mat-card class="card">
+        <mat-card-header>
+          <mat-card-title>CA cumulé</mat-card-title>
+          <mat-card-subtitle>Progression sur l'année, comparée à {{ i.comparison.previousYear }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content><app-chart [config]="cumulativeChart()" /></mat-card-content>
+      </mat-card>
+
+      <mat-card class="card">
+        <mat-card-header>
+          <mat-card-title>Jours les plus actifs</mat-card-title>
+          <mat-card-subtitle>Nombre de ventes par jour de la semaine</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <app-chart [config]="weekdayChart()" [height]="240" />
+          <app-stat-table [rows]="i.byWeekday" labelTitle="Jour" [showQuantity]="false" />
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="card">
+        <mat-card-header>
+          <mat-card-title>Tranches de prix</mat-card-title>
+          <mat-card-subtitle>Articles vendus selon leur prix unitaire (hors bulk)</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <app-chart [config]="priceBandChart()" [height]="240" />
+          <app-stat-table [rows]="i.byPriceBand" labelTitle="Prix unitaire" />
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </mat-tab>
+}
+</mat-tab-group>
+
+<ng-template #roiTable let-rows>
+  @if (rows.length === 0) {
+    <p class="empty">Aucun achat.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="simple-table">
+        <thead>
+          <tr><th>Achat</th><th class="num">Payé</th><th class="num">Récupéré</th><th class="num">Résultat</th><th class="num">Vendus</th></tr>
+        </thead>
+        <tbody>
+          @for (p of rows; track p.purchaseId) {
+            <tr class="clickable" [routerLink]="['/purchases', p.purchaseId]">
+              <td>
+                <span class="ref">{{ p.purchaseNumber }}</span>
+                <div class="muted small">{{ p.supplier }} · {{ p.purchaseDate | date: 'dd/MM/yyyy' }}</div>
+              </td>
+              <td class="num">{{ p.cost | currency }}</td>
+              <td class="num">{{ p.recovered | currency }} <span class="muted small">({{ p.recoveredPercent | number: '1.0-0' }} %)</span></td>
+              <td class="num" [class.negative]="p.profit < 0" [class.positive]="p.profit >= 0">{{ p.profit | currency }}</td>
+              <td class="num">{{ p.sold | number }} / {{ p.quantity | number }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</ng-template>
 }

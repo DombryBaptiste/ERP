@@ -314,6 +314,16 @@ Onglet **Bulk** : les communes, peu communes, reverses, etc. se gèrent **au nom
   évolution du CA et des bénéfices sur 12 mois, répartition cartes / scellés, dernières ventes.
 - Statistiques par année : CA et bénéfice annuels et mensuels, valeur du stock, CA et bénéfices par mois,
   meilleures ventes, produits les plus rentables, récapitulatif mensuel.
+- Onglets détaillés de la page Statistiques (année choisie, collection incluse ou non) :
+  - **Ventes** : panier moyen et médian, bénéfice moyen par vente, articles par vente, par plateforme (avec frais),
+    par type d'article (cartes à l'unité, gradées, scellé, bulk…), clients fidèles et top 10 des clients ;
+  - **Rentabilité** : taux de marge, frais de plateforme, remboursements, envois, bulk détaillé (cartes vendues,
+    prix et coût moyens par carte, origine collection / achats), collection vs achats, rentabilité de chaque achat ;
+  - **Stock et rotation** : délai moyen de vente (global et par type), âge du stock, séries, langues et états ;
+  - **Évolution** : comparaison avec l'année précédente, CA cumulé, projection de fin d'année, meilleur mois,
+    jours les plus actifs, tranches de prix.
+  Chaque ligne de vente reçoit sa part du port, des frais et des remboursements de sa vente : toutes les
+  répartitions s'additionnent au bénéfice annuel.
 
 ### Fiscalité (onglet dédié)
 
@@ -352,6 +362,7 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 | GET / PUT / DELETE | `/api/sales/:id` | Détail / modification / suppression |
 | GET | `/api/dashboard` | Indicateurs du tableau de bord |
 | GET | `/api/statistics?year=2026` | Statistiques annuelles |
+| GET | `/api/statistics/insights?year=2026` | Statistiques détaillées (onglets Ventes, Rentabilité, Stock, Évolution) |
 | GET | `/api/tax/summary?year=2026` | Synthèse fiscale : périodes, cotisations, impôt, seuils, DAC7 |
 | GET / PUT | `/api/tax/settings` | Paramètres fiscaux |
 | PUT | `/api/tax/declarations/:periodKey` | Marque une période (`2026-T3`, `2026-M09`) comme déclarée : `{ "declared": true }` |

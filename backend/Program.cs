@@ -33,6 +33,7 @@ builder.Services.AddScoped<PurchaseService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<SaleService>();
 builder.Services.AddScoped<ReportingService>();
+builder.Services.AddScoped<InsightsService>();
 builder.Services.AddScoped<TaxService>();
 builder.Services.AddScoped<SettingsStore>();
 builder.Services.AddScoped<PreferencesService>();
