@@ -70,8 +70,8 @@ import { NotifyService } from '../../core/services/notify.service';
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>{{ preview()?.sales.length ? 'Annuler' : 'Fermer' }}</button>
-      @if (preview()?.sales.length) {
+      <button mat-button mat-dialog-close>{{ preview()?.sales?.length ? 'Annuler' : 'Fermer' }}</button>
+      @if (preview()?.sales?.length) {
         <button mat-flat-button (click)="apply()" [disabled]="saving()">
           <mat-icon>calculate</mat-icon> Appliquer le recalcul
         </button>
