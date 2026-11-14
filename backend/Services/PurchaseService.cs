@@ -10,7 +10,7 @@ namespace PokeStock.Api.Services;
 /// </summary>
 public class PurchaseService(AppDbContext db, AttachmentService attachments)
 {
-    private const string CollectionSupplier = "Collection personnelle";
+    internal const string CollectionSupplier = "Collection personnelle";
 
     private IQueryable<Purchase> WithDetails() =>
         db.Purchases.Include(p => p.Items).ThenInclude(i => i.Item);

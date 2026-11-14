@@ -28,6 +28,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/inventory/inventory-list.component').then(m => m.InventoryListComponent)
       },
       {
+        path: 'inventory/cardmarket', title: 'Import Cardmarket — PokéStock',
+        loadComponent: () => import('./features/cardmarket/cardmarket-import.component').then(m => m.CardmarketImportComponent)
+      },
+      {
         path: 'inventory/new', title: 'Nouvel article — PokéStock',
         loadComponent: () => import('./features/inventory/inventory-form.component').then(m => m.InventoryFormComponent)
       },

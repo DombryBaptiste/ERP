@@ -404,6 +404,75 @@ export interface Statistics {
   shippedSalesCount: number;
 }
 
+// ----- Import du stock Cardmarket (/api/cardmarket/import) -----
+/** Ligne de l'export Cardmarket envoyée au serveur. */
+export interface CardmarketRow {
+  idProduct: number;
+  name: string;
+  setCode: string | null;
+  number: string | null;
+  expansion: string | null;
+  rarity: string | null;
+  language: string | null;
+  condition: string | null;
+  reverse: boolean;
+  price: number;
+  amount: number;
+}
+
+/** Origine des cartes à ajouter : sorties du bulk, de la collection (0 €), ou ignorées. */
+export type CardmarketOrigin = 'bulk' | 'collection' | 'ignore';
+
+export interface CardmarketImportRequest {
+  rows: CardmarketRow[];
+  fullStock: boolean;
+  bulkCategory?: string | null;
+  choices?: { key: string; origin: CardmarketOrigin }[];
+}
+
+export interface CardmarketLine {
+  key: string;
+  idProduct: number;
+  name: string;
+  setCode: string | null;
+  number: string | null;
+  expansion: string | null;
+  rarity: string | null;
+  language: string;
+  condition: ItemCondition;
+  reverse: boolean;
+  price: number;
+  cardmarketQuantity: number;
+  appQuantity: number;
+  catalogCardId: number | null;
+}
+
+export interface CardmarketExtra {
+  name: string;
+  category: string | null;
+  condition: ItemCondition;
+  appQuantity: number;
+  cardmarketQuantity: number;
+  firstItemId: number;
+}
+
+export interface CardmarketAnalysis {
+  lines: CardmarketLine[];
+  extras: CardmarketExtra[];
+  bulkPools: { name: string; cards: number; averageCost: number }[];
+  ignoredRows: number;
+}
+
+export interface CardmarketImportResult {
+  cardsAdded: number;
+  fromBulk: number;
+  fromCollection: number;
+  catalogCardsCreated: number;
+  listed: number;
+  unlisted: number;
+  collectionTransferNumber: string | null;
+}
+
 // ----- Statistiques détaillées (/api/statistics/insights) -----
 /** Ligne d'une répartition : CA, bénéfice et frais incluent la part de la vente (port, remboursements, frais). */
 export interface StatRow {

@@ -9,6 +9,10 @@
     </p>
   </div>
   <div class="page-actions">
+    <a mat-stroked-button routerLink="/inventory/cardmarket"
+       matTooltip="Mettre à jour le stock avec l'export de votre stock Cardmarket (extension)">
+      <mat-icon>sync</mat-icon> Import Cardmarket
+    </a>
     <a mat-stroked-button routerLink="/purchases/new" [queryParams]="{ source: 'collection' }"
        matTooltip="Transférer des cartes de votre collection personnelle vers le stock, sans prix d'achat">
       <mat-icon>collections_bookmark</mat-icon> Depuis ma collection

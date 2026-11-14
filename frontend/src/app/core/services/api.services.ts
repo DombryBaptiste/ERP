@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkRebalance, BulkSettings, CatalogCard, CatalogCardInput, CatalogImportResult,
+  Alerts, AppPreferences, Attachment, AttachmentKind, AttachmentOwner, AvailableSet, BulkRebalance, BulkSettings, CardmarketAnalysis, CardmarketImportRequest, CardmarketImportResult, CatalogCard, CatalogCardInput, CatalogImportResult,
   CardLanguage, CatalogDeleteResult, CatalogSet, Dashboard, Insights, RarityGroup, InventoryItem, InventoryItemInput,
   PlatformFeeInvoice, PlatformFeeInvoiceInput, PlatformFeeMonth,
   Purchase, PurchaseInput, RefundInput, Sale, SaleInput, ShippingSummary, ShippingSupply, ShippingSupplyInput, Statistics,
@@ -116,6 +116,21 @@ export class BulkService {
   /** Aperçu du recalcul des ventes de bulk au coût moyen (rien n'est enregistré). */
   previewRebalance(): Observable<BulkRebalance> { return this.http.get<BulkRebalance>('/api/bulk/rebalance'); }
   applyRebalance(): Observable<BulkRebalance> { return this.http.post<BulkRebalance>('/api/bulk/rebalance', {}); }
+}
+
+/** Import du stock Cardmarket (/api/cardmarket/import) */
+@Injectable({ providedIn: 'root' })
+export class CardmarketImportService {
+  private readonly http = inject(HttpClient);
+  private readonly url = '/api/cardmarket/import';
+
+  analyze(request: CardmarketImportRequest): Observable<CardmarketAnalysis> {
+    return this.http.post<CardmarketAnalysis>(`${this.url}/analyze`, request);
+  }
+
+  apply(request: CardmarketImportRequest): Observable<CardmarketImportResult> {
+    return this.http.post<CardmarketImportResult>(`${this.url}/apply`, request);
+  }
 }
 
 /** Fichiers joints (/api/attachments) */

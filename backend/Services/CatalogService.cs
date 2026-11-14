@@ -30,17 +30,17 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
     };
 
     /// <summary>Catégorie d'une carte (brute ou gradée) qui n'est liée à aucune carte du catalogue.</summary>
-    private const string Uncategorized = "Hors catégorie";
+    internal const string Uncategorized = "Hors catégorie";
 
     /// <summary>Langue de l'article acheté, selon la langue de la carte du catalogue.</summary>
-    private static readonly IReadOnlyDictionary<string, string> LanguageLabels = new Dictionary<string, string>
+    internal static readonly IReadOnlyDictionary<string, string> LanguageLabels = new Dictionary<string, string>
     {
         ["fr"] = "Français", ["ja"] = "Japonais", ["ko"] = "Coréen",
         ["zh-tw"] = "Chinois traditionnel", ["zh-cn"] = "Chinois simplifié"
     };
 
     /// <summary>Catégorie d'une carte du catalogue : « code + nom de la série », ex. « PFL Flammes Fantasmagoriques ».</summary>
-    private static string CategoryOf(CatalogCard card)
+    internal static string CategoryOf(CatalogCard card)
     {
         var category = $"{card.SetCode ?? card.SetId} {card.SetName}";
         return category.Length <= 100 ? category : category[..100];  // inventory_items.category : 100 caractères
@@ -536,7 +536,7 @@ public class CatalogService(HttpClient http, AppDbContext db, IMemoryCache cache
     }
 
     /// <summary>« 95 », « 095 » et « TG05 » / « TG5 » sont équivalents.</summary>
-    private static bool SameNumber(string number, string wanted)
+    internal static bool SameNumber(string number, string wanted)
     {
         static string Normalize(string n)
         {

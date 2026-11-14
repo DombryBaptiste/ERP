@@ -296,6 +296,19 @@ Onglet **Bulk** : les communes, peu communes, reverses, etc. se gèrent **au nom
 - Un article peut être ajouté manuellement (sans achat), par exemple une carte de votre collection personnelle.
 - Bouton **Vendre** sur une ligne : ouvre une nouvelle vente avec l'article déjà sélectionné.
 
+### Import du stock Cardmarket
+
+- **Inventaire → Import Cardmarket** : choisissez l'export CSV de votre stock Cardmarket (extension du navigateur),
+  tout le stock ou seulement certaines séries. L'appli compare avec les cartes à l'unité en stock, puis affiche :
+  - **À ajouter** : cartes en vente sur Cardmarket mais pas (assez) dans l'appli. Aucun prix d'achat à saisir :
+    une carte **sortie du bulk** quitte la catégorie de bulk choisie et garde le coût de son lot (elle rejoint le même
+    achat, dont le total ne change pas) ; une carte **de la collection** entre à 0 € (transfert C…). Les cartes à 1 € ou
+    plus sont listées à part pour vérifier leur origine. Les cartes absentes du catalogue y sont ajoutées.
+  - **En trop dans l'appli** : cartes absentes de Cardmarket (ou en moins grand nombre). Leur quantité ne change
+    pas (une vente se saisit à part) ; celles absentes sont marquées « plus en vente sur Cardmarket ».
+  - **Déjà à jour** : cochées « en vente sur Cardmarket », le prix de l'export devient leur valeur de marché.
+  Rien n'est enregistré avant « Appliquer », et l'import ne crée jamais de vente.
+
 ### Ventes
 - Numéro généré automatiquement : `V2026001`…
 - Plusieurs articles par vente, recherchés dans le stock disponible. Pour chaque ligne : quantité et prix de vente unitaire.
@@ -363,6 +376,7 @@ Les montants sont des estimations : l'URSSAF et l'administration fiscale font fo
 | GET | `/api/dashboard` | Indicateurs du tableau de bord |
 | GET | `/api/statistics?year=2026` | Statistiques annuelles |
 | GET | `/api/statistics/insights?year=2026` | Statistiques détaillées (onglets Ventes, Rentabilité, Stock, Évolution) |
+| POST | `/api/cardmarket/import/analyze` · `/apply` | Import du stock Cardmarket : aperçu puis application |
 | GET | `/api/tax/summary?year=2026` | Synthèse fiscale : périodes, cotisations, impôt, seuils, DAC7 |
 | GET / PUT | `/api/tax/settings` | Paramètres fiscaux |
 | PUT | `/api/tax/declarations/:periodKey` | Marque une période (`2026-T3`, `2026-M09`) comme déclarée : `{ "declared": true }` |
