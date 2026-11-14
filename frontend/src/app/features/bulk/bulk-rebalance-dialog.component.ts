@@ -9,18 +9,18 @@ import { BulkService } from '../../core/services/api.services';
 import { NotifyService } from '../../core/services/notify.service';
 
 /**
- * Recalcul des ventes de bulk déjà enregistrées au coût moyen : affiche d'abord un aperçu
+ * Recalcul des ventes de bulk déjà enregistrées avec la règle « achats d'abord » : affiche d'abord un aperçu
  * (ventes dont le bénéfice change), puis applique sur confirmation.
  */
 @Component({
   selector: 'app-bulk-rebalance-dialog',
   imports: [CurrencyPipe, DatePipe, DecimalPipe, MatDialogModule, MatButtonModule, MatIconModule, MatProgressBarModule],
   template: `
-    <h2 mat-dialog-title>Recalculer les ventes de bulk au coût moyen</h2>
+    <h2 mat-dialog-title>Recalculer les ventes de bulk (achats d'abord)</h2>
     <mat-dialog-content class="rebalance">
       <p class="muted small">
-        Les ventes de bulk passées sont rejouées dans l'ordre, chacune prenant sa part de chaque lot
-        (collection et achats), comme les nouvelles ventes. Seuls le coût et le bénéfice changent :
+        Les ventes de bulk passées sont rejouées dans l'ordre, en prenant d'abord les cartes achetées
+        (du plus ancien achat au plus récent), puis celles de la collection, comme les nouvelles ventes. Seuls le coût et le bénéfice changent :
         le montant des ventes (CA, URSSAF, livre des recettes) et les frais restent identiques.
       </p>
 
@@ -28,7 +28,7 @@ import { NotifyService } from '../../core/services/notify.service';
         <mat-progress-bar mode="indeterminate" />
       } @else if (preview(); as p) {
         @if (p.sales.length === 0) {
-          <p class="ok"><mat-icon>check_circle</mat-icon> Rien à recalculer : vos ventes de bulk sont déjà au coût moyen.</p>
+          <p class="ok"><mat-icon>check_circle</mat-icon> Rien à recalculer : vos ventes de bulk suivent déjà cette règle.</p>
         } @else {
           <p>
             <strong>{{ p.sales.length }}</strong> vente(s) modifiée(s) · bénéfice total
@@ -107,7 +107,7 @@ export class BulkRebalanceDialogComponent {
     this.saving.set(true);
     this.api.applyRebalance().subscribe({
       next: result => {
-        this.notify.success(`${result.sales.length} vente(s) de bulk recalculée(s) au coût moyen.`);
+        this.notify.success(`${result.sales.length} vente(s) de bulk recalculée(s) (achats d'abord).`);
         this.ref.close(true);
       },
       error: err => {

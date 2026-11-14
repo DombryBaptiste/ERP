@@ -577,7 +577,7 @@ export interface BulkSettings {
   categories: BulkCategory[];
 }
 
-/** Vente de bulk dont le coût change avec le recalcul au coût moyen. */
+/** Vente de bulk dont le coût change avec le recalcul (achats d'abord). */
 export interface BulkRebalanceSale {
   saleId: number;
   saleNumber: string;
@@ -590,7 +590,7 @@ export interface BulkRebalanceSale {
   newProfit: number;
 }
 
-/** Aperçu (ou résultat) du recalcul des ventes de bulk au coût moyen. */
+/** Aperçu (ou résultat) du recalcul des ventes de bulk (achats d'abord). */
 export interface BulkRebalance {
   applied: boolean;
   sales: BulkRebalanceSale[];

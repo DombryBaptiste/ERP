@@ -8,13 +8,12 @@ using PokeStock.Api.Models;
 namespace PokeStock.Api.Services;
 
 /// <summary>
-/// Recalcul des ventes de bulk déjà enregistrées au coût moyen.
+/// Recalcul des ventes de bulk déjà enregistrées avec la règle « achats d'abord ».
 ///
-/// Avant, une vente de bulk prélevait les lots les plus anciens (FIFO) : le bulk de la collection (0 €)
-/// partait souvent en premier, ce qui gonflait le bénéfice des premières ventes et écrasait les suivantes.
-/// Ce recalcul rejoue toutes les ventes de bulk dans l'ordre chronologique en prélevant chaque vente au
-/// prorata du stock de chaque lot (comme les nouvelles ventes), puis met à jour les lignes des ventes,
-/// le stock restant de chaque lot et le bénéfice.
+/// Une vente de bulk prélève d'abord les lots ACHETÉS (du plus ancien au plus récent), puis ceux de la
+/// collection (0 €) : on récupère d'abord l'argent réellement dépensé. Les ventes enregistrées avec une
+/// autre règle (FIFO pur, puis prorata) sont rejouées dans l'ordre chronologique avec cette règle, puis
+/// les lignes des ventes, le stock restant de chaque lot et le bénéfice sont mis à jour.
 ///
 /// Ne change jamais : le montant des ventes (CA, URSSAF, livre des recettes), les frais, les achats.
 /// Ventes laissées telles quelles (mais prises en compte dans le stock) : celles avec un remboursement
@@ -30,7 +29,10 @@ public class BulkRebalanceService(AppDbContext db)
 
     private async Task<BulkRebalanceDto> RunAsync(bool apply)
     {
-        var lots = await db.InventoryItems.Where(i => i.Type == ItemType.Bulk).ToListAsync();
+        var lots = await db.InventoryItems
+            .Include(i => i.PurchaseItem).ThenInclude(pi => pi!.Purchase)
+            .Where(i => i.Type == ItemType.Bulk)
+            .ToListAsync();
         var sales = await db.Sales
             .Include(s => s.Items).ThenInclude(i => i.InventoryItem)
             .Include(s => s.Refunds).ThenInclude(r => r.Items)
@@ -47,7 +49,8 @@ public class BulkRebalanceService(AppDbContext db)
 
         foreach (var product in lots.GroupBy(ProductKey))
         {
-            var productLots = product.OrderBy(l => l.PurchaseDate).ThenBy(l => l.Id).ToList();
+            // Ordre de prélèvement : lots achetés (du plus ancien au plus récent), puis collection.
+            var productLots = product.OrderBy(l => IsCollection(l) ? 1 : 0).ThenBy(l => l.PurchaseDate).ThenBy(l => l.Id).ToList();
             var ids = productLots.Select(l => l.Id).ToHashSet();
             var remaining = productLots.ToDictionary(l => l.Id, l => l.Quantity);
             var plan = new Dictionary<int, List<(InventoryItem Lot, int Quantity, decimal Price)>>();
@@ -159,24 +162,26 @@ public class BulkRebalanceService(AppDbContext db)
             .All(x => x.First.InventoryItemId == x.Second.Lot.Id && x.First.Quantity == x.Second.Quantity
                       && x.First.SalePrice == x.Second.Price && x.First.UnitCost == x.Second.Lot.PurchasePrice);
 
-    /// <summary>Répartition au prorata du stock de chaque lot (arrondis aux plus grands restes) ; null si stock insuffisant.</summary>
+    /// <summary>Prélèvement dans l'ordre des lots (achats d'abord, puis collection) ; null si stock insuffisant.</summary>
     private static List<(InventoryItem Lot, int Quantity)>? Allocate(List<InventoryItem> lots, int quantity, Func<InventoryItem, int> stock)
     {
-        var available = lots.Select(stock).ToList();
-        var total = available.Sum();
         if (quantity <= 0) return [];
-        if (total < quantity) return null;
-
-        var shares = available.Select(a => (decimal)a * quantity / total).ToList();
-        var taken = shares.Select(s => (int)Math.Floor(s)).ToList();
-        var rest = quantity - taken.Sum();
-        foreach (var i in Enumerable.Range(0, lots.Count).OrderByDescending(i => shares[i] - taken[i]).ThenBy(i => i))
+        if (lots.Sum(stock) < quantity) return null;
+        var result = new List<(InventoryItem Lot, int Quantity)>();
+        var wanted = quantity;
+        foreach (var lot in lots)
         {
-            if (rest <= 0) break;
-            if (taken[i] < available[i]) { taken[i]++; rest--; }
+            if (wanted == 0) break;
+            var take = Math.Min(wanted, stock(lot));
+            if (take <= 0) continue;
+            result.Add((lot, take));
+            wanted -= take;
         }
-        return lots.Select((lot, i) => (lot, taken[i])).Where(a => a.Item2 > 0).ToList();
+        return result;
     }
+
+    private static bool IsCollection(InventoryItem lot) =>
+        lot.PurchaseItem?.Purchase.Source == PurchaseSource.PersonalCollection;
 
     /// <summary>Même clé produit que l'application : nom sans accents ni majuscules + état.</summary>
     private static string ProductKey(InventoryItem item)
