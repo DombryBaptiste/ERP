@@ -4,14 +4,14 @@ using PokeStock.Api.Services;
 
 namespace PokeStock.Api.Controllers;
 
-/// <summary>Import du stock Cardmarket (export CSV de l'extension) : aperçu du rapprochement, puis application.</summary>
+/// <summary>Comptage du bulk avec l'export Cardmarket : aperçu des écarts, puis ajustement de la collection.</summary>
 [ApiController]
-[Route("api/cardmarket/import")]
-public class CardmarketController(CardmarketImportService service) : ControllerBase
+[Route("api/cardmarket/count")]
+public class CardmarketController(CardmarketCountService service) : ControllerBase
 {
     [HttpPost("analyze")]
-    public Task<CardmarketAnalysisDto> Analyze(CardmarketImportRequest request) => service.AnalyzeAsync(request);
+    public Task<CardmarketCountDto> Analyze(CardmarketCountRequest request) => service.AnalyzeAsync(request);
 
     [HttpPost("apply")]
-    public Task<CardmarketImportResultDto> Apply(CardmarketImportRequest request) => service.ApplyAsync(request);
+    public Task<CardmarketCountResultDto> Apply(CardmarketCountRequest request) => service.ApplyAsync(request);
 }

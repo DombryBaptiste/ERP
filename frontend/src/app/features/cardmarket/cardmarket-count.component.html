@@ -1,0 +1,149 @@
+<div class="page-header">
+  <div>
+    <h1>Comptage Cardmarket</h1>
+    <p class="subtitle">
+      Comptez vos cartes en vente sur Cardmarket (export CSV de l'extension) par catégorie de bulk, et corrigez le stock :
+      les écarts sont ajoutés à votre collection (0 €) ou retirés de vos lots de collection. Les lots achetés ne bougent pas.
+    </p>
+  </div>
+  <div class="page-actions">
+    <a mat-stroked-button routerLink="/bulk"><mat-icon>arrow_back</mat-icon> Bulk</a>
+    <button mat-flat-button type="button" (click)="fileInput.click()" [disabled]="loading() || applying()">
+      <mat-icon>upload_file</mat-icon> {{ file() ? 'Changer de fichier' : 'Choisir l’export CSV' }}
+    </button>
+    <input #fileInput type="file" accept=".csv,text/csv" hidden (change)="onFile($event)">
+  </div>
+</div>
+
+@if (loading()) { <mat-progress-bar mode="indeterminate" /> }
+
+@if (result(); as r) {
+  <div class="result">
+    <mat-icon>check_circle</mat-icon>
+    <div>
+      <strong>Bulk corrigé.</strong>
+      @for (a of r.adjustments; track a.group) {
+        <div>
+          {{ a.category }} :
+          @if (a.added) { +{{ a.added | number }} carte(s) depuis la collection{{ r.transferNumber ? ' (' + r.transferNumber + ')' : '' }} }
+          @if (a.removed) { −{{ a.removed | number }} carte(s) retirée(s) de la collection }
+          @if (a.notRemoved) { <span class="warning">· {{ a.notRemoved | number }} non retirée(s) (pas assez de cartes de collection)</span> }
+        </div>
+      }
+    </div>
+  </div>
+}
+
+@if (count(); as c) {
+  @let t = totals();
+  <mat-card class="card">
+    <mat-card-header>
+      <mat-card-title>{{ fileName() }}</mat-card-title>
+      <mat-card-subtitle>
+        {{ t.cards | number }} carte(s) comptée(s) pour {{ t.value | currency }} au prix affiché
+        @if (t.apart) { · {{ t.apart | number }} mise(s) à part }
+        @if (c.ignoredRows) { · {{ c.ignoredRows }} ligne(s) illisible(s) }
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="table-wrap">
+        <table class="simple-table count-table">
+          <thead>
+            <tr>
+              <th>Groupe</th><th class="num">Sur Cardmarket</th><th>Catégorie de bulk</th>
+              <th class="num">Dans l'appli</th><th class="num">dont collection</th><th class="num">Écart</th><th>Correction</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of rows(); track r.group) {
+              <tr>
+                <td class="strong">{{ r.group }}</td>
+                <td class="num strong">{{ r.cards | number }}</td>
+                <td>
+                  <mat-form-field subscriptSizing="dynamic" class="category-field">
+                    <mat-select [value]="r.category" (selectionChange)="setCategory(r.group, $event.value)" placeholder="Non comparé">
+                      <mat-option [value]="null">— Non comparé —</mat-option>
+                      @for (cat of c.categories; track cat.name) {
+                        <mat-option [value]="cat.name">{{ cat.name }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </td>
+                <td class="num">{{ r.categoryCards === null ? '—' : (r.categoryCards | number) }}</td>
+                <td class="num muted">{{ r.collectionCards === null ? '—' : (r.collectionCards | number) }}</td>
+                <td class="num strong" [class.positive]="(r.difference ?? 0) > 0" [class.negative]="(r.difference ?? 0) < 0">
+                  {{ r.difference === null ? '—' : r.difference === 0 ? '✓' : ((r.difference > 0 ? '+' : '') + (r.difference | number)) }}
+                </td>
+                <td class="small">
+                  @if (r.difference === null) {
+                    <span class="muted">Choisissez une catégorie</span>
+                  } @else if (r.difference === 0) {
+                    <span class="positive">Le compte est bon</span>
+                  } @else if (r.difference > 0) {
+                    +{{ r.difference | number }} ajoutée(s) depuis ma collection
+                  } @else {
+                    −{{ -r.difference - r.notRemovable | number }} retirée(s) de ma collection
+                    @if (r.notRemovable) {
+                      <div class="warning">{{ r.notRemovable | number }} de trop dans les lots achetés : vente oubliée ?</div>
+                    }
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (duplicateCategory(); as dup) {
+        <p class="warning small">« {{ dup }} » est choisie pour deux groupes : une catégorie par groupe.</p>
+      }
+      <p class="muted small rules">
+        Règles : reverse → Reverses · V, VMAX, VSTAR, EX, GX, ex (et Double / Ultra Rare) → V / EX / GX ·
+        commune, peu commune → Communes · rare : holo à partir d'Écarlate et Violet, sinon Communes · rare holo → Holo.
+      </p>
+    </mat-card-content>
+    <mat-card-actions align="end">
+      <button mat-flat-button type="button" (click)="apply()"
+              [disabled]="applying() || loading() || !!duplicateCategory() || (t.toAdd + t.toRemove) === 0">
+        <mat-icon>done_all</mat-icon> Corriger le bulk
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  @if (c.apart.length) {
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-card-title>Mises à part ({{ t.apart | number }})</mat-card-title>
+        <mat-card-subtitle>Cartes spéciales ou suivies une par une dans l'inventaire : pas comptées dans le bulk.</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <button mat-stroked-button type="button" (click)="showApart.set(!showApart())">
+          <mat-icon>{{ showApart() ? 'expand_less' : 'expand_more' }}</mat-icon> {{ showApart() ? 'Masquer' : 'Voir la liste' }}
+        </button>
+        @if (showApart()) {
+          <div class="table-wrap">
+            <table class="simple-table">
+              <thead><tr><th>Carte</th><th>Code</th><th>Rareté</th><th class="num">Prix</th><th class="num">Qté</th><th>Raison</th></tr></thead>
+              <tbody>
+                @for (a of c.apart; track $index) {
+                  <tr>
+                    <td class="strong">{{ a.name }} @if (a.reverse) { <span class="reverse">Reverse</span> }</td>
+                    <td class="ref">{{ a.setCode }} {{ a.number }}</td>
+                    <td>{{ a.rarity }}</td>
+                    <td class="num">{{ a.price | currency }}</td>
+                    <td class="num">{{ a.amount }}</td>
+                    <td class="muted">{{ a.reason }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  }
+} @else if (!loading()) {
+  <div class="empty-state">
+    <mat-icon>fact_check</mat-icon>
+    <p>Exportez votre stock depuis Cardmarket avec l'extension (fichier CSV), puis choisissez-le ici.</p>
+  </div>
+}

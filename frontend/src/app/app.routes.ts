@@ -28,10 +28,6 @@ export const routes: Routes = [
         loadComponent: () => import('./features/inventory/inventory-list.component').then(m => m.InventoryListComponent)
       },
       {
-        path: 'inventory/cardmarket', title: 'Import Cardmarket — PokéStock',
-        loadComponent: () => import('./features/cardmarket/cardmarket-import.component').then(m => m.CardmarketImportComponent)
-      },
-      {
         path: 'inventory/new', title: 'Nouvel article — PokéStock',
         loadComponent: () => import('./features/inventory/inventory-form.component').then(m => m.InventoryFormComponent)
       },
@@ -74,6 +70,10 @@ export const routes: Routes = [
       {
         path: 'bulk', title: 'Bulk — PokéStock',
         loadComponent: () => import('./features/bulk/bulk.component').then(m => m.BulkComponent)
+      },
+      {
+        path: 'bulk/cardmarket', title: 'Comptage Cardmarket — PokéStock',
+        loadComponent: () => import('./features/cardmarket/cardmarket-count.component').then(m => m.CardmarketCountComponent)
       },
       {
         path: 'alerts', title: 'Alertes — PokéStock',

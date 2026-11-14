@@ -404,7 +404,7 @@ export interface Statistics {
   shippedSalesCount: number;
 }
 
-// ----- Import du stock Cardmarket (/api/cardmarket/import) -----
+// ----- Comptage du bulk avec l'export Cardmarket (/api/cardmarket/count) -----
 /** Ligne de l'export Cardmarket envoyée au serveur. */
 export interface CardmarketRow {
   idProduct: number;
@@ -420,57 +420,33 @@ export interface CardmarketRow {
   amount: number;
 }
 
-/** Origine des cartes à ajouter : sorties du bulk, de la collection (0 €), ou ignorées. */
-export type CardmarketOrigin = 'bulk' | 'collection' | 'ignore';
-
-export interface CardmarketImportRequest {
+export interface CardmarketCountRequest {
   rows: CardmarketRow[];
-  fullStock: boolean;
-  bulkCategory?: string | null;
-  choices?: { key: string; origin: CardmarketOrigin }[];
+  /** Groupe du comptage -> catégorie de bulk de l'appli. */
+  mappings?: { group: string; category: string | null }[];
 }
 
-export interface CardmarketLine {
-  key: string;
-  idProduct: number;
-  name: string;
-  setCode: string | null;
-  number: string | null;
-  expansion: string | null;
-  rarity: string | null;
-  language: string;
-  condition: ItemCondition;
-  reverse: boolean;
-  price: number;
-  cardmarketQuantity: number;
-  appQuantity: number;
-  catalogCardId: number | null;
-}
-
-export interface CardmarketExtra {
-  name: string;
+export interface CardmarketGroup {
+  group: string;
+  cards: number;
+  value: number;
   category: string | null;
-  condition: ItemCondition;
-  appQuantity: number;
-  cardmarketQuantity: number;
-  firstItemId: number;
+  appCards: number | null;
+  collectionCards: number | null;
+  /** Cartes Cardmarket − cartes de la catégorie (null si aucune catégorie associée). */
+  difference: number | null;
 }
 
-export interface CardmarketAnalysis {
-  lines: CardmarketLine[];
-  extras: CardmarketExtra[];
-  bulkPools: { name: string; cards: number; averageCost: number }[];
+export interface CardmarketCount {
+  groups: CardmarketGroup[];
+  categories: { name: string; cards: number; collectionCards: number }[];
+  apart: { name: string; setCode: string | null; number: string | null; rarity: string | null; reverse: boolean; price: number; amount: number; reason: string }[];
   ignoredRows: number;
 }
 
-export interface CardmarketImportResult {
-  cardsAdded: number;
-  fromBulk: number;
-  fromCollection: number;
-  catalogCardsCreated: number;
-  listed: number;
-  unlisted: number;
-  collectionTransferNumber: string | null;
+export interface CardmarketCountResult {
+  adjustments: { group: string; category: string; added: number; removed: number; notRemoved: number }[];
+  transferNumber: string | null;
 }
 
 // ----- Statistiques détaillées (/api/statistics/insights) -----

@@ -6,6 +6,10 @@
   </div>
   <div class="page-actions">
     <button mat-stroked-button (click)="showSettings.set(!showSettings())"><mat-icon>tune</mat-icon> Réglages</button>
+    <a mat-stroked-button routerLink="/bulk/cardmarket"
+       matTooltip="Compter les cartes en vente sur Cardmarket (export de l'extension) et corriger le stock du bulk">
+      <mat-icon>fact_check</mat-icon> Comptage Cardmarket
+    </a>
     <button mat-stroked-button (click)="openRebalance()"
             matTooltip="Recalcule le coût et le bénéfice des ventes de bulk déjà faites au coût moyen (aperçu avant d'appliquer)">
       <mat-icon>calculate</mat-icon> Recalculer les ventes
