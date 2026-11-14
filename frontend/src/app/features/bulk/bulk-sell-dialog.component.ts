@@ -26,7 +26,7 @@ export interface BulkSellDialogData {
 
 /**
  * Vente d'un lot de bulk : nombre de cartes (ou poids) + prix du lot.
- * Les cartes sont prélevées au prorata sur tous les lots (coût moyen du stock, collection et achats mélangés) ; une vente classique est créée,
+ * Les cartes sont prélevées sur les lots achetés d'abord (du plus ancien au plus récent), puis sur la collection ; une vente classique est créée,
  * donc le CA, l'URSSAF, le livre des recettes et les statistiques sont à jour.
  */
 @Component({
@@ -193,7 +193,7 @@ export class BulkSellDialogComponent {
   readonly lotPrice = computed(() => this.priceField() ?? 0);
   readonly pricePerCard = computed(() => unitPrice(this.lotPrice(), this.cards()));
 
-  /** Coût réel des cartes vendues (prélevées au prorata de chaque lot = coût moyen du stock), bénéfice et marge. */
+  /** Coût réel des cartes vendues (achats d'abord, puis collection), bénéfice et marge. */
   readonly result = computed(() => {
     const product = this.product();
     const allocation = product ? allocateBulk(product.lots, this.cards()) : null;

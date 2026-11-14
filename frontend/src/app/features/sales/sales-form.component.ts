@@ -21,7 +21,7 @@ import {
   InventoryItem, PaymentMethod, Sale, SaleInput, SaleLineInput, SalePlatform, SaleRefund, ShippingCarrier, ShippingSupply,
   ShippingUsageInput
 } from '../../core/models';
-import { allocateProportional, groupProducts, LotAllocation, ProductGroup, productKey } from '../../core/products';
+import { allocatePurchasesFirst, groupProducts, LotAllocation, ProductGroup, productKey } from '../../core/products';
 import { groupSupplies, SupplyAllocation, SupplyGroup, supplyKey } from '../../core/shipping';
 import { InventoryService, SaleService, ShippingService } from '../../core/services/api.services';
 import { ShippingSupplyDialogComponent, ShippingSupplyDialogData } from '../shipping/shipping-supply-dialog.component';
@@ -472,7 +472,7 @@ export class SalesFormComponent implements OnInit {
   }
 
   /**
-   * Répartition FIFO de chaque ligne sur les lots de son produit (au prorata pour le bulk) : les lots les plus anciens
+   * Répartition FIFO de chaque ligne sur les lots de son produit (bulk : achats d'abord, puis collection) : les lots les plus anciens
    * sont vendus en premier. Plusieurs lignes du même produit se partagent les lots dans l'ordre.
    */
   private allocate(): Map<SaleLineForm, LineAllocation> {
@@ -483,8 +483,8 @@ export class SalesFormComponent implements OnInit {
       const lots = product?.lots ?? [];
       const wanted = line.controls.quantity.value || 0;
       if (product?.type === 'Bulk') {
-        // Bulk : prélevé au prorata de chaque lot (coût moyen), collection et achats étant mélangés.
-        const taken = allocateProportional(lots, wanted, lot => left.get(lot.id) ?? this.lotStock(lot));
+        // Bulk : les lots achetés partent d'abord (du plus ancien au plus récent), puis la collection.
+        const taken = allocatePurchasesFirst(lots, wanted, lot => left.get(lot.id) ?? this.lotStock(lot));
         for (const a of taken.lots) left.set(a.lot.id, (left.get(a.lot.id) ?? this.lotStock(a.lot)) - a.quantity);
         result.set(line, taken);
       } else {

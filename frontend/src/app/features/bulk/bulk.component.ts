@@ -177,7 +177,7 @@ export class BulkComponent {
       .subscribe(result => { if (result) this.load(); });
   }
 
-  /** Recalcul des ventes de bulk passées au coût moyen (aperçu puis confirmation). */
+  /** Recalcul des ventes de bulk passées avec la règle « achats d'abord » (aperçu puis confirmation). */
   openRebalance(): void {
     this.dialog.open(BulkRebalanceDialogComponent, { width: '860px' }).afterClosed()
       .subscribe(applied => { if (applied) this.load(); });

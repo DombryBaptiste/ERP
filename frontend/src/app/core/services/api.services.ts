@@ -113,7 +113,7 @@ export class BulkService {
 
   settings(): Observable<BulkSettings> { return this.http.get<BulkSettings>(this.url); }
   saveSettings(settings: BulkSettings): Observable<BulkSettings> { return this.http.put<BulkSettings>(this.url, settings); }
-  /** Aperçu du recalcul des ventes de bulk au coût moyen (rien n'est enregistré). */
+  /** Aperçu du recalcul des ventes de bulk, achats d'abord (rien n'est enregistré). */
   previewRebalance(): Observable<BulkRebalance> { return this.http.get<BulkRebalance>('/api/bulk/rebalance'); }
   applyRebalance(): Observable<BulkRebalance> { return this.http.post<BulkRebalance>('/api/bulk/rebalance', {}); }
 }
